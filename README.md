@@ -1,8 +1,11 @@
-Hello!
-
 # Meaning — Analytics Chat
 
 Chat with your Google Analytics data using natural language. Connect your GA4 account and ask questions like "What are my top traffic sources?" or "How many users visited this week?"
+
+## What’s in this repo
+
+- **Local:** `npm run dev` (Next.js dev server).
+- **Production (e.g. Code Capsules):** Run Command = `npm install && npm run build && node server.js`. No separate “build” step on the host; `server.js` is a small Node server that serves the built Next app and listens on `PORT` / `0.0.0.0`.
 
 ## Architecture
 
@@ -52,15 +55,22 @@ NEXTAUTH_URL=http://localhost:3000
 ### 3. Install & Run
 
 ```bash
+cp .env.example .env
+# Edit .env and add your values (see above). For a quick local test, at minimum set AUTH_SECRET to any non-empty string.
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in with Google, select a GA4 property, and start chatting.
+Open [http://localhost:3000](http://localhost:3000). Sign in with Google (needs real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`), select a GA4 property, and start chatting. Chat requires a valid `ANTHROPIC_API_KEY`.
 
 ### Deploy on Code Capsules
 
-This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
+This repo is set up for **Code Capsules** (no separate build phase there, so install + build + start happen in one Run Command).
+
+| Where        | How you run it |
+|-------------|----------------|
+| **Local**   | `npm run dev` (Next.js dev server). |
+| **Code Capsules** | Run Command: `npm install && npm run build && node server.js`. The custom `server.js` listens on `PORT` and `0.0.0.0` so the capsule can reach it. |
 
 1. **Create a Backend Capsule** and connect this GitHub repo.
 

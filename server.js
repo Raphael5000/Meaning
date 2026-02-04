@@ -1,3 +1,8 @@
+/**
+ * Production server for Code Capsules (and any host with no separate build step).
+ * Serves the built Next app and listens on PORT and 0.0.0.0 so the platform can reach it.
+ * Run after: npm install && npm run build
+ */
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
