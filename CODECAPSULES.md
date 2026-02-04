@@ -12,7 +12,7 @@ Use this as a checklist. Code Capsules has **no separate build step**—everythi
 
 | Field           | Value |
 |----------------|--------|
-| **Run Command** | `npm install && npm run build && node server.js` |
+| **Run Command** | `npm install && npm run build && node server.js` (build uses `--webpack` for lower memory than Turbopack) |
 | **Network Port**| `3000` |
 
 You **must** set Run Command to the line above. If it’s blank, Code Capsules may only run `npm start` and never build, so you get a bad gateway (502).
