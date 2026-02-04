@@ -100,6 +100,15 @@ This repo is set up for **Code Capsules** (no separate build phase there, so ins
   - **Wrong port**: In Capsule Parameters, **Network Port** should be `3000` so it matches what the app uses.
 - You can ping the health endpoint to confirm the process is up: `https://<your-capsule>.codecapsules.space/api/health` (should return `{"ok":true}`).
 
+**Why won’t it deploy?**
+
+1. **Run Command not set** — Code Capsules doesn’t have a separate “build” step. If Run Command is blank, it may only run `npm start`, so the app never runs `npm run build` and there’s no `.next` folder → 502. **Fix:** Set Run Command to `npm install && npm run build && node server.js`.
+2. **Wrong port** — Capsule Parameters → Network Port must be `3000` so it matches what `server.js` uses (`process.env.PORT` or 3000).
+3. **Missing env vars** — `AUTH_SECRET` and `NEXTAUTH_URL` must be set or the app can crash. Add all variables from the table above.
+4. **Check runtime logs** — In the capsule’s **Logs** tab (not the build log), look for errors when the app starts or when you open the site. You should see `> Ready on http://0.0.0.0:3000`; if not, the log will show the failure.
+
+See **[CODECAPSULES.md](./CODECAPSULES.md)** for a step-by-step deployment checklist.
+
 ## GA4 Tools Available to the LLM
 
 | Tool | Description |
