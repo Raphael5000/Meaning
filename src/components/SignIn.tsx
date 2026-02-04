@@ -24,7 +24,7 @@ export default function SignIn() {
 
         <button
           onClick={() => signIn("google")}
-          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
+          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-[100px] px-6 py-3 text-sm font-medium transition-colors"
           style={{
             background: "white",
             color: "#1f1f1f",

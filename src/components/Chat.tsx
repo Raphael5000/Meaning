@@ -102,7 +102,7 @@ export default function Chat() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleNewChat}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
+            className="flex cursor-pointer items-center gap-2 rounded-[100px] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
             style={{ color: "var(--text-primary)" }}
           >
             <svg
@@ -143,7 +143,7 @@ export default function Chat() {
             )}
             <button
               onClick={() => signOut()}
-              className="cursor-pointer rounded-lg px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
+              className="cursor-pointer rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
               style={{ color: "var(--text-muted)" }}
             >
               Sign out
@@ -199,7 +199,7 @@ export default function Chat() {
                   <button
                     key={q}
                     onClick={() => sendMessage(q)}
-                    className="cursor-pointer rounded-xl border p-3 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                    className="cursor-pointer rounded-[100px] border p-3 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
                     style={{
                       borderColor: "var(--border-color)",
                       color: "var(--text-secondary)",
@@ -244,7 +244,7 @@ export default function Chat() {
           {error}
           <button
             onClick={() => setError(null)}
-            className="ml-auto cursor-pointer text-xs underline"
+            className="ml-auto cursor-pointer rounded-[100px] px-3 py-1 text-xs underline"
           >
             Dismiss
           </button>

@@ -191,11 +191,11 @@ body {
 @keyframes gentlePulse {
   0%,
   100% {
-    opacity: 0.2;
+    opacity: 0.12;
     transform: scale(1);
   }
   50% {
-    opacity: 0.3;
+    opacity: 0.18;
     transform: scale(1.05);
   }
 }
@@ -203,11 +203,11 @@ body {
 @keyframes gentlePulse2 {
   0%,
   100% {
-    opacity: 0.1;
+    opacity: 0.06;
     transform: scale(1);
   }
   50% {
-    opacity: 0.15;
+    opacity: 0.09;
     transform: scale(1.08);
   }
 }
@@ -245,4 +245,30 @@ body {
 .landing-feature-card {
   transition: transform 0.3s ease, border-color 0.3s ease,
     box-shadow 0.3s ease;
+}
+
+/* Scroll-triggered fade-in */
+.scroll-fade-in {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s ease-out;
+}
+
+.scroll-fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Noise texture overlay for cards (Diem-style) */
+.card-noise {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
 }

@@ -85,7 +85,7 @@ export default function PropertySelector({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[100px] px-3 py-2 text-sm transition-colors"
         style={{
           background: "var(--bg-tertiary)",
           color: "var(--text-primary)",
@@ -139,7 +139,7 @@ export default function PropertySelector({
                 onSelect(prop.propertyId, prop.displayName);
                 setOpen(false);
               }}
-              className="flex w-full cursor-pointer flex-col px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+              className="flex w-full cursor-pointer flex-col rounded-[100px] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
               style={{
                 color:
                   prop.propertyId === selectedPropertyId
