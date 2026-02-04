@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
@@ -507,6 +509,59 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="px-6 py-24 md:px-12">
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-12 text-center">
+            <div
+              className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+              style={{
+                background: "rgba(16, 163, 127, 0.1)",
+                border: "1px solid rgba(16, 163, 127, 0.3)",
+                color: "var(--accent)",
+              }}
+            >
+              FAQ
+            </div>
+            <h2
+              className="text-3xl font-bold md:text-5xl"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Frequently Asked Questions
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <FaqItem
+              question="How does Meaning work?"
+              answer="Meaning connects to your Google Analytics 4 properties using read-only access. You ask questions in plain English, and our AI translates them into the right analytics queries, then presents the results in a clear, conversational format."
+            />
+            <FaqItem
+              question="Is my analytics data stored or shared?"
+              answer="No. Meaning only requests read-only access to your Google Analytics data. Your data is queried in real time and is never stored on our servers or shared with third parties."
+            />
+            <FaqItem
+              question="Does my personal data get accessed by Meaning or any third parties?"
+              answer="We only access the Google Analytics data you explicitly grant us permission to read. We do not access personal files, emails, or any other Google account data. The AI processes your queries securely and does not retain conversation history between sessions."
+            />
+          </div>
+
+          <p
+            className="mt-8 text-center text-sm"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Still have a question?{" "}
+            <a
+              href="mailto:hello@meaning.chat"
+              style={{ color: "var(--accent)" }}
+              className="underline-offset-4 hover:underline"
+            >
+              Email us
+            </a>
+          </p>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer
         className="px-6 py-8 md:px-12"
@@ -627,6 +682,59 @@ function StepCard({
       <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
         {description}
       </p>
+    </div>
+  );
+}
+
+function FaqItem({
+  question,
+  answer,
+}: {
+  question: string;
+  answer: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="cursor-pointer overflow-hidden rounded-xl transition-colors duration-200"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-color)",
+      }}
+      onClick={() => setOpen(!open)}
+    >
+      <div className="flex items-center justify-between px-6 py-5">
+        <span
+          className="text-base font-medium md:text-lg"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          {question}
+        </span>
+        <span
+          className="ml-4 flex h-8 w-8 shrink-0 items-center justify-center text-xl transition-transform duration-300"
+          style={{
+            color: "var(--text-muted)",
+            transform: open ? "rotate(45deg)" : "rotate(0deg)",
+          }}
+        >
+          +
+        </span>
+      </div>
+      <div
+        className="transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: open ? "200px" : "0",
+          opacity: open ? 1 : 0,
+        }}
+      >
+        <p
+          className="px-6 pb-5 text-sm leading-relaxed"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {answer}
+        </p>
+      </div>
     </div>
   );
 }
