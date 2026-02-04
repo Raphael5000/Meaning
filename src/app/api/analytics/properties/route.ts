@@ -15,6 +15,17 @@ export async function GET() {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Failed to fetch properties";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Include full error body from Google API if present (helps debug "API not enabled")
+    const body =
+      error &&
+      typeof error === "object" &&
+      "body" in error &&
+      typeof (error as { body?: unknown }).body === "object"
+        ? (error as { body: unknown }).body
+        : undefined;
+    return NextResponse.json(
+      { error: message, details: body },
+      { status: 500 }
+    );
   }
 }
