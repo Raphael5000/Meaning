@@ -160,3 +160,89 @@ body {
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Landing page animations */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUpDelay {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  30% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gentlePulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes gentlePulse2 {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes softBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+.landing-fade-up {
+  animation: fadeUp 0.8s ease-out forwards;
+}
+
+.landing-fade-up-delay {
+  animation: fadeUpDelay 1.2s ease-out forwards;
+}
+
+.landing-glow-1 {
+  animation: gentlePulse 6s ease-in-out infinite;
+}
+
+.landing-glow-2 {
+  animation: gentlePulse2 8s ease-in-out infinite;
+}
+
+.landing-bounce {
+  animation: softBounce 2s ease-in-out infinite;
+}
+
+.landing-feature-card {
+  transition: transform 0.3s ease, border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
