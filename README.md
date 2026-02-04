@@ -1,3 +1,5 @@
+Hello!
+
 # Meaning — Analytics Chat
 
 Chat with your Google Analytics data using natural language. Connect your GA4 account and ask questions like "What are my top traffic sources?" or "How many users visited this week?"
