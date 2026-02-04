@@ -56,6 +56,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000), sign in with Google, select a GA4 property, and start chatting.
 
+### Deploy on Code Capsules
+
+This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
+
+1. **Create a Backend Capsule** and connect this GitHub repo.
+
+2. **Capsule Parameters** (Config tab → Edit Capsule Parameters):
+   - **Build Command**: `npm install && npm run build`
+   - **Run Command**: leave **blank** (Code Capsules will use the `Procfile`, which runs Next on `$PORT` and `0.0.0.0`).
+   - **Network Port**: `3000` (default).
+
+3. **Environment variables** (Config tab): add the same as in Setup, with production values:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `ANTHROPIC_API_KEY`
+   - `AUTH_SECRET` (e.g. `openssl rand -base64 32`)
+   - `NEXTAUTH_URL` = your capsule URL, e.g. `https://<your-capsule>.codecapsules.space`
+
+4. **Google Cloud Console** → your OAuth 2.0 client → add authorized redirect URI:  
+   `https://<your-capsule>.codecapsules.space/api/auth/callback/google`
+
+5. Redeploy. The `Procfile` runs `npx next start -H 0.0.0.0 -p $PORT` so the app is reachable by Code Capsules.
+
 ## GA4 Tools Available to the LLM
 
 | Tool | Description |
