@@ -66,7 +66,7 @@ This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
 
 2. **Capsule Parameters** (Config tab → Edit Capsule Parameters):
    - **Build Command**: `npm install && npm run build`
-   - **Run Command**: leave **blank** (Code Capsules will use the `Procfile`, which runs Next on `$PORT` and `0.0.0.0`).
+   - **Run Command**: leave **blank** (uses `Procfile` → `npm run start`; Next listens on `PORT` or 3000 and `0.0.0.0`).
    - **Network Port**: `3000` (default).
 
 3. **Environment variables** (Config tab): add the same as in Setup, with production values:
@@ -79,7 +79,14 @@ This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
 4. **Google Cloud Console** → your OAuth 2.0 client → add authorized redirect URI:  
    `https://<your-capsule>.codecapsules.space/api/auth/callback/google`
 
-5. Redeploy. The `Procfile` runs `npx next start -H 0.0.0.0 -p $PORT` so the app is reachable by Code Capsules.
+5. Redeploy. The `Procfile` runs `npm run start` so the app is reachable by Code Capsules.
+
+**If you see "Service Unavailable" (503):**
+
+- Open the capsule **Logs** tab (runtime logs, not build logs) and check for errors when the app starts or when you open the site. Common causes:
+  - **Missing env vars**: `AUTH_SECRET` and `NEXTAUTH_URL` must be set; without them the app can crash on requests.
+  - **Wrong port**: In Capsule Parameters, **Network Port** should be `3000` so it matches what the app uses.
+- You can ping the health endpoint to confirm the process is up: `https://<your-capsule>.codecapsules.space/api/health` (should return `{"ok":true}`).
 
 ## GA4 Tools Available to the LLM
 
