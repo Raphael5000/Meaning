@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import SignIn from "@/components/SignIn";
 import Chat from "@/components/Chat";
+import LandingPage from "@/components/LandingPage";
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const [showLogin, setShowLogin] = useState(false);
 
   if (status === "loading") {
     return (
@@ -24,9 +27,13 @@ export default function Home() {
     );
   }
 
-  if (!session) {
+  if (session) {
+    return <Chat />;
+  }
+
+  if (showLogin) {
     return <SignIn />;
   }
 
-  return <Chat />;
+  return <LandingPage onTryBeta={() => setShowLogin(true)} />;
 }
