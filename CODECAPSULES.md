@@ -19,6 +19,8 @@ You **must** set Run Command to the line above. If it’s blank, Code Capsules m
 
 ## 3. Config → Environment variables
 
+**Required for the app:**
+
 Add these (use your real values and your capsule URL):
 
 - `GOOGLE_CLIENT_ID`
@@ -26,6 +28,14 @@ Add these (use your real values and your capsule URL):
 - `ANTHROPIC_API_KEY`
 - `AUTH_SECRET` — e.g. run `openssl rand -base64 32` and paste the output
 - `NEXTAUTH_URL` — your app URL, e.g. `https://<your-capsule>.codecapsules.space`
+
+**If the build stops at “Creating an optimized production build…” with no error:**
+
+The process is likely being killed by a **timeout** or **out of memory**. Add this so the build has more memory and a chance to finish:
+
+- `NODE_OPTIONS` — set to `--max-old-space-size=2048` (or `3072` if you have headroom)
+
+If Code Capsules has a **build** or **run timeout** (e.g. in Config or capsule settings), increase it to at least **10 minutes** so the Next.js production build can complete.
 
 Save.
 
