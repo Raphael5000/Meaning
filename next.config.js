@@ -1,8 +1,7 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Use this project as the root (avoids "multiple lockfiles" warning when one exists in a parent dir)
   turbopack: { root: process.cwd() },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
