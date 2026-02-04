@@ -65,8 +65,10 @@ This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
 1. **Create a Backend Capsule** and connect this GitHub repo.
 
 2. **Capsule Parameters** (Config tab → Edit Capsule Parameters):
-   - **Build Command**: `npm install && npm run build`
-   - **Run Command**: leave **blank** (uses `Procfile` → `npm run start`; Next listens on `PORT` or 3000 and `0.0.0.0`).
+   - Code Capsules has no separate build step, so use the **Run Command** to install, build, and start in one go. Set **Run Command** to:
+     ```bash
+     npm install && npm run build && node server.js
+     ```
    - **Network Port**: `3000` (default).
 
 3. **Environment variables** (Config tab): add the same as in Setup, with production values:
@@ -79,7 +81,7 @@ This app is set up for **Code Capsules** only (no Google Cloud / buildpacks).
 4. **Google Cloud Console** → your OAuth 2.0 client → add authorized redirect URI:  
    `https://<your-capsule>.codecapsules.space/api/auth/callback/google`
 
-5. Redeploy. The `Procfile` runs `npm run start` so the app is reachable by Code Capsules.
+5. Redeploy. The run command installs deps, builds the app, then starts the custom server so the app listens on Code Capsules’ port and is reachable.
 
 **If you see "Service Unavailable" (503):**
 
