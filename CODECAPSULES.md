@@ -50,7 +50,11 @@ Save.
 
 Trigger a new deploy (e.g. push a commit or use “Redeploy” in Code Capsules). Wait for the build to finish.
 
-## 6. If it still doesn’t work
+## 6. Build still stops after upgrading?
+
+Some hosts use a separate build environment (fixed RAM/CPU) that is not upgraded with your capsule. Wait 4-5 minutes and scroll to the very end of the build log; look for `Build finished OK` or an error. Ask Code Capsules if the build step has its own memory/timeout limits.
+
+## 7. If it still doesn’t work
 
 - Open the capsule **Logs** tab (runtime logs, not the build log).
 - Reproduce the issue (open the site), then check the logs for errors.
