@@ -6,12 +6,13 @@ import PropertySelector from "./PropertySelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+import {
+  getChats,
+  saveChats,
+  titleFromFirstMessage,
+  type Message,
+  type StoredChat,
+} from "@/lib/chatHistory";
 
 const EXAMPLE_QUESTIONS = [
   "How many users visited my site this week?",
@@ -20,18 +21,61 @@ const EXAMPLE_QUESTIONS = [
   "Who is on my site right now?",
 ];
 
+function truncateTitle(title: string, max = 36): string {
+  if (title.length <= max) return title;
+  return title.slice(0, max).trim() + "…";
+}
+
 export default function Chat() {
   const { data: session } = useSession();
+  const userId = (session?.user as { id?: string })?.id ?? session?.user?.email ?? "anonymous";
+
+  const [chats, setChats] = useState<StoredChat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load chats from storage when user is available
+  useEffect(() => {
+    setChats(getChats(userId));
+  }, [userId]);
+
+  // Persist chats whenever they change
+  useEffect(() => {
+    if (chats.length === 0) return;
+    saveChats(userId, chats);
+  }, [userId, chats]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function selectChat(chat: StoredChat) {
+    setCurrentChatId(chat.id);
+    setMessages(chat.messages);
+    setError(null);
+    setSidebarOpen(false);
+  }
+
+  function handleNewChat() {
+    setCurrentChatId(null);
+    setMessages([]);
+    setError(null);
+  }
+
+  function updateCurrentChatInList(
+    updater: (chat: StoredChat) => StoredChat
+  ): void {
+    if (!currentChatId) return;
+    setChats((prev) =>
+      prev.map((c) => (c.id === currentChatId ? updater(c) : c))
+    );
+  }
 
   async function sendMessage(content: string) {
     if (!propertyId) {
@@ -48,7 +92,31 @@ export default function Chat() {
     };
 
     const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    const isNewChat = currentChatId === null && messages.length === 0;
+
+    if (isNewChat) {
+      const newChat: StoredChat = {
+        id: crypto.randomUUID(),
+        title: titleFromFirstMessage(content),
+        messages: [userMessage],
+        createdAt: Date.now(),
+      };
+      setChats((prev) => [newChat, ...prev]);
+      setCurrentChatId(newChat.id);
+      setMessages([userMessage]);
+    } else {
+      setMessages(updatedMessages);
+      if (currentChatId && messages.length === 0) {
+        updateCurrentChatInList((c) => ({
+          ...c,
+          title: titleFromFirstMessage(content),
+          messages: updatedMessages,
+        }));
+      } else {
+        updateCurrentChatInList((c) => ({ ...c, messages: updatedMessages }));
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -77,7 +145,9 @@ export default function Chat() {
         content: data.message,
       };
 
-      setMessages([...updatedMessages, assistantMessage]);
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+      updateCurrentChatInList((c) => ({ ...c, messages: finalMessages }));
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -87,172 +157,249 @@ export default function Chat() {
     }
   }
 
-  function handleNewChat() {
-    setMessages([]);
-    setError(null);
+  function deleteChat(e: React.MouseEvent, chatId: string) {
+    e.stopPropagation();
+    setChats((prev) => prev.filter((c) => c.id !== chatId));
+    if (currentChatId === chatId) {
+      setCurrentChatId(null);
+      setMessages([]);
+    }
   }
 
+  const sortedChats = [...chats].sort((a, b) => b.createdAt - a.createdAt);
+
   return (
-    <div className="flex h-screen flex-col" style={{ background: "var(--bg-primary)" }}>
-      {/* Header */}
-      <header
-        className="flex items-center justify-between border-b px-4 py-3"
-        style={{ borderColor: "var(--border-color)" }}
+    <div
+      className="flex h-screen"
+      style={{ background: "var(--bg-primary)" }}
+    >
+      {/* Sidebar */}
+      <aside
+        className={`flex shrink-0 flex-col border-r transition-[width] duration-200 md:flex ${
+          sidebarOpen ? "w-64" : "w-0 overflow-hidden border-transparent md:w-0"
+        }`}
+        style={{
+          borderColor: "var(--border-color)",
+          background: "var(--bg-secondary)",
+        }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex h-14 min-w-[16rem] items-center justify-between border-b px-3 md:min-w-0" style={{ borderColor: "var(--border-color)" }}>
           <button
             onClick={handleNewChat}
-            className="flex cursor-pointer items-center gap-2 rounded-[100px] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
             style={{ color: "var(--text-primary)" }}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             New chat
           </button>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="w-64">
-            <PropertySelector
-              selectedPropertyId={propertyId}
-              onSelect={(id, name) => {
-                setPropertyId(id);
-                setPropertyName(name);
-              }}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {session?.user?.image && (
-              <img
-                src={session.user.image}
-                alt=""
-                className="h-7 w-7 rounded-full"
-              />
-            )}
-            <button
-              onClick={() => signOut()}
-              className="cursor-pointer rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto">
-        {messages.length === 0 && !loading ? (
-          /* Welcome screen */
-          <div className="flex h-full flex-col items-center justify-center px-4">
-            <div
-              className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-              style={{ background: "var(--accent)" }}
-            >
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 20V10" />
-                <path d="M12 20V4" />
-                <path d="M6 20v-6" />
-              </svg>
-            </div>
-            <h2
-              className="mb-2 text-xl font-semibold"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {propertyName
-                ? `Ask about ${propertyName}`
-                : "Chat with your Analytics"}
-            </h2>
-            <p
-              className="mb-8 max-w-md text-center text-sm"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {propertyId
-                ? "Ask any question about your website analytics in plain English."
-                : "Select a GA4 property above to get started."}
+        <div className="flex-1 overflow-y-auto p-2">
+          <p className="mb-2 px-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Chat history
+          </p>
+          {sortedChats.length === 0 ? (
+            <p className="px-2 text-sm" style={{ color: "var(--text-muted)" }}>
+              No chats yet
             </p>
-
-            {propertyId && (
-              <div className="grid max-w-2xl grid-cols-2 gap-3">
-                {EXAMPLE_QUESTIONS.map((q) => (
+          ) : (
+            <ul className="space-y-0.5">
+              {sortedChats.map((chat) => (
+                <li key={chat.id}>
                   <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    className="cursor-pointer rounded-[100px] border p-3 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                    type="button"
+                    onClick={() => selectChat(chat)}
+                    className="group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
                     style={{
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-secondary)",
+                      color: "var(--text-primary)",
+                      backgroundColor: currentChatId === chat.id ? "var(--bg-hover)" : undefined,
                     }}
                   >
-                    {q}
+                    <span className="min-w-0 flex-1 truncate" title={chat.title}>
+                      {truncateTitle(chat.title)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteChat(e, chat.id)}
+                      className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-[var(--bg-tertiary)] group-hover:opacity-100"
+                      style={{ color: "var(--text-muted)" }}
+                      aria-label="Delete chat"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
                   </button>
-                ))}
-              </div>
-            )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+
+      {/* Main chat area */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Header */}
+        <header
+          className="flex shrink-0 items-center justify-between border-b px-3 py-2 md:px-4 md:py-3"
+          style={{ borderColor: "var(--border-color)" }}
+        >
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((o) => !o)}
+              className="flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ color: "var(--text-primary)" }}
+              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              {sidebarOpen ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
+            </button>
           </div>
-        ) : (
-          /* Message list */
-          <div>
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
-            ))}
-            {loading && <TypingIndicator />}
-            <div ref={messagesEndRef} />
+
+          <div className="flex items-center gap-3">
+            <div className="w-48 md:w-64">
+              <PropertySelector
+                selectedPropertyId={propertyId}
+                onSelect={(id, name) => {
+                  setPropertyId(id);
+                  setPropertyName(name);
+                }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {session?.user?.image && (
+                <img
+                  src={session.user.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full"
+                />
+              )}
+              <button
+                onClick={() => signOut()}
+                className="cursor-pointer rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto">
+          {messages.length === 0 && !loading ? (
+            <div className="flex h-full flex-col items-center justify-center px-4">
+              <div
+                className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ background: "var(--accent)" }}
+              >
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 20V10" />
+                  <path d="M12 20V4" />
+                  <path d="M6 20v-6" />
+                </svg>
+              </div>
+              <h2
+                className="mb-2 text-xl font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {propertyName
+                  ? `Ask about ${propertyName}`
+                  : "Chat with your Analytics"}
+              </h2>
+              <p
+                className="mb-8 max-w-md text-center text-sm"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {propertyId
+                  ? "Ask any question about your website analytics in plain English."
+                  : "Select a GA4 property above to get started."}
+              </p>
+
+              {propertyId && (
+                <div className="grid max-w-2xl grid-cols-2 gap-3">
+                  {EXAMPLE_QUESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => sendMessage(q)}
+                      className="cursor-pointer rounded-[100px] border p-3 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {messages.map((msg) => (
+                <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+              ))}
+              {loading && <TypingIndicator />}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Error banner */}
+        {error && (
+          <div
+            className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2 text-sm"
+            style={{ color: "var(--error)" }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto cursor-pointer rounded-[100px] px-3 py-1 text-xs underline"
+            >
+              Dismiss
+            </button>
           </div>
         )}
+
+        <ChatInput onSend={sendMessage} disabled={loading || !propertyId} />
       </div>
-
-      {/* Error banner */}
-      {error && (
-        <div
-          className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2 text-sm"
-          style={{ color: "var(--error)" }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          {error}
-          <button
-            onClick={() => setError(null)}
-            className="ml-auto cursor-pointer rounded-[100px] px-3 py-1 text-xs underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Input */}
-      <ChatInput onSend={sendMessage} disabled={loading || !propertyId} />
     </div>
   );
 }
