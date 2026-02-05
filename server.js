@@ -23,5 +23,6 @@ app.prepare().then(() => {
   });
 }).catch((err) => {
   console.error("Failed to start server:", err);
+  if (err.stack) console.error(err.stack);
   process.exit(1);
 });
