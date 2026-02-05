@@ -1,8 +1,22 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+// Share auth cookies across www and apex (e.g. usemeaning.io and www.usemeaning.io)
+// so PKCE/state are available on callback regardless of which host the user started on.
+const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
+const cookieDomain =
+  nextAuthUrl.includes("usemeaning.io") ? ".usemeaning.io" : undefined;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  ...(cookieDomain && {
+    cookies: {
+      pkceCodeVerifier: { options: { domain: cookieDomain } },
+      state: { options: { domain: cookieDomain } },
+      sessionToken: { options: { domain: cookieDomain } },
+      callbackUrl: { options: { domain: cookieDomain } },
+    },
+  }),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
