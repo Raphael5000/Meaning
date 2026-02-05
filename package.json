@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "echo 'Build starting...' && next build --webpack && echo 'Build finished OK'",
     "start": "node server.js",
     "lint": "next lint"
