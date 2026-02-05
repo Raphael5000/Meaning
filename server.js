@@ -12,7 +12,7 @@ const hostname = "0.0.0.0";
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 
-console.log(`Starting server on ${hostname}:${port}...`);
+console.log(`PORT=${process.env.PORT ?? 'not set'} -> listening on ${hostname}:${port}`);
 
 app.prepare().then(() => {
   createServer((req, res) => {
