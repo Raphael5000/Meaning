@@ -1,11 +1,17 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
-// Share auth cookies across www and apex (e.g. usemeaning.io and www.usemeaning.io)
-// so PKCE/state are available on callback regardless of which host the user started on.
+// Share auth cookies across www and apex so PKCE/state are available on callback.
+// Set AUTH_COOKIE_DOMAIN= in env to disable (e.g. to debug 502).
 const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
+const isProductionUsemeaning =
+  nextAuthUrl.startsWith("https://") && nextAuthUrl.includes("usemeaning.io");
 const cookieDomain =
-  nextAuthUrl.includes("usemeaning.io") ? ".usemeaning.io" : undefined;
+  process.env.AUTH_COOKIE_DOMAIN !== undefined
+    ? process.env.AUTH_COOKIE_DOMAIN || undefined
+    : isProductionUsemeaning
+      ? ".usemeaning.io"
+      : undefined;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
