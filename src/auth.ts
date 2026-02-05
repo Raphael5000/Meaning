@@ -1,5 +1,19 @@
-import NextAuth from "next-auth";
+import NextAuth, { customFetch } from "next-auth";
 import Google from "next-auth/providers/google";
+
+const TOKEN_EXCHANGE_TIMEOUT_MS = 25_000;
+
+function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TOKEN_EXCHANGE_TIMEOUT_MS);
+  return fetch(input, {
+    ...init,
+    signal: init?.signal ?? controller.signal,
+  }).finally(() => clearTimeout(timeout));
+}
 
 // Share auth cookies across www and apex so PKCE/state are available on callback.
 // Set AUTH_COOKIE_DOMAIN= in env to disable (e.g. to debug 502).
@@ -27,6 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      [customFetch]: fetchWithTimeout,
       authorization: {
         params: {
           scope:
