@@ -32,13 +32,15 @@ export async function GET() {
     });
   } catch (e: unknown) {
     clearTimeout(timeout);
-    const err = e as { code?: string; message?: string };
+    const err = e as { code?: string; message?: string; cause?: unknown };
+    const cause = err.cause as { code?: string; message?: string } | undefined;
     return NextResponse.json(
       {
         ok: false,
         reachable: false,
-        code: err.code ?? "UNKNOWN",
+        code: err.code ?? cause?.code ?? "UNKNOWN",
         message: err.message ?? String(e),
+        cause: cause?.message ?? (cause ? String(cause) : undefined),
       },
       { status: 200 }
     );
