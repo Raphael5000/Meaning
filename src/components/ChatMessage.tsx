@@ -13,55 +13,33 @@ export default function ChatMessage({
   suggestedQuestions,
   onSuggestedQuestionClick,
 }: ChatMessageProps) {
+  const isUser = role === "user";
+
   return (
     <div className="flex w-full justify-center px-4 py-6">
-      <div className="flex w-full max-w-3xl gap-4">
-        {/* Avatar */}
-        <div className="flex-shrink-0">
-          {role === "assistant" ? (
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: "var(--accent)" }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 20V10" />
-                <path d="M12 20V4" />
-                <path d="M6 20v-6" />
-              </svg>
-            </div>
-          ) : (
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium"
-              style={{
-                background: "#5436DA",
-                color: "white",
-              }}
-            >
-              U
-            </div>
-          )}
-        </div>
-
-        {/* Message content */}
-        <div className="min-w-0 flex-1">
+      <div
+        className={`flex w-full max-w-3xl ${isUser ? "justify-end" : ""}`}
+      >
+        {/* Message bubble */}
+        <div
+          className={
+            isUser
+              ? "flex min-w-0 max-w-[85%] justify-end"
+              : "min-w-0 flex-1"
+          }
+        >
           <div
-            className="mb-1 text-sm font-medium"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {role === "assistant" ? "Meaning" : "You"}
-          </div>
-          <div
-            className="message-content text-sm leading-relaxed"
-            style={{ color: "var(--text-primary)" }}
+            className={`message-content rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+              isUser ? "max-w-full" : ""
+            }`}
+            style={{
+              color: "var(--text-primary)",
+              background: isUser
+                ? "var(--user-bubble)"
+                : "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
+              ...(isUser && { display: "inline-block", width: "fit-content", maxWidth: "100%" }),
+            }}
             dangerouslySetInnerHTML={{ __html: formatContent(content) }}
           />
           {role === "assistant" &&
