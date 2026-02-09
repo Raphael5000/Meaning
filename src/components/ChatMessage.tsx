@@ -3,9 +3,16 @@
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  suggestedQuestions?: string[];
+  onSuggestedQuestionClick?: (question: string) => void;
 }
 
-export default function ChatMessage({ role, content }: ChatMessageProps) {
+export default function ChatMessage({
+  role,
+  content,
+  suggestedQuestions,
+  onSuggestedQuestionClick,
+}: ChatMessageProps) {
   return (
     <div className="flex w-full justify-center px-4 py-6">
       <div className="flex w-full max-w-3xl gap-4">
@@ -57,6 +64,27 @@ export default function ChatMessage({ role, content }: ChatMessageProps) {
             style={{ color: "var(--text-primary)" }}
             dangerouslySetInnerHTML={{ __html: formatContent(content) }}
           />
+          {role === "assistant" &&
+            suggestedQuestions &&
+            suggestedQuestions.length > 0 &&
+            onSuggestedQuestionClick && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {suggestedQuestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => onSuggestedQuestionClick(q)}
+                    className="cursor-pointer rounded-[100px] border px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                    style={{
+                      borderColor: "var(--border-color)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
         </div>
       </div>
     </div>

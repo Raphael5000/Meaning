@@ -6,6 +6,26 @@ import { GA4_TOOLS } from "@/lib/tools";
 
 const anthropic = new Anthropic();
 
+/** Regex to match the suggested questions JSON block at end of response */
+const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
+
+function parseSuggestedQuestions(text: string): string[] | null {
+  const match = text.match(SUGGESTED_QUESTIONS_REGEX);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]) as { suggestedQuestions?: string[] };
+    const arr = parsed?.suggestedQuestions;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.filter((q): q is string => typeof q === "string" && q.trim().length > 0);
+  } catch {
+    return null;
+  }
+}
+
+function stripSuggestedQuestionsBlock(text: string): string {
+  return text.replace(SUGGESTED_QUESTIONS_REGEX, "").trim();
+}
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -34,7 +54,13 @@ Tips:
 - For geographic analysis, use "country" or "city" dimensions.
 - Always provide context and interpretation, not just raw numbers.
 - When comparing periods, run two reports with different date ranges.
-- Format large numbers with commas for readability.`;
+- Format large numbers with commas for readability.
+
+At the end of every response, append a JSON block with 3-4 suggested follow-up questions the user might ask next. Format it exactly as:
+\`\`\`json
+{"suggestedQuestions": ["Question 1?", "Question 2?", "Question 3?"]}
+\`\`\`
+Do not include this block in your main answer. Your main answer should end before this block. Use questions relevant to the analytics data you just discussed.`;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -182,9 +208,18 @@ export async function POST(request: NextRequest) {
     const textBlocks = response.content.filter(
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
-    const assistantMessage = textBlocks.map((b) => b.text).join("\n");
+    let rawMessage = textBlocks.map((b) => b.text).join("\n");
 
-    return NextResponse.json({ message: assistantMessage });
+    // Parse suggested follow-up questions from JSON block at end
+    const suggestedQuestions = parseSuggestedQuestions(rawMessage);
+    if (suggestedQuestions) {
+      rawMessage = stripSuggestedQuestionsBlock(rawMessage);
+    }
+
+    return NextResponse.json({
+      message: rawMessage.trim(),
+      suggestedQuestions: suggestedQuestions ?? undefined,
+    });
   } catch (error: unknown) {
     console.error("Chat API error:", error);
     const message =

@@ -143,6 +143,7 @@ export default function Chat() {
         id: crypto.randomUUID(),
         role: "assistant",
         content: data.message,
+        suggestedQuestions: data.suggestedQuestions,
       };
 
       const finalMessages = [...updatedMessages, assistantMessage];
@@ -362,7 +363,17 @@ export default function Chat() {
           ) : (
             <div>
               {messages.map((msg) => (
-                <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+                <ChatMessage
+                  key={msg.id}
+                  role={msg.role}
+                  content={msg.content}
+                  suggestedQuestions={msg.suggestedQuestions}
+                  onSuggestedQuestionClick={
+                    msg.role === "assistant"
+                      ? (q) => sendMessage(q)
+                      : undefined
+                  }
+                />
               ))}
               {loading && <TypingIndicator />}
               <div ref={messagesEndRef} />

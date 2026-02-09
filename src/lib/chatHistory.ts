@@ -2,6 +2,8 @@ export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Suggested follow-up questions (assistant messages only) */
+  suggestedQuestions?: string[];
 }
 
 export interface StoredChat {
