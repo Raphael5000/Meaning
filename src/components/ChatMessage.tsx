@@ -91,9 +91,18 @@ export default function ChatMessage({
   );
 }
 
+const REC_BLOCK_REGEX = /\[\[rec\]\]([\s\S]*?)\[\[\/rec\]\]/g;
+
 function formatContent(text: string): string {
+  // Extract recommendation blocks first and replace with placeholders
+  const recBlocks: string[] = [];
+  let html = text.replace(REC_BLOCK_REGEX, (_, content) => {
+    recBlocks.push(content.trim());
+    return `___REC_BLOCK_${recBlocks.length - 1}___`;
+  });
+
   // Basic markdown-like formatting
-  let html = escapeHtml(text);
+  html = escapeHtml(html);
 
   // Code blocks (```...```)
   html = html.replace(
@@ -145,8 +154,40 @@ function formatContent(text: string): string {
   html = html.replace(/<p>(<blockquote>)/g, "$1");
   html = html.replace(/(<\/blockquote>)<\/p>/g, "$1");
 
+  // Unwrap rec placeholders from <p> tags (block in inline is invalid)
+  recBlocks.forEach((_, i) => {
+    html = html.replace(
+      new RegExp(`<p>___REC_BLOCK_${i}___<\\/p>`, "g"),
+      `___REC_BLOCK_${i}___`
+    );
+  });
+
+  // Replace recommendation block placeholders with green bubbles
+  recBlocks.forEach((content, i) => {
+    const formatted = formatContentInner(content);
+    const bubble = `<div class="rec-bubble">${REC_TICK_SVG}<div class="rec-bubble-content">${formatted}</div></div>`;
+    html = html.replace(`___REC_BLOCK_${i}___`, bubble);
+  });
+
   return html;
 }
+
+/** Format content without processing [[rec]] blocks (avoids recursion) */
+function formatContentInner(text: string): string {
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/^- (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
+  html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/\n\n/g, "</p><p>");
+  html = `<p>${html}</p>`;
+  html = html.replace(/\n/g, "<br>");
+  html = html.replace(/<p><\/p>/g, "");
+  return html;
+}
+
+const REC_TICK_SVG =
+  '<svg class="rec-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 
 function escapeHtml(text: string): string {
   return text
