@@ -94,6 +94,10 @@ export default function Chat() {
     const updatedMessages = [...messages, userMessage];
     const isNewChat = currentChatId === null && messages.length === 0;
 
+    // Capture the chat id we're updating so the async callback has the correct id
+    // (currentChatId is still null in the closure when this is a new chat)
+    let chatIdToUpdate: string | null = currentChatId;
+
     if (isNewChat) {
       const newChat: StoredChat = {
         id: crypto.randomUUID(),
@@ -101,6 +105,7 @@ export default function Chat() {
         messages: [userMessage],
         createdAt: Date.now(),
       };
+      chatIdToUpdate = newChat.id;
       setChats((prev) => [newChat, ...prev]);
       setCurrentChatId(newChat.id);
       setMessages([userMessage]);
@@ -148,7 +153,14 @@ export default function Chat() {
 
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
-      updateCurrentChatInList((c) => ({ ...c, messages: finalMessages }));
+      // Use chatIdToUpdate so we update the right chat in the async callback
+      // (avoids stale closure where currentChatId is still null for new chats)
+      const idToUpdate = chatIdToUpdate;
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === idToUpdate ? { ...c, messages: finalMessages } : c
+        )
+      );
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
