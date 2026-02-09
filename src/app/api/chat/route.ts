@@ -3,6 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { GA4_TOOLS } from "@/lib/tools";
+import { hasActiveSubscription } from "@/lib/subscription";
+
+export const dynamic = "force-dynamic";
 
 const anthropic = new Anthropic();
 
@@ -68,6 +71,17 @@ export async function POST(request: NextRequest) {
 
   if (!session?.accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Check subscription
+  if (session.userId) {
+    const active = await hasActiveSubscription(session.userId);
+    if (!active) {
+      return NextResponse.json(
+        { error: "Active subscription required", code: "SUBSCRIPTION_REQUIRED" },
+        { status: 403 }
+      );
+    }
   }
 
   const { messages, propertyId } = (await request.json()) as {
