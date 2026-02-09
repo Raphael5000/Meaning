@@ -82,25 +82,41 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             priority
           />
         </div>
-        <button
-          onClick={onTryBeta}
-          className="cursor-pointer rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
-          style={{
-            background:
-              "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-            color: "white",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background =
-              "linear-gradient(180deg, #10a37f 0%, #0d8c6d 50%, #0b7a5f 100%)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background =
-              "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)";
-          }}
-        >
-          Try the beta
-        </button>
+        <div className="flex items-center gap-4">
+          <a
+            href="/pricing"
+            className="text-sm transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Pricing
+          </a>
+          <a
+            href="/login"
+            className="text-sm transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Log in
+          </a>
+          <a
+            href="/signup"
+            className="cursor-pointer rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
+            style={{
+              background:
+                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
+              color: "white",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background =
+                "linear-gradient(180deg, #10a37f 0%, #0d8c6d 50%, #0b7a5f 100%)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background =
+                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)";
+            }}
+          >
+            Get started
+          </a>
+        </div>
       </nav>
 
       {/* Hero Section */}
@@ -142,8 +158,8 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </p>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <button
-              onClick={onTryBeta}
+            <a
+              href="/signup"
               className="cursor-pointer rounded-[100px] px-8 py-4 text-base font-semibold transition-all duration-200"
               style={{
                 background:
@@ -166,14 +182,15 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              Try the beta
-            </button>
-            <span
-              className="text-sm"
+              Get started
+            </a>
+            <a
+              href="/pricing"
+              className="text-sm underline-offset-4 hover:underline"
               style={{ color: "var(--text-muted)" }}
             >
-              Free &middot; Read-only access
-            </span>
+              View pricing &rarr;
+            </a>
           </div>
         </div>
 
@@ -543,8 +560,8 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               Join the beta and start getting insights from your Google Analytics
               data in seconds.
             </p>
-            <button
-              onClick={onTryBeta}
+            <a
+              href="/signup"
               className="cursor-pointer rounded-[100px] px-8 py-4 text-base font-semibold transition-all duration-200"
               style={{
                 background:
@@ -567,8 +584,8 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              Try the beta
-            </button>
+              Get started
+            </a>
           </div>
         </div>
         </FadeInSection>

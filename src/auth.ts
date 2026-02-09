@@ -1,5 +1,9 @@
 import NextAuth, { customFetch } from "next-auth";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 const TOKEN_EXCHANGE_TIMEOUT_MS = 25_000;
 
@@ -8,7 +12,10 @@ function fetchWithTimeout(
   init?: RequestInit
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TOKEN_EXCHANGE_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    TOKEN_EXCHANGE_TIMEOUT_MS
+  );
   return fetch(input, {
     ...init,
     signal: init?.signal ?? controller.signal,
@@ -28,7 +35,13 @@ const cookieDomain =
       : undefined;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
   trustHost: true,
+  pages: {
+    signIn: "/login",
+    newUser: "/pricing",
+  },
   ...(cookieDomain && {
     cookies: {
       pkceCodeVerifier: { options: { domain: cookieDomain } },
@@ -51,14 +64,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
     }),
+    Credentials({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email as string | undefined;
+        const password = credentials?.password as string | undefined;
+        if (!email || !password) return null;
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user?.passwordHash) return null;
+
+        const valid = await bcrypt.compare(password, user.passwordHash);
+        if (!valid) return null;
+
+        return { id: user.id, name: user.name, email: user.email, image: user.image };
+      },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
-      // On initial sign in, persist the OAuth tokens
+    async jwt({ token, account, user }) {
+      // On initial sign-in, persist user id and OAuth tokens
+      if (user) {
+        token.userId = user.id;
+      }
+
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
+        token.provider = account.provider;
+      }
+
+      // For credential users, no GA tokens to refresh
+      if (token.provider === "credentials" || !token.refreshToken) {
+        return token;
       }
 
       // If token hasn't expired, return it as-is
@@ -67,38 +110,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // Token has expired — try to refresh it
-      if (token.refreshToken) {
-        try {
-          const response = await fetch("https://oauth2.googleapis.com/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              client_id: process.env.GOOGLE_CLIENT_ID!,
-              client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-              grant_type: "refresh_token",
-              refresh_token: token.refreshToken,
-            }),
-          });
+      try {
+        const response = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: process.env.GOOGLE_CLIENT_ID!,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+            grant_type: "refresh_token",
+            refresh_token: token.refreshToken,
+          }),
+        });
 
-          const tokens = await response.json();
+        const tokens = await response.json();
 
-          if (!response.ok) throw tokens;
+        if (!response.ok) throw tokens;
 
-          token.accessToken = tokens.access_token;
-          token.expiresAt = Math.floor(Date.now() / 1000 + tokens.expires_in);
-          if (tokens.refresh_token) {
-            token.refreshToken = tokens.refresh_token;
-          }
-        } catch {
-          token.error = "RefreshAccessTokenError";
+        token.accessToken = tokens.access_token;
+        token.expiresAt = Math.floor(Date.now() / 1000 + tokens.expires_in);
+        if (tokens.refresh_token) {
+          token.refreshToken = tokens.refresh_token;
         }
+      } catch {
+        token.error = "RefreshAccessTokenError";
       }
 
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.error = token.error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (session as any).userId = token.userId;
+      (session as any).accessToken = token.accessToken;
+      (session as any).error = token.error;
       return session;
     },
   },
