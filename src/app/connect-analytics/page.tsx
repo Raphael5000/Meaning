@@ -73,14 +73,18 @@ function ConnectAnalyticsContent() {
 
   async function handleContinue() {
     setCompleting(true);
+    setError(null);
     try {
       const res = await fetch("/api/user/complete-onboarding", {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed");
+      }
       window.location.href = "/";
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
       setCompleting(false);
     }
   }
