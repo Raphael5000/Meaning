@@ -6,6 +6,14 @@ import { getToken } from "next-auth/jwt";
 const PROTECTED_PAGES = ["/account", "/connect-analytics"];
 
 export async function middleware(req: NextRequest) {
+  // Redirect www to non-www so auth cookies and OAuth callbacks stay consistent
+  if (req.nextUrl.hostname === "www.usemeaning.io") {
+    const url = req.nextUrl.clone();
+    url.host = "usemeaning.io";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 301);
+  }
+
   const { pathname } = req.nextUrl;
 
   // Only gate page routes — API routes handle their own auth via `auth()`
@@ -26,5 +34,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/connect-analytics/:path*"],
+  matcher: [
+    "/account/:path*",
+    "/connect-analytics/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+  ],
 };
