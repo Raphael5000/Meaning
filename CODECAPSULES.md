@@ -12,10 +12,10 @@ Use this as a checklist. Code Capsules has **no separate build step**—everythi
 
 | Field           | Value |
 |----------------|--------|
-| **Run Command** | `npm install && npm run build && npx prisma migrate deploy && node server.js` |
+| **Run Command** | `npm install && npm run build && node server.js` |
 | **Network Port**| `3000` |
 
-You **must** include `npm run build` in the Run Command. Without it the app has no production build and will crash or return 503 Service Unavailable. Use the full command above so install, build, migrations, and start all run on each deploy.
+You **must** include `npm run build`. Do **not** add `npx prisma migrate deploy` to the Run Command—it runs in the same process as the build and can hit the DB before the runtime env (e.g. pooler) is used, causing P1001. Run migrations from your machine when you add new ones: `DATABASE_URL="postgresql://...pooler...6543/postgres" npx prisma migrate deploy`
 
 ## 3. Config → Environment variables
 
@@ -28,10 +28,8 @@ Add these (use your real values and your capsule URL):
 - `ANTHROPIC_API_KEY`
 - `AUTH_SECRET` — e.g. run `openssl rand -base64 32` and paste the output
 - `NEXTAUTH_URL` — your app URL, e.g. `https://<your-capsule>.codecapsules.space` (Code Capsules also sets `APP_URL` automatically; you can use that value here)
-- `DATABASE_URL` — **required for OAuth/account creation** (fixes 502 after Google sign-in). Use your **Supabase** Postgres connection string:
-  - In Supabase: Project Settings → Database → Connection string → **URI** (use the direct connection, e.g. `postgresql://postgres.[project-ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres`, or the Session-mode URI from the Supabase dashboard).
-  - Replace `[YOUR-PASSWORD]` with your database password. If you use the pooler (port 6543), use **Session mode** for Prisma.
-  - Run migrations once against this DB (from your machine): `DATABASE_URL="postgresql://..." npx prisma migrate deploy`
+- `DATABASE_URL` — **required**. Use Supabase’s **connection pooler (Session mode)** URI (port 6543). Set this in Code Capsules env vars so the **running app** uses it; do not run `prisma migrate deploy` in the Run Command (see above).
+  - In Supabase: **Project Settings → Database** → **Connection pooling** → **Session mode** → copy URI. Replace the password. Run migrations from your machine when needed: `DATABASE_URL="postgresql://...pooler...6543/postgres" npx prisma migrate deploy`
 
 **If the build stops at “Creating an optimized production build…” with no error:**
 
@@ -58,15 +56,23 @@ Trigger a new deploy (e.g. push a commit or use “Redeploy” in Code Capsules)
 
 Some hosts use a separate build environment (fixed RAM/CPU) that is not upgraded with your capsule. Wait 4-5 minutes and scroll to the very end of the build log; look for `Build finished OK` or an error. Ask Code Capsules if the build step has its own memory/timeout limits.
 
-## 7. Service Unavailable (503) or Bad Gateway
+## 7. P1001: Can't reach database server
 
-- **Run Command must include the build.** If it only has `node server.js` (or `npx prisma migrate deploy && node server.js`), the app has no `.next` build and will crash. Set it to:  
-  `npm install && npm run build && npx prisma migrate deploy && node server.js`
+This often appears **during deploy** because the refactor previously had `npx prisma migrate deploy` in the Run Command—that connects to the DB in the same process as the build, and can fail (e.g. direct URL or wrong env). Fix:
+
+1. **Remove migrate from the Run Command.** Use: `npm install && npm run build && node server.js` (no `prisma migrate deploy`). The app will connect to the DB only when it’s running and handling requests, using your pooler `DATABASE_URL`.
+2. **Ensure `DATABASE_URL` in Code Capsules** is the pooler (Session mode, port 6543), not the direct URI (`db.xxx.supabase.co:5432`).
+3. Run migrations from your machine when you add new ones: `DATABASE_URL="postgresql://...pooler...6543/postgres" npx prisma migrate deploy`
+
+## 8. Service Unavailable (503) or Bad Gateway
+
+- **Run Command must include the build**, and must **not** include `prisma migrate deploy` (see §7). Use:  
+  `npm install && npm run build && node server.js`
 - **Network Port** must match: set to `3000` in Capsule Parameters (server.js uses `process.env.PORT` or 3000).
 - **Logs** (runtime **Logs** tab): look for `> Ready on http://0.0.0.0:3000`. If that never appears, the process is crashing—check for missing env (`DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL`) or Prisma/Node errors.
 - Test: `https://<your-capsule>.codecapsules.space/api/health` → should return `{"ok":true}`.
 
-## 8. If it still doesn’t work
+## 9. If it still doesn’t work
 
 - Open the capsule **Logs** tab (runtime logs, not the build log).
 - Reproduce the issue (open the site), then check the logs for errors.
