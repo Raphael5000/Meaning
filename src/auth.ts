@@ -55,7 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   pages: {
     signIn: "/login",
-    newUser: "/pricing",
+    newUser: "/connect-analytics",
   },
   ...(cookieDomain && {
     cookies: {
@@ -114,8 +114,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.provider = account.provider;
       }
 
-      // For credential users, no GA tokens to refresh
-      if (token.provider === "credentials" || !token.refreshToken) {
+      // For credential users who linked a Google account, load tokens from DB
+      if (!token.accessToken && token.userId) {
+        try {
+          const googleAccount = await prisma.account.findFirst({
+            where: { userId: token.userId as string, provider: "google" },
+          });
+          if (googleAccount?.access_token) {
+            token.accessToken = googleAccount.access_token;
+            token.refreshToken = googleAccount.refresh_token ?? undefined;
+            token.expiresAt = googleAccount.expires_at ?? undefined;
+          }
+        } catch {
+          // DB lookup failed — continue without GA tokens
+        }
+      }
+
+      // No refresh token available — nothing to refresh
+      if (!token.refreshToken) {
         return token;
       }
 

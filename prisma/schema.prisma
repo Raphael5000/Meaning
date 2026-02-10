@@ -17,6 +17,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String? // null for OAuth-only users
+  gaConnected   Boolean @default(false) // true after user completes GA onboarding
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
