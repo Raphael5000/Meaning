@@ -1,17 +1,20 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
   _prisma: PrismaClient | undefined;
 };
 
-// Prisma 7 requires a driver adapter for SQLite at runtime
-const datasourceUrl =
-  process.env.DATABASE_URL ?? "file:./dev.db";
-
+// PostgreSQL via DATABASE_URL (Supabase in prod; use Supabase or local Postgres for dev)
 function getClient(): PrismaClient {
   if (!globalForPrisma._prisma) {
-    const adapter = new PrismaBetterSqlite3({ url: datasourceUrl });
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        "DATABASE_URL is required (e.g. Supabase connection string). See .env.example."
+      );
+    }
+    const adapter = new PrismaPg({ connectionString });
     globalForPrisma._prisma = new PrismaClient({ adapter });
   }
   return globalForPrisma._prisma;

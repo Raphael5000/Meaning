@@ -12,7 +12,7 @@ Use this as a checklist. Code Capsules has **no separate build step**—everythi
 
 | Field           | Value |
 |----------------|--------|
-| **Run Command** | `node server.js` |
+| **Run Command** | `npx prisma migrate deploy && node server.js` (so the DB schema is applied on each deploy; idempotent) or just `node server.js` if you already ran `prisma migrate deploy` once against your Supabase DB. |
 | **Network Port**| `3000` (or `3001`) |
 
 You **must** set Run Command to the line above. If it’s blank, Code Capsules may only run `npm start` and never build, so you get a bad gateway (502).
@@ -28,6 +28,10 @@ Add these (use your real values and your capsule URL):
 - `ANTHROPIC_API_KEY`
 - `AUTH_SECRET` — e.g. run `openssl rand -base64 32` and paste the output
 - `NEXTAUTH_URL` — your app URL, e.g. `https://<your-capsule>.codecapsules.space` (Code Capsules also sets `APP_URL` automatically; you can use that value here)
+- `DATABASE_URL` — **required for OAuth/account creation** (fixes 502 after Google sign-in). Use your **Supabase** Postgres connection string:
+  - In Supabase: Project Settings → Database → Connection string → **URI** (use the direct connection, e.g. `postgresql://postgres.[project-ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres`, or the Session-mode URI from the Supabase dashboard).
+  - Replace `[YOUR-PASSWORD]` with your database password. If you use the pooler (port 6543), use **Session mode** for Prisma.
+  - Run migrations once against this DB (from your machine): `DATABASE_URL="postgresql://..." npx prisma migrate deploy`
 
 **If the build stops at “Creating an optimized production build…” with no error:**
 
