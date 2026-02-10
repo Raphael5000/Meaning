@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 // Pages that require the user to be logged in
-const PROTECTED_PAGES = ["/account"];
+const PROTECTED_PAGES = ["/account", "/connect-analytics"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -22,5 +22,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*"],
+  matcher: ["/account/:path*", "/connect-analytics/:path*"],
 };
