@@ -47,7 +47,13 @@ export default function PricingPage() {
               body: JSON.stringify({ reference: data.reference }),
             });
             setLoading(false);
-            window.location.href = "/connect-analytics?payment=success";
+            // Paystack overlay may be a popup; redirect parent (has session) and close
+            if (window.opener) {
+              window.opener.location.href = "/connect-analytics?payment=success";
+              window.close();
+            } else {
+              window.location.href = "/connect-analytics?payment=success";
+            }
           },
           onCancel: () => setLoading(false),
           onError: (err: { message: string }) => {
