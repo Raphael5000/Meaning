@@ -59,6 +59,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
     newUser: "/pricing",
+    error: "/auth-error",
   },
   ...(cookieDomain && {
     cookies: {
