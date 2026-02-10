@@ -8,9 +8,10 @@ export async function GET(req: NextRequest) {
   const reference = req.nextUrl.searchParams.get("reference");
   const trxref = req.nextUrl.searchParams.get("trxref");
   const ref = reference || trxref;
+  const baseUrl = process.env.NEXTAUTH_URL || req.url;
 
   if (!ref) {
-    return NextResponse.redirect(new URL("/pricing?error=no_reference", req.url));
+    return NextResponse.redirect(new URL("/pricing?error=no_reference", baseUrl));
   }
 
   try {
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     if (!payment) {
       return NextResponse.redirect(
-        new URL("/pricing?error=payment_not_found", req.url)
+        new URL("/pricing?error=payment_not_found", baseUrl)
       );
     }
 
@@ -70,15 +71,15 @@ export async function GET(req: NextRequest) {
       });
 
       return NextResponse.redirect(
-        new URL("/account?payment=success", req.url)
+        new URL("/account?payment=success", baseUrl)
       );
     }
 
-    return NextResponse.redirect(new URL("/pricing?error=payment_failed", req.url));
+    return NextResponse.redirect(new URL("/pricing?error=payment_failed", baseUrl));
   } catch (error) {
     console.error("Payment callback error:", error);
     return NextResponse.redirect(
-      new URL("/pricing?error=verification_failed", req.url)
+      new URL("/pricing?error=verification_failed", baseUrl)
     );
   }
 }
