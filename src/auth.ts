@@ -61,14 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     cookies: {
       pkceCodeVerifier: { options: { domain: cookieDomain } },
       state: { options: { domain: cookieDomain } },
-      sessionToken: {
-        options: {
-          domain: cookieDomain,
-          // Ensure session survives cross-site redirect from Paystack back to us
-          sameSite: "none" as const,
-          secure: true,
-        },
-      },
+      sessionToken: { options: { domain: cookieDomain } },
       callbackUrl: { options: { domain: cookieDomain } },
     },
   }),

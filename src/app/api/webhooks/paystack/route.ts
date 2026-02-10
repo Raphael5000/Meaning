@@ -51,11 +51,28 @@ export async function POST(req: NextRequest) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleChargeSuccess(data: any) {
   const customerCode = data.customer?.customer_code;
-  if (!customerCode) return;
+  let user = customerCode
+    ? await prisma.user.findFirst({
+        where: { paystackCustomerCode: customerCode },
+      })
+    : null;
 
-  const user = await prisma.user.findFirst({
-    where: { paystackCustomerCode: customerCode },
-  });
+  // First-time payments: user not yet linked to Paystack. Find via pending payment.
+  if (!user && data.reference) {
+    const payment = await prisma.payment.findUnique({
+      where: { paystackReference: data.reference },
+      include: { user: true },
+    });
+    if (payment?.user) {
+      user = payment.user;
+      if (customerCode) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { paystackCustomerCode: customerCode },
+        });
+      }
+    }
+  }
   if (!user) return;
 
   // Record the payment
@@ -72,8 +89,13 @@ async function handleChargeSuccess(data: any) {
         status: "success",
         paystackReference: data.reference,
         paystackTransactionId: String(data.id),
-        description: "Subscription renewal",
+        description: "Subscription",
       },
+    });
+  } else {
+    await prisma.payment.update({
+      where: { paystackReference: data.reference },
+      data: { status: "success", amount: data.amount, currency: data.currency },
     });
   }
 

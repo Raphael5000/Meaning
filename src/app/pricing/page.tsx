@@ -34,8 +34,31 @@ export default function PricingPage() {
         return;
       }
 
-      // Redirect to Paystack checkout
-      window.location.href = data.authorization_url;
+      // Embedded checkout: overlay on same page, session stays intact
+      try {
+        const PaystackPop = (await import("@paystack/inline-js")).default;
+        const paystack = new PaystackPop();
+        paystack.resumeTransaction(data.access_code, {
+          onSuccess: async () => {
+            // Sync subscription before redirect (webhook may be delayed)
+            await fetch("/api/payments/verify-complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reference: data.reference }),
+            });
+            setLoading(false);
+            window.location.href = "/connect-analytics?payment=success";
+          },
+          onCancel: () => setLoading(false),
+          onError: (err: { message: string }) => {
+            setError(err?.message || "Payment failed");
+            setLoading(false);
+          },
+        });
+      } catch {
+        // Embedded failed (e.g. script load) — fall back to redirect
+        window.location.href = data.authorization_url;
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -228,7 +251,7 @@ export default function PricingPage() {
                 }}
               >
                 {loading
-                  ? "Redirecting to payment..."
+                  ? "Opening checkout..."
                   : session
                     ? "Subscribe now"
                     : "Get started"}
