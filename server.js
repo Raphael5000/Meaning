@@ -1,7 +1,7 @@
 /**
- * Production server for Code Capsules (and any host with no separate build step).
- * Serves the built Next app and listens on PORT and 0.0.0.0 so the platform can reach it.
+ * Production server. Serves the built Next app on PORT and 0.0.0.0.
  * Run after: npm install && npm run build
+ * Start: node server.js (or use Procfile: web: node server.js)
  */
 const { createServer } = require("http");
 const { parse } = require("url");
@@ -12,17 +12,22 @@ const hostname = "0.0.0.0";
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 
-console.log(`PORT=${process.env.PORT ?? 'not set'} -> listening on ${hostname}:${port}`);
+console.log("[server] PORT=%s (from env: %s), binding to %s:%s", port, process.env.PORT ?? "unset", hostname, port);
 
 app.prepare().then(() => {
-  createServer((req, res) => {
+  const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
+  });
+  server.listen(port, hostname, () => {
+    console.log("[server] Ready on http://%s:%s", hostname, port);
+  });
+  server.on("error", (err) => {
+    console.error("[server] Listen error:", err.message || err);
+    process.exit(1);
   });
 }).catch((err) => {
-  console.error("Failed to start server (often: no production build; ensure Run Command includes 'npm run build'):", err.message || err);
+  console.error("[server] Failed to start (check .next exists and Run Command included 'npm run build'):", err.message || err);
   if (err.stack) console.error(err.stack);
   process.exit(1);
 });

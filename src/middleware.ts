@@ -15,7 +15,11 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const loginUrl = new URL("/login", req.url);
+    if (pathname.startsWith("/connect-analytics")) {
+      loginUrl.searchParams.set("callbackUrl", "/connect-analytics");
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
