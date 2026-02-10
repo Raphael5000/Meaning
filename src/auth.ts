@@ -59,8 +59,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   ...(cookieDomain && {
     cookies: {
-      pkceCodeVerifier: { options: { domain: cookieDomain } },
-      state: { options: { domain: cookieDomain } },
+      pkceCodeVerifier: {
+        options: {
+          domain: cookieDomain,
+          sameSite: "none" as const,
+          secure: true,
+        },
+      },
+      state: {
+        options: {
+          domain: cookieDomain,
+          sameSite: "none" as const,
+          secure: true,
+        },
+      },
       sessionToken: { options: { domain: cookieDomain } },
       callbackUrl: { options: { domain: cookieDomain } },
     },
