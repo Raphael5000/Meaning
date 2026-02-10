@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import Link from "next/link";
 import PropertySelector from "./PropertySelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
@@ -303,6 +304,13 @@ export default function Chat() {
                   className="h-7 w-7 rounded-full"
                 />
               )}
+              <Link
+                href="/account"
+                className="rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Account
+              </Link>
               <button
                 onClick={() => signOut()}
                 className="cursor-pointer rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"

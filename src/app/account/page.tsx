@@ -27,6 +27,7 @@ interface PaymentRecord {
   currency: string;
   status: string;
   description: string | null;
+  paystackReference: string | null;
   createdAt: string;
 }
 
@@ -63,6 +64,9 @@ function AccountContent() {
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState<PaymentRecord | null>(
+    null
+  );
 
   const fetchProfile = useCallback(async () => {
     const res = await fetch("/api/user/profile");
@@ -356,253 +360,533 @@ function AccountContent() {
 
         {/* Subscription Tab */}
         {tab === "subscription" && (
-          <div
-            className="relative overflow-hidden rounded-2xl p-6"
-            style={{
-              background:
-                "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
-              border: "1px solid var(--border-color)",
-            }}
-          >
-            <div className="card-noise" aria-hidden />
-            <div className="relative z-10">
-              <h2
-                className="mb-6 text-lg font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Subscription
-              </h2>
+          <div className="flex flex-col gap-6">
+            {/* Subscription status card */}
+            <div
+              className="relative overflow-hidden rounded-2xl p-6"
+              style={{
+                background:
+                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                border: "1px solid var(--border-color)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10">
+                <h2
+                  className="mb-6 text-lg font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Subscription
+                </h2>
 
-              {profile.subscription ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                      style={{
-                        background:
-                          profile.subscription.status === "active"
-                            ? "rgba(16, 163, 127, 0.15)"
-                            : profile.subscription.status === "past_due"
-                              ? "rgba(234, 179, 8, 0.15)"
-                              : "rgba(239, 68, 68, 0.15)",
-                        color:
-                          profile.subscription.status === "active"
-                            ? "var(--accent)"
-                            : profile.subscription.status === "past_due"
-                              ? "#eab308"
-                              : "var(--error)",
-                      }}
-                    >
-                      {profile.subscription.status === "active"
-                        ? "Active"
-                        : profile.subscription.status === "past_due"
-                          ? "Past Due"
-                          : "Cancelled"}
-                    </span>
-                    {profile.subscription.cancelAtPeriodEnd && (
+                {profile.subscription ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
                       <span
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        Cancels at period end
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        Plan
-                      </p>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        Monthly - R299/month
-                      </p>
-                    </div>
-                    <div>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        Current period
-                      </p>
-                      <p
-                        className="text-sm"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {new Date(
-                          profile.subscription.currentPeriodStart
-                        ).toLocaleDateString("en-ZA")}{" "}
-                        -{" "}
-                        {new Date(
-                          profile.subscription.currentPeriodEnd
-                        ).toLocaleDateString("en-ZA")}
-                      </p>
-                    </div>
-                  </div>
-
-                  {profile.subscription.status === "active" &&
-                    !profile.subscription.cancelAtPeriodEnd && (
-                      <button
-                        onClick={handleCancelSubscription}
-                        disabled={cancelling}
-                        className="mt-4 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
+                        className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
                         style={{
-                          background: "transparent",
-                          border: "1px solid var(--border-color)",
-                          color: "var(--text-secondary)",
+                          background:
+                            profile.subscription.status === "active"
+                              ? "rgba(16, 163, 127, 0.15)"
+                              : profile.subscription.status === "past_due"
+                                ? "rgba(234, 179, 8, 0.15)"
+                                : "rgba(239, 68, 68, 0.15)",
+                          color:
+                            profile.subscription.status === "active"
+                              ? "var(--accent)"
+                              : profile.subscription.status === "past_due"
+                                ? "#eab308"
+                                : "var(--error)",
                         }}
                       >
-                        {cancelling
-                          ? "Cancelling..."
-                          : "Cancel subscription"}
-                      </button>
-                    )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p
-                    className="mb-4 text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    You don&apos;t have an active subscription.
-                  </p>
-                  <Link
-                    href="/pricing"
-                    className="inline-block rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                      color: "white",
-                    }}
-                  >
-                    View pricing
-                  </Link>
-                </div>
-              )}
+                        {profile.subscription.status === "active"
+                          ? "Active"
+                          : profile.subscription.status === "past_due"
+                            ? "Past Due"
+                            : "Cancelled"}
+                      </span>
+                      {profile.subscription.cancelAtPeriodEnd && (
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Cancels at period end
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Plan
+                        </p>
+                        <p
+                          className="text-sm font-medium"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          Monthly - R299/month
+                        </p>
+                      </div>
+                      <div>
+                        <p
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Current period
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {new Date(
+                            profile.subscription.currentPeriodStart
+                          ).toLocaleDateString("en-ZA")}{" "}
+                          -{" "}
+                          {new Date(
+                            profile.subscription.currentPeriodEnd
+                          ).toLocaleDateString("en-ZA")}
+                        </p>
+                      </div>
+                      <div>
+                        <p
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Next billing date
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {profile.subscription.cancelAtPeriodEnd
+                            ? "No renewal (cancelled)"
+                            : new Date(
+                                profile.subscription.currentPeriodEnd
+                              ).toLocaleDateString("en-ZA", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {profile.subscription.status === "active" &&
+                      !profile.subscription.cancelAtPeriodEnd && (
+                        <button
+                          onClick={handleCancelSubscription}
+                          disabled={cancelling}
+                          className="mt-4 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {cancelling
+                            ? "Cancelling..."
+                            : "Cancel subscription"}
+                        </button>
+                      )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p
+                      className="mb-4 text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      You don&apos;t have an active subscription.
+                    </p>
+                    <Link
+                      href="/pricing"
+                      className="inline-block rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
+                        color: "white",
+                      }}
+                    >
+                      View pricing
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Your plan includes */}
+            {profile.subscription && (
+              <div
+                className="relative overflow-hidden rounded-2xl p-6"
+                style={{
+                  background:
+                    "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                  border: "1px solid var(--border-color)",
+                }}
+              >
+                <div className="card-noise" aria-hidden />
+                <div className="relative z-10">
+                  <h2
+                    className="mb-4 text-lg font-semibold"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Your plan includes
+                  </h2>
+                  <ul className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      "Unlimited AI-powered queries",
+                      "All GA4 properties",
+                      "Real-time analytics",
+                      "AI recommendations",
+                      "Chat history",
+                      "Priority support",
+                    ].map((feature) => (
+                      <li key={feature} className="flex items-center gap-3">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ color: "var(--accent)", flexShrink: 0 }}
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span
+                          className="text-sm"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Billing Tab */}
         {tab === "billing" && (
-          <div
-            className="relative overflow-hidden rounded-2xl p-6"
-            style={{
-              background:
-                "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
-              border: "1px solid var(--border-color)",
-            }}
-          >
-            <div className="card-noise" aria-hidden />
-            <div className="relative z-10">
-              <h2
-                className="mb-6 text-lg font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Billing History
-              </h2>
+          <div className="flex flex-col gap-6">
+            <div
+              className="relative overflow-hidden rounded-2xl p-6"
+              style={{
+                background:
+                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                border: "1px solid var(--border-color)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10">
+                <h2
+                  className="mb-6 text-lg font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Invoices
+                </h2>
 
-              {payments.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr
-                        style={{
-                          borderBottom: "1px solid var(--border-color)",
-                        }}
-                      >
-                        <th
-                          className="pb-3 font-medium"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Date
-                        </th>
-                        <th
-                          className="pb-3 font-medium"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Description
-                        </th>
-                        <th
-                          className="pb-3 text-right font-medium"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Amount
-                        </th>
-                        <th
-                          className="pb-3 text-right font-medium"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payments.map((payment) => (
+                {payments.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
                         <tr
-                          key={payment.id}
                           style={{
                             borderBottom: "1px solid var(--border-color)",
                           }}
                         >
-                          <td
-                            className="py-3"
-                            style={{ color: "var(--text-secondary)" }}
+                          <th
+                            className="pb-3 font-medium"
+                            style={{ color: "var(--text-muted)" }}
                           >
-                            {new Date(payment.createdAt).toLocaleDateString(
-                              "en-ZA"
-                            )}
-                          </td>
-                          <td
-                            className="py-3"
-                            style={{ color: "var(--text-secondary)" }}
+                            Date
+                          </th>
+                          <th
+                            className="pb-3 font-medium"
+                            style={{ color: "var(--text-muted)" }}
                           >
-                            {payment.description || "Payment"}
-                          </td>
-                          <td
-                            className="py-3 text-right"
-                            style={{ color: "var(--text-primary)" }}
+                            Description
+                          </th>
+                          <th
+                            className="pb-3 text-right font-medium"
+                            style={{ color: "var(--text-muted)" }}
                           >
-                            {payment.currency === "ZAR" ? "R" : payment.currency}
-                            {(payment.amount / 100).toFixed(2)}
-                          </td>
-                          <td className="py-3 text-right">
-                            <span
-                              className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                              style={{
-                                background:
-                                  payment.status === "success"
-                                    ? "rgba(16, 163, 127, 0.15)"
-                                    : "rgba(239, 68, 68, 0.15)",
-                                color:
-                                  payment.status === "success"
-                                    ? "var(--accent)"
-                                    : "var(--error)",
-                              }}
-                            >
-                              {payment.status}
-                            </span>
-                          </td>
+                            Amount
+                          </th>
+                          <th
+                            className="pb-3 text-right font-medium"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Status
+                          </th>
+                          <th
+                            className="pb-3 text-right font-medium"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p
-                  className="py-8 text-center text-sm"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  No billing history yet.
-                </p>
-              )}
+                      </thead>
+                      <tbody>
+                        {payments.map((payment) => (
+                          <tr
+                            key={payment.id}
+                            style={{
+                              borderBottom: "1px solid var(--border-color)",
+                            }}
+                          >
+                            <td
+                              className="py-3"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {new Date(payment.createdAt).toLocaleDateString(
+                                "en-ZA"
+                              )}
+                            </td>
+                            <td
+                              className="py-3"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {payment.description || "Meaning Monthly"}
+                            </td>
+                            <td
+                              className="py-3 text-right"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {payment.currency === "ZAR"
+                                ? "R"
+                                : payment.currency}
+                              {(payment.amount / 100).toFixed(2)}
+                            </td>
+                            <td className="py-3 text-right">
+                              <span
+                                className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+                                style={{
+                                  background:
+                                    payment.status === "success"
+                                      ? "rgba(16, 163, 127, 0.15)"
+                                      : payment.status === "pending"
+                                        ? "rgba(234, 179, 8, 0.15)"
+                                        : "rgba(239, 68, 68, 0.15)",
+                                  color:
+                                    payment.status === "success"
+                                      ? "var(--accent)"
+                                      : payment.status === "pending"
+                                        ? "#eab308"
+                                        : "var(--error)",
+                                }}
+                              >
+                                {payment.status === "success"
+                                  ? "Paid"
+                                  : payment.status === "pending"
+                                    ? "Pending"
+                                    : "Failed"}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right">
+                              <button
+                                onClick={() => setSelectedInvoice(payment)}
+                                className="cursor-pointer text-xs transition-colors hover:underline"
+                                style={{ color: "var(--accent)" }}
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p
+                    className="py-8 text-center text-sm"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    No invoices yet.
+                  </p>
+                )}
+              </div>
             </div>
+
+            {/* Invoice detail modal */}
+            {selectedInvoice && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                style={{ background: "rgba(0, 0, 0, 0.7)" }}
+                onClick={() => setSelectedInvoice(null)}
+              >
+                <div
+                  className="relative w-full max-w-md overflow-hidden rounded-2xl p-6"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(20, 24, 23, 1) 0%, rgba(15, 22, 20, 1) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="card-noise" aria-hidden />
+                  <div className="relative z-10">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h3
+                        className="text-lg font-semibold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Invoice details
+                      </h3>
+                      <button
+                        onClick={() => setSelectedInvoice(null)}
+                        className="cursor-pointer rounded-lg p-1 transition-colors hover:bg-[var(--bg-hover)]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <div className="flex justify-between">
+                        <span
+                          className="text-sm"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Status
+                        </span>
+                        <span
+                          className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={{
+                            background:
+                              selectedInvoice.status === "success"
+                                ? "rgba(16, 163, 127, 0.15)"
+                                : selectedInvoice.status === "pending"
+                                  ? "rgba(234, 179, 8, 0.15)"
+                                  : "rgba(239, 68, 68, 0.15)",
+                            color:
+                              selectedInvoice.status === "success"
+                                ? "var(--accent)"
+                                : selectedInvoice.status === "pending"
+                                  ? "#eab308"
+                                  : "var(--error)",
+                          }}
+                        >
+                          {selectedInvoice.status === "success"
+                            ? "Paid"
+                            : selectedInvoice.status === "pending"
+                              ? "Pending"
+                              : "Failed"}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          borderTop: "1px solid var(--border-color)",
+                          paddingTop: "1rem",
+                        }}
+                      >
+                        <div className="flex justify-between py-1.5">
+                          <span
+                            className="text-sm"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Date
+                          </span>
+                          <span
+                            className="text-sm"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {new Date(
+                              selectedInvoice.createdAt
+                            ).toLocaleDateString("en-ZA", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1.5">
+                          <span
+                            className="text-sm"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Description
+                          </span>
+                          <span
+                            className="text-sm"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {selectedInvoice.description || "Meaning Monthly"}
+                          </span>
+                        </div>
+                        {selectedInvoice.paystackReference && (
+                          <div className="flex justify-between py-1.5">
+                            <span
+                              className="text-sm"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              Reference
+                            </span>
+                            <span
+                              className="font-mono text-xs"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {selectedInvoice.paystackReference}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div
+                        className="flex justify-between py-3"
+                        style={{
+                          borderTop: "1px solid var(--border-color)",
+                        }}
+                      >
+                        <span
+                          className="text-sm font-medium"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          Total
+                        </span>
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {selectedInvoice.currency === "ZAR"
+                            ? "R"
+                            : selectedInvoice.currency}
+                          {(selectedInvoice.amount / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedInvoice(null)}
+                      className="mt-4 w-full cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

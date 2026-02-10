@@ -20,6 +20,7 @@ export async function GET() {
       currency: true,
       status: true,
       description: true,
+      paystackReference: true,
       createdAt: true,
     },
   });
