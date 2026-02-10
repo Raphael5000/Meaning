@@ -22,7 +22,7 @@ app.prepare().then(() => {
     console.log(`> Ready on http://${hostname}:${port}`);
   });
 }).catch((err) => {
-  console.error("Failed to start server:", err);
+  console.error("Failed to start server (often: no production build; ensure Run Command includes 'npm run build'):", err.message || err);
   if (err.stack) console.error(err.stack);
   process.exit(1);
 });

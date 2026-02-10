@@ -12,10 +12,10 @@ Use this as a checklist. Code Capsules has **no separate build step**—everythi
 
 | Field           | Value |
 |----------------|--------|
-| **Run Command** | `npx prisma migrate deploy && node server.js` (so the DB schema is applied on each deploy; idempotent) or just `node server.js` if you already ran `prisma migrate deploy` once against your Supabase DB. |
-| **Network Port**| `3000` (or `3001`) |
+| **Run Command** | `npm install && npm run build && npx prisma migrate deploy && node server.js` |
+| **Network Port**| `3000` |
 
-You **must** set Run Command to the line above. If it’s blank, Code Capsules may only run `npm start` and never build, so you get a bad gateway (502).
+You **must** include `npm run build` in the Run Command. Without it the app has no production build and will crash or return 503 Service Unavailable. Use the full command above so install, build, migrations, and start all run on each deploy.
 
 ## 3. Config → Environment variables
 
@@ -46,9 +46,9 @@ Save.
 ## 4. Google Cloud Console
 
 - Open your OAuth 2.0 client used for this app  
-- **Authorized redirect URIs:** add  
-  `https://<your-capsule>.codecapsules.space/api/auth/callback/google`  
-  (replace with your real capsule URL)
+- **Authorized redirect URIs:** add both (replace with your real URLs):
+  - `https://<your-capsule>.codecapsules.space/api/auth/callback/google`
+  - `https://<your-capsule>.codecapsules.space/api/auth/connect-google/callback`
 
 ## 5. Redeploy
 
@@ -58,7 +58,15 @@ Trigger a new deploy (e.g. push a commit or use “Redeploy” in Code Capsules)
 
 Some hosts use a separate build environment (fixed RAM/CPU) that is not upgraded with your capsule. Wait 4-5 minutes and scroll to the very end of the build log; look for `Build finished OK` or an error. Ask Code Capsules if the build step has its own memory/timeout limits.
 
-## 7. If it still doesn’t work
+## 7. Service Unavailable (503) or Bad Gateway
+
+- **Run Command must include the build.** If it only has `node server.js` (or `npx prisma migrate deploy && node server.js`), the app has no `.next` build and will crash. Set it to:  
+  `npm install && npm run build && npx prisma migrate deploy && node server.js`
+- **Network Port** must match: set to `3000` in Capsule Parameters (server.js uses `process.env.PORT` or 3000).
+- **Logs** (runtime **Logs** tab): look for `> Ready on http://0.0.0.0:3000`. If that never appears, the process is crashing—check for missing env (`DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL`) or Prisma/Node errors.
+- Test: `https://<your-capsule>.codecapsules.space/api/health` → should return `{"ok":true}`.
+
+## 8. If it still doesn’t work
 
 - Open the capsule **Logs** tab (runtime logs, not the build log).
 - Reproduce the issue (open the site), then check the logs for errors.
