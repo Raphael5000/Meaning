@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { hasActiveSubscription } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
@@ -17,5 +18,10 @@ export async function GET() {
     select: { gaConnected: true },
   });
 
-  return NextResponse.json({ gaConnected: user?.gaConnected ?? false });
+  const hasSubscription = await hasActiveSubscription(userId);
+
+  return NextResponse.json({
+    gaConnected: user?.gaConnected ?? false,
+    hasSubscription,
+  });
 }

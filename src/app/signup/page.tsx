@@ -45,7 +45,7 @@ export default function SignUpPage() {
         return;
       }
 
-      window.location.href = "/connect-analytics";
+      window.location.href = "/pricing";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -97,7 +97,7 @@ export default function SignUpPage() {
 
           {/* Google OAuth */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/connect-analytics" })}
+            onClick={() => signIn("google", { callbackUrl: "/pricing" })}
             className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-[100px] px-6 py-3 text-sm font-medium transition-colors"
             style={{ background: "white", color: "#1f1f1f" }}
           >

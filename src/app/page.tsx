@@ -9,21 +9,23 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
-  // For authenticated users, check whether they completed GA onboarding
+  // For authenticated users, enforce onboarding order: subscription → GA → chat
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/user/onboarding-status")
       .then((res) => res.json())
       .then((data) => {
-        if (data.gaConnected) {
-          setOnboarded(true);
-        } else {
-          // Redirect to onboarding step 2
-          window.location.href = "/connect-analytics";
+        if (!data.hasSubscription) {
+          window.location.href = "/pricing";
+          return;
         }
+        if (!data.gaConnected) {
+          window.location.href = "/connect-analytics";
+          return;
+        }
+        setOnboarded(true);
       })
       .catch(() => {
-        // If the check fails, let them through rather than blocking
         setOnboarded(true);
       });
   }, [status]);

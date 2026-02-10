@@ -55,7 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   pages: {
     signIn: "/login",
-    newUser: "/connect-analytics",
+    newUser: "/pricing",
   },
   ...(cookieDomain && {
     cookies: {

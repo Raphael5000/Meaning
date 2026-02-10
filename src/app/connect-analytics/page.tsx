@@ -24,6 +24,19 @@ function ConnectAnalyticsContent() {
   const connected = searchParams.get("connected") === "true";
   const oauthError = searchParams.get("error");
 
+  // Enforce onboarding order: must have subscription before connecting GA
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/user/onboarding-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.hasSubscription === false) {
+          window.location.href = "/pricing";
+        }
+      })
+      .catch(() => {});
+  }, [status]);
+
   // Check whether the session has a Google access token
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -111,48 +124,40 @@ function ConnectAnalyticsContent() {
       >
         <div className="card-noise" aria-hidden />
         <div className="relative z-10">
-          {/* Step indicator */}
-          <div className="mb-6 flex items-center justify-center gap-3">
-            <div className="flex items-center gap-2">
+          {/* Step indicator: Account → Plan → Analytics */}
+          <div className="mb-6 flex items-center justify-center gap-2">
+            <div className="flex items-center gap-1.5">
               <div
                 className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
                 style={{ background: "var(--accent)", color: "white" }}
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <span
-                className="text-xs font-medium"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Account
-              </span>
+              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Account</span>
             </div>
-            <div
-              className="h-px w-8"
-              style={{ background: "var(--border-color)" }}
-            />
-            <div className="flex items-center gap-2">
+            <div className="h-px w-6" style={{ background: "var(--border-color)" }} />
+            <div className="flex items-center gap-1.5">
               <div
                 className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
                 style={{ background: "var(--accent)", color: "white" }}
               >
-                2
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
               </div>
-              <span
-                className="text-xs font-medium"
-                style={{ color: "var(--text-primary)" }}
+              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Plan</span>
+            </div>
+            <div className="h-px w-6" style={{ background: "var(--border-color)" }} />
+            <div className="flex items-center gap-1.5">
+              <div
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                style={{ background: "var(--accent)", color: "white" }}
               >
-                Analytics
-              </span>
+                3
+              </div>
+              <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Analytics</span>
             </div>
           </div>
 

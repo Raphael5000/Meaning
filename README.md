@@ -33,8 +33,11 @@ Chat with your Google Analytics data using natural language. Connect your GA4 ac
    - **Google Analytics Data API**
    - **Google Analytics Admin API**
 3. Go to **APIs & Services > Credentials** and create an **OAuth 2.0 Client ID** (Web application)
-4. Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI
-5. Copy the Client ID and Client Secret
+4. Add **both** redirect URIs (local and prod) so OAuth works everywhere:
+   - **Local:** `http://localhost:3001/api/auth/callback/google`
+   - **Prod:** e.g. `https://your-app.usemeaning.io/api/auth/callback/google`
+5. (Optional) Under **Authorized JavaScript origins**, add `http://localhost:3001` for local.
+6. Copy the Client ID and Client Secret.
 
 ### 2. Environment Variables
 
@@ -49,10 +52,36 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 ANTHROPIC_API_KEY=your_anthropic_api_key
 AUTH_SECRET=<run: openssl rand -base64 32>
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3001
+# Required for OAuth and account creation (NextAuth + Prisma).
+# Local: use a Supabase project (free tier) or local Postgres — see "Local development with Supabase" below.
+DATABASE_URL="postgresql://..."
 ```
 
-### 3. Install & Run
+### 3. Local development with Supabase (OAuth)
+
+After moving prod to Supabase, local needs a Postgres DB and the right Google redirect URI.
+
+1. **Database for local** (pick one):
+   - **Option A — Same Supabase project as prod:** Use your prod `DATABASE_URL` in `.env`. Easiest; local and prod share the same DB (fine for solo dev; be careful with data).
+   - **Option B — Separate Supabase project for dev:** Create a second Supabase project (free tier), get its connection string from **Project Settings → Database → Connection string (URI)**, put it in `.env` as `DATABASE_URL`, then run:
+     ```bash
+     npx prisma migrate deploy
+     ```
+     so the schema is applied to the dev DB.
+
+2. **`.env` for local:** Ensure:
+   - `NEXTAUTH_URL=http://localhost:3001`
+   - `DATABASE_URL` = one of the options above
+   - `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` set (same Google OAuth client as prod is fine).
+
+3. **Google OAuth:** In [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services → Credentials** → your OAuth 2.0 client:
+   - **Authorized redirect URIs:** add `http://localhost:3001/api/auth/callback/google` (in addition to your prod callback URL).
+   - Save. Without this, Google will return `redirect_uri_mismatch` when signing in locally.
+
+After that, `npm run dev` and sign in with Google at http://localhost:3001; the callback will hit localhost and NextAuth will use your local `DATABASE_URL` to create/find the user.
+
+### 4. Install & Run
 
 ```bash
 cp .env.example .env
@@ -61,7 +90,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign in with Google (needs real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`), select a GA4 property, and start chatting. Chat requires a valid `ANTHROPIC_API_KEY`.
+Open [http://localhost:3001](http://localhost:3001). Sign in with Google (needs real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and the local redirect URI in Google Console), select a GA4 property, and start chatting. Chat requires a valid `ANTHROPIC_API_KEY`. OAuth requires a valid `DATABASE_URL` (see "Local development with Supabase" above).
 
 ### Deploy on Code Capsules
 

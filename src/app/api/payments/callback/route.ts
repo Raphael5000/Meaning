@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       });
 
       return NextResponse.redirect(
-        new URL("/account?payment=success", baseUrl)
+        new URL("/connect-analytics?payment=success", baseUrl)
       );
     }
 
