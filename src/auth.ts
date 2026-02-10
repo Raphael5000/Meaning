@@ -38,16 +38,19 @@ function fetchWithTimeout(
 }
 
 // Share auth cookies across www and apex so PKCE/state are available on callback.
-// Set AUTH_COOKIE_DOMAIN= in env to disable (e.g. to debug 502).
+// Set AUTH_COOKIE_DOMAIN=0 or false to disable (e.g. to fix 502 or PKCE issues).
 const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
 const isProductionUsemeaning =
   nextAuthUrl.startsWith("https://") && nextAuthUrl.includes("usemeaning.io");
+const raw = process.env.AUTH_COOKIE_DOMAIN;
 const cookieDomain =
-  process.env.AUTH_COOKIE_DOMAIN !== undefined
-    ? process.env.AUTH_COOKIE_DOMAIN || undefined
-    : isProductionUsemeaning
-      ? ".usemeaning.io"
-      : undefined;
+  raw === "0" || raw === "false" || raw === ""
+    ? undefined
+    : raw !== undefined
+      ? raw || undefined
+      : isProductionUsemeaning
+        ? ".usemeaning.io"
+        : undefined;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -59,20 +62,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   ...(cookieDomain && {
     cookies: {
-      pkceCodeVerifier: {
-        options: {
-          domain: cookieDomain,
-          sameSite: "none" as const,
-          secure: true,
-        },
-      },
-      state: {
-        options: {
-          domain: cookieDomain,
-          sameSite: "none" as const,
-          secure: true,
-        },
-      },
+      pkceCodeVerifier: { options: { domain: cookieDomain } },
+      state: { options: { domain: cookieDomain } },
       sessionToken: { options: { domain: cookieDomain } },
       callbackUrl: { options: { domain: cookieDomain } },
     },
