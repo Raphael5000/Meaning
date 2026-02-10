@@ -1,12 +1,18 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const globalForPrisma = globalThis as unknown as {
   _prisma: PrismaClient | undefined;
 };
 
+// Prisma 7 requires a driver adapter for SQLite at runtime
+const datasourceUrl =
+  process.env.DATABASE_URL ?? "file:./dev.db";
+
 function getClient(): PrismaClient {
   if (!globalForPrisma._prisma) {
-    globalForPrisma._prisma = new PrismaClient();
+    const adapter = new PrismaBetterSqlite3({ url: datasourceUrl });
+    globalForPrisma._prisma = new PrismaClient({ adapter });
   }
   return globalForPrisma._prisma;
 }

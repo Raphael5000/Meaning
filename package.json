@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --webpack -p 3001",
     "build": "echo 'Build starting...' && prisma generate && next build --webpack && echo 'Build finished OK'",
     "postinstall": "prisma generate",
     "start": "node server.js",
@@ -12,9 +12,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.1",
     "@auth/prisma-adapter": "^2.11.1",
+    "@prisma/adapter-better-sqlite3": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
     "googleapis": "^171.2.0",
     "next": "^16.1.6",
     "next-auth": "^5.0.0-beta.30",

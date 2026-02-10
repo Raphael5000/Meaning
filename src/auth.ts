@@ -5,6 +5,21 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+// Validate required env vars — fixes "Configuration" error; check server console for missing vars
+const required = [
+  "AUTH_SECRET",
+  "NEXTAUTH_URL",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+] as const;
+const missing = required.filter((key) => !process.env[key]?.trim());
+if (missing.length > 0 && process.env.NODE_ENV !== "test") {
+  console.error(
+    "[auth] Missing required env (auth will show Configuration error):",
+    missing.join(", ")
+  );
+}
+
 const TOKEN_EXCHANGE_TIMEOUT_MS = 25_000;
 
 function fetchWithTimeout(

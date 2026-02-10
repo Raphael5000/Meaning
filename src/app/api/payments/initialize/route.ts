@@ -11,6 +11,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Validate payment env so we return clear errors instead of generic 500
+  const planCode = process.env.PAYSTACK_PLAN_CODE?.trim();
+  const secretKey = process.env.PAYSTACK_SECRET_KEY?.trim();
+  const baseUrl = process.env.NEXTAUTH_URL?.trim();
+  if (!planCode) {
+    return NextResponse.json(
+      { error: "Payment plan not configured. Set PAYSTACK_PLAN_CODE in .env (create a plan in Paystack dashboard)." },
+      { status: 500 }
+    );
+  }
+  if (!secretKey) {
+    return NextResponse.json(
+      { error: "Paystack not configured. Set PAYSTACK_SECRET_KEY in .env." },
+      { status: 500 }
+    );
+  }
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "NEXTAUTH_URL is not set in .env." },
+      { status: 500 }
+    );
+  }
+
   try {
     const { plan } = await req.json();
 
@@ -23,6 +46,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (!user.email?.trim()) {
+      return NextResponse.json(
+        { error: "Account has no email. Payment requires an email." },
+        { status: 400 }
+      );
+    }
+
     // Check for active subscription
     if (user.subscription?.status === "active") {
       return NextResponse.json(
@@ -31,15 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const planCode = process.env.PAYSTACK_PLAN_CODE;
-    if (!planCode) {
-      return NextResponse.json(
-        { error: "Payment plan not configured" },
-        { status: 500 }
-      );
-    }
-
-    const callbackUrl = `${process.env.NEXTAUTH_URL}/api/payments/callback`;
+    const callbackUrl = `${baseUrl}/api/payments/callback`;
 
     const result = await initializeTransaction({
       email: user.email,
@@ -70,8 +92,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Payment initialization error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to initialize payment";
     return NextResponse.json(
-      { error: "Failed to initialize payment" },
+      {
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Failed to initialize payment"
+            : message,
+      },
       { status: 500 }
     );
   }
