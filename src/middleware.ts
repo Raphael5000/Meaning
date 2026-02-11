@@ -20,7 +20,11 @@ export async function middleware(req: NextRequest) {
   const needsAuth = PROTECTED_PAGES.some((p) => pathname.startsWith(p));
   if (!needsAuth) return NextResponse.next();
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+  });
 
   if (!token) {
     const loginUrl = new URL("/login", req.url);
