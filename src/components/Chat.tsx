@@ -59,8 +59,9 @@ export default function Chat() {
   function selectChat(chat: StoredChat) {
     setCurrentChatId(chat.id);
     setMessages(chat.messages);
+    setPropertyId(chat.propertyId ?? null);
+    setPropertyName(chat.propertyName ?? "");
     setError(null);
-    setSidebarOpen(false);
   }
 
   function handleNewChat() {
@@ -130,6 +131,8 @@ export default function Chat() {
         title: titleFromFirstMessage(content),
         messages: [userMessage],
         createdAt: Date.now(),
+        propertyId: propertyId ?? undefined,
+        propertyName: propertyName || undefined,
       };
       chatIdToUpdate = newChat.id;
       setChats((prev) => [newChat, ...prev]);
@@ -318,6 +321,13 @@ export default function Chat() {
                 onSelect={(id, name) => {
                   setPropertyId(id);
                   setPropertyName(name);
+                  if (currentChatId) {
+                    updateCurrentChatInList((c) => ({
+                      ...c,
+                      propertyId: id,
+                      propertyName: name,
+                    }));
+                  }
                 }}
               />
             </div>

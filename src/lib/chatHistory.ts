@@ -15,6 +15,9 @@ export interface StoredChat {
   title: string;
   messages: Message[];
   createdAt: number;
+  /** GA4 property used for this chat; restored when switching back to the chat */
+  propertyId?: string | null;
+  propertyName?: string;
 }
 
 const STORAGE_PREFIX = "meaning_chats_";

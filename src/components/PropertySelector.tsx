@@ -139,7 +139,7 @@ export default function PropertySelector({
                 onSelect(prop.propertyId, prop.displayName);
                 setOpen(false);
               }}
-              className="flex w-full cursor-pointer flex-col rounded-[100px] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+              className="flex w-full cursor-pointer flex-col rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
               style={{
                 color:
                   prop.propertyId === selectedPropertyId
