@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import PropertySelector from "./PropertySelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
@@ -226,20 +227,33 @@ export default function Chat() {
           background: "var(--bg-secondary)",
         }}
       >
-        <div className="flex h-14 min-w-[16rem] items-center justify-between border-b px-3 md:min-w-0" style={{ borderColor: "var(--border-color)" }}>
+        {/* Top row: logo */}
+        <div className="flex min-w-[16rem] items-center pl-[18px] pr-3 pt-[18px] md:min-w-0">
+          <Link href="/" className="flex shrink-0 items-center" aria-label="Home">
+            <Image
+              src="/Hivory icon.svg"
+              alt="Hivory"
+              width={28}
+              height={28}
+              className="h-7 w-7"
+            />
+          </Link>
+        </div>
+        {/* New chat button */}
+        <div className="px-3 py-2 pt-8 md:min-w-0">
           <button
             onClick={handleNewChat}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
             style={{ color: "var(--text-primary)" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             New chat
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-2 pt-6">
           <p className="mb-2 px-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
             Chat history
           </p>
@@ -288,10 +302,7 @@ export default function Chat() {
       {/* Main chat area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header
-          className="flex shrink-0 items-center justify-between border-b px-3 py-2 md:px-4 md:py-3"
-          style={{ borderColor: "var(--border-color)" }}
-        >
+        <header className="flex shrink-0 items-center justify-between px-3 py-2 md:px-4 md:py-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -362,25 +373,6 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
-              <div
-                className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: "var(--accent)" }}
-              >
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 20V10" />
-                  <path d="M12 20V4" />
-                  <path d="M6 20v-6" />
-                </svg>
-              </div>
               <h2
                 className="mb-2 text-xl font-semibold"
                 style={{ color: "var(--text-primary)" }}
