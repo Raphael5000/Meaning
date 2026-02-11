@@ -78,6 +78,31 @@ export default function Chat() {
     );
   }
 
+  function markScorecardRevealed(messageId: string) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId && m.scorecard
+          ? { ...m, scorecardRevealed: true }
+          : m
+      )
+    );
+    if (!currentChatId) return;
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === currentChatId
+          ? {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === messageId && m.scorecard
+                  ? { ...m, scorecardRevealed: true }
+                  : m
+              ),
+            }
+          : c
+      )
+    );
+  }
+
   async function sendMessage(content: string) {
     if (!propertyId) {
       setError("Please select a GA4 property first.");
@@ -149,6 +174,7 @@ export default function Chat() {
         id: crypto.randomUUID(),
         role: "assistant",
         content: data.message,
+        scorecard: data.scorecard,
         suggestedQuestions: data.suggestedQuestions,
       };
 
@@ -387,10 +413,21 @@ export default function Chat() {
                   key={msg.id}
                   role={msg.role}
                   content={msg.content}
-                  suggestedQuestions={msg.suggestedQuestions}
+                  scorecard={msg.scorecard}
+                  scorecardRevealed={msg.scorecardRevealed}
+                  suggestedQuestions={
+                    messages[messages.length - 1]?.id === msg.id
+                      ? msg.suggestedQuestions
+                      : undefined
+                  }
                   onSuggestedQuestionClick={
                     msg.role === "assistant"
                       ? (q) => sendMessage(q)
+                      : undefined
+                  }
+                  onTypewriterComplete={
+                    msg.role === "assistant" && msg.scorecard
+                      ? () => markScorecardRevealed(msg.id)
                       : undefined
                   }
                 />

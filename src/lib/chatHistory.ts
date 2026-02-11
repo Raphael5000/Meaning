@@ -2,6 +2,10 @@ export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** When the answer is a specific number, show it in a scorecard first (assistant only) */
+  scorecard?: { value: string; label: string };
+  /** True once the scorecard typewriter has finished (so we don't re-stream when returning to chat) */
+  scorecardRevealed?: boolean;
   /** Suggested follow-up questions (assistant messages only) */
   suggestedQuestions?: string[];
 }

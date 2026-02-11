@@ -12,6 +12,19 @@ const anthropic = new Anthropic();
 /** Regex to match the suggested questions JSON block at end of response */
 const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
 
+/** Regex to match scorecard block at start: [[scorecard]]VALUE|LABEL[[/scorecard]] */
+const SCORECARD_REGEX = /^\s*\[\[scorecard\]\]([^|[\]]+)\|([\s\S]*?)\[\[\/scorecard\]\]\s*\n?/i;
+
+function parseScorecard(text: string): { value: string; label: string } | null {
+  const match = text.match(SCORECARD_REGEX);
+  if (!match) return null;
+  return { value: match[1].trim(), label: (match[2] || "").trim() || "Result" };
+}
+
+function stripScorecardBlock(text: string): string {
+  return text.replace(SCORECARD_REGEX, "").trim();
+}
+
 function parseSuggestedQuestions(text: string): string[] | null {
   const match = text.match(SUGGESTED_QUESTIONS_REGEX);
   if (!match) return null;
@@ -59,6 +72,10 @@ Tips:
 - When comparing periods, run two reports with different date ranges.
 - Format large numbers with commas for readability.
 - When providing recommendations or actionable advice, wrap them in [[rec]]...[[/rec]] blocks. Each recommendation can be its own block, e.g. [[rec]]Focus on improving your top 3 landing pages — they drive 60% of conversions.[[/rec]] This will render them as green bubbles with a tick icon.
+
+- When the user asks for a specific number or metric (e.g. "how many users visited my site this week?", "what was my revenue?", "how many sessions?"), start your response with a scorecard so the number appears first. Use exactly this format on the first line: [[scorecard]]VALUE|LABEL[[/scorecard]] where VALUE is the main number (use commas for thousands, e.g. 12,847) and LABEL is a short description (e.g. "Users this week" or "Sessions"). Then add a blank line, then write your full explanation as usual. Example: [[scorecard]]12,847|Users this week[[/scorecard]]
+
+Then your full answer with context and interpretation.
 
 At the end of every response, append a JSON block with 3-4 suggested follow-up questions the user might ask next. Format it exactly as:
 \`\`\`json
@@ -225,6 +242,12 @@ export async function POST(request: NextRequest) {
     );
     let rawMessage = textBlocks.map((b) => b.text).join("\n");
 
+    // Parse scorecard block at start (for "how many...?" style questions)
+    const scorecard = parseScorecard(rawMessage);
+    if (scorecard) {
+      rawMessage = stripScorecardBlock(rawMessage);
+    }
+
     // Parse suggested follow-up questions from JSON block at end
     const suggestedQuestions = parseSuggestedQuestions(rawMessage);
     if (suggestedQuestions) {
@@ -233,6 +256,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: rawMessage.trim(),
+      scorecard: scorecard ?? undefined,
       suggestedQuestions: suggestedQuestions ?? undefined,
     });
   } catch (error: unknown) {

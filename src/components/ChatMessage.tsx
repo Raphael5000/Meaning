@@ -1,19 +1,79 @@
 "use client";
 
+import { useState, useEffect, useMemo, useRef } from "react";
+
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  scorecard?: { value: string; label: string };
+  /** When true, show full content immediately (e.g. after returning to chat) */
+  scorecardRevealed?: boolean;
   suggestedQuestions?: string[];
   onSuggestedQuestionClick?: (question: string) => void;
+  /** Called once when the typewriter finishes (so parent can persist and avoid re-streaming) */
+  onTypewriterComplete?: () => void;
 }
+
+const TYPEWRITER_WORD_DELAY_MS = 25;
+const TYPEWRITER_INITIAL_DELAY_MS = 400;
 
 export default function ChatMessage({
   role,
   content,
+  scorecard,
+  scorecardRevealed,
   suggestedQuestions,
   onSuggestedQuestionClick,
+  onTypewriterComplete,
 }: ChatMessageProps) {
   const isUser = role === "user";
+  const shouldStream =
+    role === "assistant" &&
+    scorecard &&
+    content.length > 0 &&
+    !scorecardRevealed;
+  const useTypewriter = shouldStream;
+
+  const parts = useMemo(
+    () => content.split(/(\s+)/),
+    [content]
+  );
+  const [visiblePartCount, setVisiblePartCount] = useState(() =>
+    useTypewriter ? 0 : parts.length
+  );
+  const completedRef = useRef(false);
+
+  useEffect(() => {
+    if (!useTypewriter || visiblePartCount >= parts.length) return;
+    const initial = setTimeout(() => {
+      setVisiblePartCount((n) => Math.min(n + 1, parts.length));
+    }, TYPEWRITER_INITIAL_DELAY_MS);
+    return () => clearTimeout(initial);
+  }, [useTypewriter, parts.length, visiblePartCount]);
+
+  useEffect(() => {
+    if (!useTypewriter || visiblePartCount <= 0 || visiblePartCount >= parts.length) return;
+    const t = setInterval(() => {
+      setVisiblePartCount((n) => Math.min(n + 1, parts.length));
+    }, TYPEWRITER_WORD_DELAY_MS);
+    return () => clearInterval(t);
+  }, [useTypewriter, visiblePartCount, parts.length]);
+
+  useEffect(() => {
+    if (
+      !useTypewriter ||
+      visiblePartCount < parts.length ||
+      parts.length === 0 ||
+      completedRef.current
+    )
+      return;
+    completedRef.current = true;
+    onTypewriterComplete?.();
+  }, [useTypewriter, visiblePartCount, parts.length, onTypewriterComplete]);
+
+  const visibleContent = useTypewriter
+    ? parts.slice(0, visiblePartCount).join("")
+    : content;
 
   return (
     <div className="flex w-full justify-center px-4 py-6">
@@ -28,6 +88,28 @@ export default function ChatMessage({
               : "min-w-0 flex-1"
           }
         >
+          {role === "assistant" && scorecard && (
+            <div
+              className="scorecard mb-3 inline-flex w-fit items-baseline gap-3 rounded-2xl border px-4 py-3"
+              style={{
+                background: "var(--bg-secondary)",
+                borderColor: "var(--border-color)",
+              }}
+            >
+              <span
+                className="text-3xl font-semibold tabular-nums tracking-tight"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {scorecard.value}
+              </span>
+              <span
+                className="text-sm"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {scorecard.label}
+              </span>
+            </div>
+          )}
           <div
             className={`message-content rounded-2xl px-4 py-3 text-sm leading-relaxed ${
               isUser ? "max-w-full" : ""
@@ -40,7 +122,7 @@ export default function ChatMessage({
               border: "1px solid var(--border-color)",
               ...(isUser && { display: "inline-block", width: "fit-content", maxWidth: "100%" }),
             }}
-            dangerouslySetInnerHTML={{ __html: formatContent(content) }}
+            dangerouslySetInnerHTML={{ __html: formatContent(visibleContent) }}
           />
           {role === "assistant" &&
             suggestedQuestions &&
