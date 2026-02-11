@@ -28,6 +28,16 @@ function truncateTitle(title: string, max = 36): string {
   return title.slice(0, max).trim() + "…";
 }
 
+function getInitials(name: string | null | undefined, email?: string | null): string {
+  if (name?.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "?";
+}
+
 export default function Chat() {
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id ?? session?.user?.email ?? "anonymous";
@@ -40,7 +50,10 @@ export default function Chat() {
   const [propertyName, setPropertyName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   // Load chats from storage when user is available
   useEffect(() => {
@@ -56,6 +69,33 @@ export default function Chat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Fetch user plan for account section
+  useEffect(() => {
+    if (!(session?.user as { id?: string })?.id) return;
+    fetch("/api/user/profile")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.subscription?.status === "active" && data?.subscription?.plan) {
+          const plan = data.subscription.plan;
+          setUserPlan(plan.charAt(0).toUpperCase() + plan.slice(1));
+        }
+      })
+      .catch(() => {});
+  }, [session?.user]);
+
+  // Close account menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+    if (accountMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [accountMenuOpen]);
 
   function selectChat(chat: StoredChat) {
     setCurrentChatId(chat.id);
@@ -240,7 +280,7 @@ export default function Chat() {
           </Link>
         </div>
         {/* New chat button */}
-        <div className="px-3 py-2 pt-8 md:min-w-0">
+        <div className="px-3 py-2 pt-8 md:min-w-0 space-y-0.5">
           <button
             onClick={handleNewChat}
             className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
@@ -251,6 +291,29 @@ export default function Chat() {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             New chat
+          </button>
+          {/* Alerts - coming soon */}
+          <button
+            type="button"
+            disabled
+            className="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium opacity-60"
+            style={{ color: "var(--text-muted)" }}
+            aria-label="Alerts (coming soon)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            Alerts
+            <span
+              className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{
+                backgroundColor: "var(--bg-tertiary)",
+                color: "var(--text-muted)",
+              }}
+            >
+              Coming soon
+            </span>
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 pt-6">
@@ -297,17 +360,95 @@ export default function Chat() {
             </ul>
           )}
         </div>
+
+        {/* Account section - bottom left */}
+        {session?.user && (
+          <div
+            ref={accountMenuRef}
+            className="relative mt-auto border-t p-3"
+            style={{ borderColor: "var(--border-color)" }}
+          >
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((o) => !o)}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {session.user.image ? (
+                <img
+                  src={session.user.image}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium text-white"
+                  style={{ backgroundColor: "var(--accent)" }}
+                >
+                  {getInitials(session.user.name ?? null, session.user.email ?? null)}
+                </div>
+              )}
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  {session.user.name ?? "Account"}
+                </p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {userPlan}
+                </p>
+              </div>
+            </button>
+
+            {accountMenuOpen && (
+              <div
+                className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg shadow-lg"
+                style={{
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                }}
+              >
+                <Link
+                  href="/account"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  Account
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    signOut();
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Main chat area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="flex shrink-0 items-center justify-between px-3 py-2 md:px-4 md:py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
               onClick={() => setSidebarOpen((o) => !o)}
-              className="flex cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-[var(--bg-hover)]"
+              className="flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-[var(--bg-hover)]"
               style={{ color: "var(--text-primary)" }}
               aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
             >
@@ -323,9 +464,6 @@ export default function Chat() {
                 </svg>
               )}
             </button>
-          </div>
-
-          <div className="flex items-center gap-3">
             <div className="w-48 md:w-64">
               <PropertySelector
                 selectedPropertyId={propertyId}
@@ -341,30 +479,6 @@ export default function Chat() {
                   }
                 }}
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              {session?.user?.image && (
-                <img
-                  src={session.user.image}
-                  alt=""
-                  className="h-7 w-7 rounded-full"
-                />
-              )}
-              <Link
-                href="/account"
-                className="rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Account
-              </Link>
-              <button
-                onClick={() => signOut()}
-                className="cursor-pointer rounded-[100px] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--bg-hover)]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Sign out
-              </button>
             </div>
           </div>
         </header>
