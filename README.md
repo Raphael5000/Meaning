@@ -14,6 +14,39 @@ Chat with your Google Analytics data using natural language. Connect your GA4 ac
 - **LLM**: Claude (Anthropic) with tool calling — the model decides which GA4 queries to run
 - **Analytics**: Google Analytics Data API v1beta via the `googleapis` SDK
 
+### Login & Sign Up Flow
+
+**Auth methods:** Google OAuth + Email/Password (Credentials). Both are configured in `src/auth.ts` via NextAuth v5.
+
+#### Sign Up (`/signup`)
+
+| Method | Flow |
+|--------|------|
+| **Google** | User clicks "Sign up with Google" → `signIn("google", { callbackUrl: "/pricing" })` → NextAuth redirects to Google → callback at `/api/auth/callback/google` → user created via PrismaAdapter → redirect to `/pricing` (NextAuth `newUser` page). |
+| **Email/Password** | User submits name, email, password (min 8 chars) → `POST /api/auth/register` creates `User` with `passwordHash` (bcrypt, 12 rounds) → then `signIn("credentials", { email, password })` with `redirect: false` → on success, client redirects to `/pricing`. |
+
+#### Login (`/login`)
+
+| Method | Flow |
+|--------|------|
+| **Google** | User clicks "Log in with Google" → `signIn("google", { callbackUrl })` → NextAuth handles OAuth → callback creates/finds user → redirect to `callbackUrl` (default `/`) or `/pricing` for new users. |
+| **Email/Password** | User submits email + password → `signIn("credentials", ...)` → Credentials provider in `auth.ts` looks up `User` by email, compares `passwordHash` with bcrypt → on success, client redirects to `callbackUrl`. |
+
+#### Key files & behavior
+
+- **`src/auth.ts`** — NextAuth config:
+  - `pages.signIn: "/login"` — unauthenticated users go here
+  - `pages.newUser: "/pricing"` — new Google users land here
+  - `pages.error: "/auth-error"` — OAuth/config errors
+  - `session: { strategy: "jwt" }` — JWT sessions (OAuth tokens stored in JWT)
+- **`/api/auth/register`** — Creates `User` with `passwordHash`; does not create an `Account`. Duplicate email returns 409.
+- **`src/middleware.ts`** — Protects `/account` and `/connect-analytics`; redirects to `/login` with `callbackUrl=/connect-analytics` when needed.
+
+**Critical requirements:**
+- `DATABASE_URL` — required for PrismaAdapter and Credentials lookup
+- `User.passwordHash` — must exist in schema (nullable); OAuth-only users have `null`
+- Google redirect URIs must include both local and prod (e.g. `http://localhost:3001/api/auth/callback/google`)
+
 ### How it works
 
 1. User signs in with Google and grants read-only access to their Analytics.
