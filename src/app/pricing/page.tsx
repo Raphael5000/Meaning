@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function PricingPage() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -94,57 +96,59 @@ export default function PricingPage() {
         />
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-50 flex items-center justify-between px-6 py-4">
-        <Link href="/">
+      {/* Navigation - same structure as resources for consistency */}
+      <nav className="relative z-50 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 sm:gap-4">
+        <Link href="/" className="shrink-0">
           <Image
             src="/Logo.svg"
             alt="Meaning"
             width={120}
             height={42}
-            className="w-auto"
-            style={{ height: "36px" }}
+            className="h-8 w-auto sm:h-9"
             priority
           />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
+          <Link
+            href="/pricing"
+            className="text-sm transition-colors"
+            style={{
+              color:
+                pathname === "/pricing" ? "var(--accent)" : "var(--text-secondary)",
+            }}
+          >
+            Pricing
+          </Link>
           <Link
             href="/resources"
             className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            style={{
+              color:
+                pathname?.startsWith("/resources")
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+            }}
           >
             Resources
           </Link>
-          {session ? (
-            <Link
-              href="/account"
-              className="text-sm transition-colors"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Account
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="text-sm transition-colors"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
-                style={{
-                  background:
-                    "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                  color: "white",
-                }}
-              >
-                Sign up
-              </Link>
-            </>
-          )}
+          <Link
+            href="/login"
+            className="text-sm transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Log in
+          </Link>
+          <Link
+            href="/signup"
+            className="shrink-0 rounded-[100px] px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:px-5 sm:py-2"
+            style={{
+              background:
+                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
+              color: "white",
+            }}
+          >
+            Get started
+          </Link>
         </div>
       </nav>
 

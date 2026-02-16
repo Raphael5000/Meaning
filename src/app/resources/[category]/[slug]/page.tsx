@@ -3,7 +3,7 @@
 import { use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, usePathname } from "next/navigation";
 import {
   getArticle,
   getCategory,
@@ -47,6 +47,7 @@ export default function ArticlePage({
   params: Promise<{ category: string; slug: string }>;
 }) {
   const { category: categorySlug, slug } = use(params);
+  const pathname = usePathname();
 
   const article = getArticle(categorySlug, slug);
   const category = getCategory(categorySlug);
@@ -76,30 +77,37 @@ export default function ArticlePage({
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 flex items-center justify-between px-6 py-4">
-        <Link href="/">
+      <nav className="relative z-50 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 sm:gap-4">
+        <Link href="/" className="shrink-0">
           <Image
             src="/Logo.svg"
             alt="Meaning"
             width={120}
             height={42}
-            className="w-auto"
-            style={{ height: "36px" }}
+            className="h-8 w-auto sm:h-9"
             priority
           />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           <Link
             href="/pricing"
             className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            style={{
+              color:
+                pathname === "/pricing" ? "var(--accent)" : "var(--text-secondary)",
+            }}
           >
             Pricing
           </Link>
           <Link
             href="/resources"
             className="text-sm transition-colors"
-            style={{ color: "var(--accent)" }}
+            style={{
+              color:
+                pathname?.startsWith("/resources")
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+            }}
           >
             Resources
           </Link>
@@ -112,7 +120,7 @@ export default function ArticlePage({
           </Link>
           <Link
             href="/signup"
-            className="rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
+            className="shrink-0 rounded-[100px] px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:px-5 sm:py-2"
             style={{
               background:
                 "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
@@ -125,8 +133,8 @@ export default function ArticlePage({
       </nav>
 
       {/* Main Content */}
-      <section className="relative z-10 px-6 pb-24">
-        <div className="mx-auto flex max-w-7xl gap-8">
+      <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:gap-8">
           {/* Left Sidebar */}
           <aside className="hidden w-64 shrink-0 md:block">
             <div
@@ -180,33 +188,37 @@ export default function ArticlePage({
           </aside>
 
           {/* Right Content */}
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             {/* Breadcrumb */}
-            <div className="mb-8 flex items-center gap-2 pt-8 text-sm">
+            <div className="mb-6 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pt-6 text-sm sm:mb-8 sm:pt-8">
               <Link
                 href="/resources"
-                className="transition-colors hover:underline"
+                className="shrink-0 transition-colors hover:underline"
                 style={{ color: "var(--text-muted)" }}
               >
                 Resources
               </Link>
-              <span style={{ color: "var(--text-muted)" }}>/</span>
+              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>/</span>
               <Link
                 href={`/resources?category=${categorySlug}`}
-                className="transition-colors hover:underline"
+                className="shrink-0 transition-colors hover:underline"
                 style={{ color: "var(--text-muted)" }}
               >
                 {category.label}
               </Link>
-              <span style={{ color: "var(--text-muted)" }}>/</span>
-              <span style={{ color: "var(--text-secondary)" }}>
+              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>/</span>
+              <span
+                className="min-w-0 truncate"
+                style={{ color: "var(--text-secondary)" }}
+                title={article.title}
+              >
                 {article.title}
               </span>
             </div>
 
             {/* Article Header */}
-            <div className="mb-10">
-              <div className="mb-4 flex items-center gap-3">
+            <div className="mb-8 sm:mb-10">
+              <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
                 <TypeBadge type={article.type} />
                 <span
                   className="text-sm"
@@ -216,13 +228,13 @@ export default function ArticlePage({
                 </span>
               </div>
               <h1
-                className="mb-4 text-3xl font-bold md:text-4xl"
+                className="mb-3 text-2xl font-bold leading-tight sm:mb-4 sm:text-3xl md:text-4xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 {article.title}
               </h1>
               <p
-                className="max-w-3xl text-lg leading-relaxed"
+                className="max-w-3xl text-base leading-relaxed sm:text-lg"
                 style={{ color: "var(--text-secondary)" }}
               >
                 {article.description}
@@ -231,17 +243,16 @@ export default function ArticlePage({
 
             {/* Article Body Placeholder */}
             <div
-              className="mb-16 rounded-2xl p-8 md:p-12"
+              className="mb-12 rounded-2xl p-4 sm:mb-16 sm:p-8 md:p-12"
               style={{
                 background:
                   "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
                 border: "1px solid var(--border-color)",
               }}
             >
-              <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <div
-                  className="flex flex-col items-center gap-4 py-12 text-center"
+                  className="flex flex-col items-center gap-4 py-8 text-center sm:py-12"
                 >
                   <div
                     className="flex h-16 w-16 items-center justify-center rounded-full"
@@ -285,17 +296,17 @@ export default function ArticlePage({
             {relatedArticles.length > 0 && (
               <div>
                 <h2
-                  className="mb-6 text-xl font-semibold"
+                  className="mb-4 text-lg font-semibold sm:mb-6 sm:text-xl"
                   style={{ color: "var(--text-primary)" }}
                 >
                   More in {category.label}
                 </h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {relatedArticles.slice(0, 3).map((related) => (
                     <Link
                       key={related.slug}
                       href={`/resources/${related.category}/${related.slug}`}
-                      className="group relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
+                      className="group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 sm:p-6"
                       style={{
                         background:
                           "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
@@ -315,7 +326,6 @@ export default function ArticlePage({
                         e.currentTarget.style.boxShadow = "none";
                       }}
                     >
-                      <div className="card-noise" aria-hidden />
                       <div className="relative z-10">
                         <div className="mb-3 flex items-center gap-2">
                           <TypeBadge type={related.type} />
@@ -350,10 +360,10 @@ export default function ArticlePage({
 
       {/* Footer */}
       <footer
-        className="relative z-10 px-6 py-8 md:px-12"
+        className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 md:px-12"
         style={{ borderTop: "1px solid var(--border-color)" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div className="flex items-center gap-2">
             <Image
               src="/Logo.svg"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { categories, articles, getArticlesByCategory } from "./data";
 import type { Article } from "./data";
 
@@ -24,6 +25,7 @@ function TypeBadge({ type }: { type: Article["type"] }) {
 }
 
 export default function ResourcesPage() {
+  const pathname = usePathname();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const displayedArticles = activeCategory
@@ -55,30 +57,37 @@ export default function ResourcesPage() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 flex items-center justify-between px-6 py-4">
-        <Link href="/">
+      <nav className="relative z-50 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 sm:gap-4">
+        <Link href="/" className="shrink-0">
           <Image
             src="/Logo.svg"
             alt="Meaning"
             width={120}
             height={42}
-            className="w-auto"
-            style={{ height: "36px" }}
+            className="h-8 w-auto sm:h-9"
             priority
           />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           <Link
             href="/pricing"
             className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            style={{
+              color:
+                pathname === "/pricing" ? "var(--accent)" : "var(--text-secondary)",
+            }}
           >
             Pricing
           </Link>
           <Link
             href="/resources"
             className="text-sm transition-colors"
-            style={{ color: "var(--accent)" }}
+            style={{
+              color:
+                pathname?.startsWith("/resources")
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+            }}
           >
             Resources
           </Link>
@@ -91,7 +100,7 @@ export default function ResourcesPage() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
+            className="shrink-0 rounded-[100px] px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:px-5 sm:py-2"
             style={{
               background:
                 "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
@@ -104,10 +113,10 @@ export default function ResourcesPage() {
       </nav>
 
       {/* Page Header */}
-      <section className="relative z-10 px-6 pt-12 pb-8">
+      <section className="relative z-10 px-4 pt-8 pb-6 sm:px-6 sm:pt-12 sm:pb-8">
         <div className="mx-auto max-w-7xl">
           <div
-            className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+            className="mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:mb-4 sm:px-4 sm:text-sm"
             style={{
               background: "rgba(16, 163, 127, 0.1)",
               border: "1px solid rgba(16, 163, 127, 0.3)",
@@ -117,13 +126,13 @@ export default function ResourcesPage() {
             Knowledge Centre
           </div>
           <h1
-            className="mb-3 text-4xl font-bold md:text-5xl"
+            className="mb-3 text-3xl font-bold sm:text-4xl md:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
             Resources
           </h1>
           <p
-            className="max-w-2xl text-lg"
+            className="max-w-2xl text-base leading-relaxed sm:text-lg"
             style={{ color: "var(--text-secondary)" }}
           >
             Learn how to get the most out of Meaning and Google Analytics.
@@ -134,8 +143,8 @@ export default function ResourcesPage() {
       </section>
 
       {/* Main Content: Sidebar + Articles */}
-      <section className="relative z-10 px-6 pb-24">
-        <div className="mx-auto flex max-w-7xl gap-8">
+      <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:gap-8">
           {/* Left Sidebar */}
           <aside className="hidden w-64 shrink-0 md:block">
             <div
@@ -236,7 +245,7 @@ export default function ResourcesPage() {
           </aside>
 
           {/* Mobile Category Selector */}
-          <div className="mb-6 flex w-full flex-wrap gap-2 md:hidden">
+          <div className="flex w-full flex-wrap gap-2 md:mb-0 md:hidden">
             <button
               onClick={() => setActiveCategory(null)}
               className="rounded-full px-4 py-2 text-sm transition-colors"
@@ -277,10 +286,10 @@ export default function ResourcesPage() {
           </div>
 
           {/* Right Content Area */}
-          <div className="flex-1">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="mb-4 flex flex-col gap-1 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
               <h2
-                className="text-xl font-semibold"
+                className="text-lg font-semibold sm:text-xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 {activeLabel}
@@ -294,12 +303,12 @@ export default function ResourcesPage() {
               </span>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {displayedArticles.map((article) => (
                 <Link
                   key={`${article.category}-${article.slug}`}
                   href={`/resources/${article.category}/${article.slug}`}
-                  className="group relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
+                  className="group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 sm:p-6"
                   style={{
                     background:
                       "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
@@ -369,10 +378,10 @@ export default function ResourcesPage() {
 
       {/* Footer */}
       <footer
-        className="relative z-10 px-6 py-8 md:px-12"
+        className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 md:px-12"
         style={{ borderTop: "1px solid var(--border-color)" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div className="flex items-center gap-2">
             <Image
               src="/Logo.svg"
