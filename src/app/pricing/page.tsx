@@ -108,6 +108,13 @@ export default function PricingPage() {
           />
         </Link>
         <div className="flex items-center gap-4">
+          <Link
+            href="/resources"
+            className="text-sm transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Resources
+          </Link>
           {session ? (
             <Link
               href="/account"

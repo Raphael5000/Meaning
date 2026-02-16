@@ -91,6 +91,13 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             Pricing
           </a>
           <a
+            href="/resources"
+            className="text-sm transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Resources
+          </a>
+          <a
             href="/login"
             className="text-sm transition-colors"
             style={{ color: "var(--text-secondary)" }}
