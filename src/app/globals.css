@@ -301,6 +301,85 @@ body {
   transform: translateY(0);
 }
 
+/* Resource article body (MDX content) */
+.article-body {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.article-body h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.article-body h2:first-child {
+  margin-top: 0;
+}
+
+.article-body h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.article-body p {
+  margin: 0 0 1rem;
+}
+
+.article-body ul,
+.article-body ol {
+  margin: 0 0 1rem;
+  padding-left: 1.75rem;
+  list-style-position: outside;
+}
+
+.article-body ul {
+  list-style-type: disc;
+}
+
+.article-body ol {
+  list-style-type: decimal;
+}
+
+.article-body li {
+  margin: 0.25rem 0;
+  padding-left: 0.25rem;
+}
+
+.article-body li::marker {
+  color: var(--accent);
+}
+
+.article-body blockquote {
+  border-left: 4px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: var(--text-muted);
+}
+
+.article-body strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.article-body hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 2rem 0;
+}
+
+/* Related article card hover */
+.related-article-card:hover {
+  border-color: rgba(16, 163, 127, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(16, 163, 127, 0.1);
+}
+
 /* Noise texture overlay for cards (Diem-style) */
 .card-noise {
   position: absolute;

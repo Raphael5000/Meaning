@@ -1,9 +1,6 @@
-"use client";
-
-import { use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, usePathname } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   getArticle,
   getCategory,
@@ -11,6 +8,7 @@ import {
   categories,
 } from "../../data";
 import type { Article } from "../../data";
+import { ArticlePageNav } from "./ArticlePageNav";
 
 function TypeBadge({ type }: { type: Article["type"] }) {
   const config = {
@@ -41,13 +39,12 @@ function TypeBadge({ type }: { type: Article["type"] }) {
   );
 }
 
-export default function ArticlePage({
+export default async function ArticlePage({
   params,
 }: {
   params: Promise<{ category: string; slug: string }>;
 }) {
-  const { category: categorySlug, slug } = use(params);
-  const pathname = usePathname();
+  const { category: categorySlug, slug } = await params;
 
   const article = getArticle(categorySlug, slug);
   const category = getCategory(categorySlug);
@@ -59,6 +56,9 @@ export default function ArticlePage({
   const relatedArticles = getArticlesByCategory(categorySlug).filter(
     (a) => a.slug !== slug
   );
+
+  const { getArticleContent } = await import("@/lib/mdx");
+  const mdxContent = await getArticleContent(slug);
 
   return (
     <div
@@ -76,61 +76,7 @@ export default function ArticlePage({
         />
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-50 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 sm:gap-4">
-        <Link href="/" className="shrink-0">
-          <Image
-            src="/Logo.svg"
-            alt="Meaning"
-            width={120}
-            height={42}
-            className="h-8 w-auto sm:h-9"
-            priority
-          />
-        </Link>
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-          <Link
-            href="/pricing"
-            className="text-sm transition-colors"
-            style={{
-              color:
-                pathname === "/pricing" ? "var(--accent)" : "var(--text-secondary)",
-            }}
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/resources"
-            className="text-sm transition-colors"
-            style={{
-              color:
-                pathname?.startsWith("/resources")
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-            }}
-          >
-            Resources
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="shrink-0 rounded-[100px] px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:px-5 sm:py-2"
-            style={{
-              background:
-                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-              color: "white",
-            }}
-          >
-            Get started
-          </Link>
-        </div>
-      </nav>
+      <ArticlePageNav />
 
       {/* Main Content */}
       <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
@@ -241,7 +187,7 @@ export default function ArticlePage({
               </p>
             </div>
 
-            {/* Article Body Placeholder */}
+            {/* Article Body: MDX or placeholder */}
             <div
               className="mb-12 rounded-2xl p-4 sm:mb-16 sm:p-8 md:p-12"
               style={{
@@ -251,44 +197,48 @@ export default function ArticlePage({
               }}
             >
               <div className="relative z-10">
-                <div
-                  className="flex flex-col items-center gap-4 py-8 text-center sm:py-12"
-                >
+                {mdxContent ? (
+                  <div className="article-body max-w-3xl">{mdxContent}</div>
+                ) : (
                   <div
-                    className="flex h-16 w-16 items-center justify-center rounded-full"
-                    style={{
-                      background: "rgba(16, 163, 127, 0.1)",
-                      border: "2px solid rgba(16, 163, 127, 0.3)",
-                    }}
+                    className="flex flex-col items-center gap-4 py-8 text-center sm:py-12"
                   >
-                    <svg
-                      width="28"
-                      height="28"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ color: "var(--accent)" }}
+                    <div
+                      className="flex h-16 w-16 items-center justify-center rounded-full"
+                      style={{
+                        background: "rgba(16, 163, 127, 0.1)",
+                        border: "2px solid rgba(16, 163, 127, 0.3)",
+                      }}
                     >
-                      <path d={category.icon} />
-                    </svg>
+                      <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        <path d={category.icon} />
+                      </svg>
+                    </div>
+                    <h3
+                      className="text-xl font-semibold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Content coming soon
+                    </h3>
+                    <p
+                      className="max-w-md text-sm leading-relaxed"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      This article is being written. Check back soon for the full
+                      content on &ldquo;{article.title}&rdquo;.
+                    </p>
                   </div>
-                  <h3
-                    className="text-xl font-semibold"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    Content coming soon
-                  </h3>
-                  <p
-                    className="max-w-md text-sm leading-relaxed"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    This article is being written. Check back soon for the full
-                    content on &ldquo;{article.title}&rdquo;.
-                  </p>
-                </div>
+                )}
               </div>
             </div>
 
@@ -306,24 +256,11 @@ export default function ArticlePage({
                     <Link
                       key={related.slug}
                       href={`/resources/${related.category}/${related.slug}`}
-                      className="group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 sm:p-6"
+                      className="related-article-card group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 sm:p-6"
                       style={{
                         background:
                           "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
-                        border: "1px solid var(--border-color)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "rgba(16, 163, 127, 0.4)";
-                        e.currentTarget.style.transform = "translateY(-4px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 10px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16, 163, 127, 0.1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "var(--border-color)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
+                        borderColor: "var(--border-color)",
                       }}
                     >
                       <div className="relative z-10">
@@ -373,9 +310,15 @@ export default function ArticlePage({
               className="h-6 w-auto"
             />
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Copyright &copy; 2026 - All rights reserved | A product by Hivory
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
+            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Terms
+            </Link>
+            <span>Copyright &copy; 2026 - All rights reserved | A product by Hivory</span>
+          </div>
         </div>
       </footer>
     </div>

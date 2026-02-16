@@ -7,6 +7,17 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['googleapis', '@anthropic-ai/sdk'],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        'fs/promises': false,
+        path: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 function FadeInSection({
   children,
@@ -675,9 +676,15 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               className="h-6 w-auto"
             />
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Copyright © 2026 - All rights reserved | A product by Hivory
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
+            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Terms
+            </Link>
+            <span>Copyright © 2026 - All rights reserved | A product by Hivory</span>
+          </div>
         </div>
       </footer>
       </FadeInSection>

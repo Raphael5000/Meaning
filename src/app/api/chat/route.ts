@@ -12,8 +12,8 @@ const anthropic = new Anthropic();
 /** Regex to match the suggested questions JSON block at end of response */
 const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
 
-/** Regex to match scorecard block at start: [[scorecard]]VALUE|LABEL[[/scorecard]] */
-const SCORECARD_REGEX = /^\s*\[\[scorecard\]\]([^|[\]]+)\|([\s\S]*?)\[\[\/scorecard\]\]\s*\n?/i;
+/** Regex to match scorecard block anywhere: [[scorecard]]VALUE|LABEL[[/scorecard]] (scorecard must be first in UI, so we parse from any position) */
+const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([\s\S]*?)\[\[\/scorecard\]\]\s*\n?/i;
 
 function parseScorecard(text: string): { value: string; label: string } | null {
   const match = text.match(SCORECARD_REGEX);
@@ -73,7 +73,7 @@ Tips:
 - Format large numbers with commas for readability.
 - When providing recommendations or actionable advice, wrap them in [[rec]]...[[/rec]] blocks. Each recommendation can be its own block, e.g. [[rec]]Focus on improving your top 3 landing pages — they drive 60% of conversions.[[/rec]] This will render them as green bubbles with a tick icon.
 
-- When the user asks for a specific number or metric (e.g. "how many users visited my site this week?", "what was my revenue?", "how many sessions?"), start your response with a scorecard so the number appears first. Use exactly this format on the first line: [[scorecard]]VALUE|LABEL[[/scorecard]] where VALUE is the main number (use commas for thousands, e.g. 12,847) and LABEL is a short description (e.g. "Users this week" or "Sessions"). Then add a blank line, then write your full explanation as usual. Example: [[scorecard]]12,847|Users this week[[/scorecard]]
+- When the user asks for a specific number or metric (e.g. "how many users visited my site this week?", "what was my revenue?", "how many sessions?"), you must put the scorecard at the very start of your response so it renders correctly. Use exactly this format on the first line: [[scorecard]]VALUE|LABEL[[/scorecard]] where VALUE is the main number (use commas for thousands, e.g. 12,847) and LABEL is a short description (e.g. "Users this week" or "Sessions"). Then add a blank line, then write your full explanation. The scorecard block must be first—nothing before it. Example: [[scorecard]]12,847|Users this week[[/scorecard]]
 
 Then your full answer with context and interpretation.
 
