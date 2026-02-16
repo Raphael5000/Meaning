@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
-  scorecard?: { value: string; label: string };
+  scorecard?: { value: string; label: string; change?: string };
   /** When true, show full content immediately (e.g. after returning to chat) */
   scorecardRevealed?: boolean;
   suggestedQuestions?: string[];
@@ -90,28 +90,49 @@ export default function ChatMessage({
         >
           {role === "assistant" && scorecard && (
             <div
-              className="scorecard mb-3 inline-flex w-fit items-baseline gap-3 rounded-2xl border px-4 py-3"
+              className="scorecard mb-3 inline-flex w-fit flex-col gap-0 rounded-2xl border px-4 py-3"
               style={{
                 background: "var(--bg-secondary)",
                 borderColor: "var(--border-color)",
               }}
             >
-              <span
-                className="text-3xl font-semibold tabular-nums tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {scorecard.value}
-              </span>
-              <span
-                className="text-sm"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {scorecard.label}
-              </span>
+              <div className="flex items-baseline gap-3">
+                <div className="flex flex-col items-baseline gap-0 text-3xl leading-[1.2]">
+                  <span
+                    className="font-semibold tabular-nums tracking-tight"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {scorecard.value}
+                  </span>
+                  {scorecard.change && (
+                    <span
+                      className="tabular-nums"
+                      style={{
+                        fontSize: "0.5em",
+                        color: scorecard.change.startsWith("-")
+                          ? "var(--error)"
+                          : "var(--success)",
+                      }}
+                    >
+                      {scorecard.change.startsWith("-") ? (
+                        <>↓ {scorecard.change}</>
+                      ) : (
+                        <>↑ {scorecard.change.startsWith("+") ? scorecard.change : `+${scorecard.change}`}</>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className="text-sm"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {scorecard.label}
+                </span>
+              </div>
             </div>
           )}
           <div
-            className={`message-content rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+            className={`message-content rounded-2xl px-4 py-1 text-sm leading-relaxed ${
               isUser ? "max-w-full" : ""
             }`}
             style={{

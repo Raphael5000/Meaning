@@ -12,13 +12,23 @@ const anthropic = new Anthropic();
 /** Regex to match the suggested questions JSON block at end of response */
 const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
 
-/** Regex to match scorecard block anywhere: [[scorecard]]VALUE|LABEL[[/scorecard]] (scorecard must be first in UI, so we parse from any position) */
-const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([\s\S]*?)\[\[\/scorecard\]\]\s*\n?/i;
+/** Regex to match scorecard block: [[scorecard]]VALUE|LABEL[[/scorecard]] or [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]] (change = comparison delta, e.g. +1,234 or -5%) */
+const SCORECARD_REGEX =
+  /\[\[scorecard\]\]([^|[\]]+)\|([^|]*?)(?:\|([+-][^|[\]]*))?\[\[\/scorecard\]\]\s*\n?/i;
 
-function parseScorecard(text: string): { value: string; label: string } | null {
+function parseScorecard(text: string): {
+  value: string;
+  label: string;
+  change?: string;
+} | null {
   const match = text.match(SCORECARD_REGEX);
   if (!match) return null;
-  return { value: match[1].trim(), label: (match[2] || "").trim() || "Result" };
+  const change = match[3]?.trim();
+  return {
+    value: match[1].trim(),
+    label: (match[2] || "").trim() || "Result",
+    ...(change && { change }),
+  };
 }
 
 function stripScorecardBlock(text: string): string {
@@ -74,6 +84,8 @@ Tips:
 - When providing recommendations or actionable advice, wrap them in [[rec]]...[[/rec]] blocks. Each recommendation can be its own block, e.g. [[rec]]Focus on improving your top 3 landing pages — they drive 60% of conversions.[[/rec]] This will render them as green bubbles with a tick icon.
 
 - When the user asks for a specific number or metric (e.g. "how many users visited my site this week?", "what was my revenue?", "how many sessions?"), you must put the scorecard at the very start of your response so it renders correctly. Use exactly this format on the first line: [[scorecard]]VALUE|LABEL[[/scorecard]] where VALUE is the main number (use commas for thousands, e.g. 12,847) and LABEL is a short description (e.g. "Users this week" or "Sessions"). Then add a blank line, then write your full explanation. The scorecard block must be first—nothing before it. Example: [[scorecard]]12,847|Users this week[[/scorecard]]
+
+- When the user asks for a comparison (e.g. week-over-week, month-over-month, vs previous period), include an optional CHANGE in the scorecard: [[scorecard]]VALUE|LABEL|+CHANGE[[/scorecard]] for a positive change (e.g. +1,234 or +12%) or [[scorecard]]VALUE|LABEL|-CHANGE[[/scorecard]] for negative (e.g. -500 or -5%). The CHANGE will appear below the main number with a green up arrow (positive) or red down arrow (negative). Example: [[scorecard]]12,847|Users this week|+1,234[[/scorecard]]
 
 Then your full answer with context and interpretation.
 
