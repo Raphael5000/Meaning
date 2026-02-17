@@ -80,61 +80,8 @@ export default async function ArticlePage({
 
       {/* Main Content */}
       <section className="relative z-10 px-4 pb-16 sm:px-6 sm:pb-24">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:gap-8">
-          {/* Left Sidebar */}
-          <aside className="hidden w-64 shrink-0 md:block">
-            <div
-              className="sticky top-20 rounded-2xl p-4"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
-              <p
-                className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Categories
-              </p>
-              <nav className="flex flex-col gap-1">
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.slug}
-                    href={`/resources?category=${cat.slug}`}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
-                    style={{
-                      background:
-                        cat.slug === categorySlug
-                          ? "rgba(16, 163, 127, 0.12)"
-                          : "transparent",
-                      color:
-                        cat.slug === categorySlug
-                          ? "var(--accent)"
-                          : "var(--text-secondary)",
-                    }}
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d={cat.icon} />
-                    </svg>
-                    {cat.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </aside>
-
-          {/* Right Content */}
-          <div className="min-w-0 flex-1">
+        <div className="mx-auto max-w-7xl">
+          <div className="min-w-0">
             {/* Breadcrumb */}
             <div className="mb-6 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pt-6 text-sm sm:mb-8 sm:pt-8">
               <Link
@@ -187,110 +134,216 @@ export default async function ArticlePage({
               </p>
             </div>
 
-            {/* Article Body: MDX or placeholder */}
-            <div
-              className="mb-12 rounded-2xl p-4 sm:mb-16 sm:p-8 md:p-12"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
-                border: "1px solid var(--border-color)",
-              }}
-            >
-              <div className="relative z-10">
-                {mdxContent ? (
-                  <div className="article-body max-w-3xl">{mdxContent}</div>
-                ) : (
+            {/* Content + Right sidebar (Categories above Sign up) */}
+            <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+              {/* Article Body + Related */}
+              <div className="min-w-0 flex-1">
+                {/* Article Body: MDX or placeholder */}
+                <div
+                  className="mb-12 rounded-2xl p-4 sm:mb-16 sm:p-8 md:p-12"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div className="relative z-10">
+                    {mdxContent ? (
+                      <div className="article-body max-w-3xl">{mdxContent}</div>
+                    ) : (
+                      <div
+                        className="flex flex-col items-center gap-4 py-8 text-center sm:py-12"
+                      >
+                        <div
+                          className="flex h-16 w-16 items-center justify-center rounded-full"
+                          style={{
+                            background: "rgba(16, 163, 127, 0.1)",
+                            border: "2px solid rgba(16, 163, 127, 0.3)",
+                          }}
+                        >
+                          <svg
+                            width="28"
+                            height="28"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ color: "var(--accent)" }}
+                          >
+                            <path d={category.icon} />
+                          </svg>
+                        </div>
+                        <h3
+                          className="text-xl font-semibold"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          Content coming soon
+                        </h3>
+                        <p
+                          className="max-w-md text-sm leading-relaxed"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          This article is being written. Check back soon for the full
+                          content on &ldquo;{article.title}&rdquo;.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Related Articles */}
+                {relatedArticles.length > 0 && (
+                  <div>
+                    <h2
+                      className="mb-4 text-lg font-semibold sm:mb-6 sm:text-xl"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      More in {category.label}
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {relatedArticles.slice(0, 3).map((related) => (
+                        <Link
+                          key={related.slug}
+                          href={`/resources/${related.category}/${related.slug}`}
+                          className="related-article-card group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 sm:p-6"
+                          style={{
+                            background:
+                              "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                            borderColor: "var(--border-color)",
+                          }}
+                        >
+                          <div className="relative z-10">
+                            <div className="mb-3 flex items-center gap-2">
+                              <TypeBadge type={related.type} />
+                              <span
+                                className="text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {related.readTime ?? related.duration}
+                              </span>
+                            </div>
+                            <h3
+                              className="mb-2 text-base font-semibold leading-snug"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {related.title}
+                            </h3>
+                            <p
+                              className="text-sm leading-relaxed"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {related.description}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right sidebar: Categories above Sign up, sticky */}
+              <aside className="hidden w-72 shrink-0 lg:block">
+                <div className="sticky top-20 flex flex-col gap-4">
+                  {/* Categories card */}
                   <div
-                    className="flex flex-col items-center gap-4 py-8 text-center sm:py-12"
+                    className="rounded-2xl p-4"
+                    style={{
+                      background:
+                        "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                      border: "1px solid var(--border-color)",
+                    }}
                   >
-                    <div
-                      className="flex h-16 w-16 items-center justify-center rounded-full"
+                    <p
+                      className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Categories
+                    </p>
+                    <nav className="flex flex-col gap-1">
+                      {categories.map((cat) => (
+                        <Link
+                          key={cat.slug}
+                          href={`/resources?category=${cat.slug}`}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                          style={{
+                            background:
+                              cat.slug === categorySlug
+                                ? "rgba(16, 163, 127, 0.12)"
+                                : "transparent",
+                            color:
+                              cat.slug === categorySlug
+                                ? "var(--accent)"
+                                : "var(--text-secondary)",
+                          }}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d={cat.icon} />
+                          </svg>
+                          {cat.label}
+                        </Link>
+                      ))}
+                    </nav>
+                  </div>
+                  {/* Sign up CTA card */}
+                  <div
+                    className="rounded-2xl p-5"
+                    style={{
+                      background:
+                        "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.08) 100%)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <p
+                      className="mb-2 text-sm font-semibold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Get more from your analytics
+                    </p>
+                    <p
+                      className="mb-5 text-sm leading-relaxed"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Join Meaning to turn your GA4 data into clear, actionable insights—no spreadsheets required.
+                    </p>
+                    <Link
+                      href="/signup"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200"
                       style={{
-                        background: "rgba(16, 163, 127, 0.1)",
-                        border: "2px solid rgba(16, 163, 127, 0.3)",
+                        background:
+                          "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
+                        color: "white",
                       }}
                     >
+                      Sign up to Meaning
                       <svg
-                        width="28"
-                        height="28"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        style={{ color: "var(--accent)" }}
                       >
-                        <path d={category.icon} />
+                        <path d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
-                    </div>
-                    <h3
-                      className="text-xl font-semibold"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      Content coming soon
-                    </h3>
-                    <p
-                      className="max-w-md text-sm leading-relaxed"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      This article is being written. Check back soon for the full
-                      content on &ldquo;{article.title}&rdquo;.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Related Articles */}
-            {relatedArticles.length > 0 && (
-              <div>
-                <h2
-                  className="mb-4 text-lg font-semibold sm:mb-6 sm:text-xl"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  More in {category.label}
-                </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {relatedArticles.slice(0, 3).map((related) => (
-                    <Link
-                      key={related.slug}
-                      href={`/resources/${related.category}/${related.slug}`}
-                      className="related-article-card group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 sm:p-6"
-                      style={{
-                        background:
-                          "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
-                        borderColor: "var(--border-color)",
-                      }}
-                    >
-                      <div className="relative z-10">
-                        <div className="mb-3 flex items-center gap-2">
-                          <TypeBadge type={related.type} />
-                          <span
-                            className="text-xs"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            {related.readTime ?? related.duration}
-                          </span>
-                        </div>
-                        <h3
-                          className="mb-2 text-base font-semibold leading-snug"
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          {related.title}
-                        </h3>
-                        <p
-                          className="text-sm leading-relaxed"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          {related.description}
-                        </p>
-                      </div>
                     </Link>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              </aside>
+            </div>
           </div>
         </div>
       </section>

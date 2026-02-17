@@ -53,6 +53,7 @@ export default function Chat() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   // Load chats from storage when user is available
@@ -67,7 +68,9 @@ export default function Chat() {
   }, [userId, chats]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Keep the top of the latest answer in view instead of scrolling to the bottom
+    const target = lastMessageRef.current ?? messagesEndRef.current;
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [messages, loading]);
 
   // Fetch user plan for account section
@@ -524,30 +527,37 @@ export default function Chat() {
             </div>
           ) : (
             <div>
-              {messages.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  role={msg.role}
-                  content={msg.content}
-                  scorecard={msg.scorecard}
-                  scorecardRevealed={msg.scorecardRevealed}
-                  suggestedQuestions={
-                    messages[messages.length - 1]?.id === msg.id
-                      ? msg.suggestedQuestions
-                      : undefined
-                  }
-                  onSuggestedQuestionClick={
-                    msg.role === "assistant"
-                      ? (q) => sendMessage(q)
-                      : undefined
-                  }
-                  onTypewriterComplete={
-                    msg.role === "assistant" && msg.scorecard
-                      ? () => markScorecardRevealed(msg.id)
-                      : undefined
-                  }
-                />
-              ))}
+              {messages.map((msg, index) => {
+                const isLast = index === messages.length - 1;
+                return (
+                  <div
+                    key={msg.id}
+                    ref={isLast ? lastMessageRef : undefined}
+                  >
+                    <ChatMessage
+                      role={msg.role}
+                      content={msg.content}
+                      scorecard={msg.scorecard}
+                      scorecardRevealed={msg.scorecardRevealed}
+                      suggestedQuestions={
+                        messages[messages.length - 1]?.id === msg.id
+                          ? msg.suggestedQuestions
+                          : undefined
+                      }
+                      onSuggestedQuestionClick={
+                        msg.role === "assistant"
+                          ? (q) => sendMessage(q)
+                          : undefined
+                      }
+                      onTypewriterComplete={
+                        msg.role === "assistant" && msg.scorecard
+                          ? () => markScorecardRevealed(msg.id)
+                          : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
               {loading && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
