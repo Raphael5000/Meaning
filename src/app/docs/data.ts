@@ -109,6 +109,15 @@ export const articles: Article[] = [
     type: "guide",
     readTime: "16 min read",
   },
+  {
+    slug: "how-to-structure-content-for-ai-citations",
+    title: "How to Structure Your Content So AI Engines Actually Cite You",
+    description:
+      "Learn the exact content structures AI engines prefer to cite — definition blocks, self-contained paragraphs, comparison tables, and more. Practical before-and-after examples included.",
+    category: "generative-search",
+    type: "guide",
+    readTime: "18 min read",
+  },
 ];
 
 export function getArticlesByCategory(categorySlug: string): Article[] {
