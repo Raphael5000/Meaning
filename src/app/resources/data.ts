@@ -73,6 +73,15 @@ export const articles: Article[] = [
     type: "article",
     readTime: "8 min read",
   },
+  {
+    slug: "utm-parameters-ga4-guide",
+    title: "UTM Parameters in Google Analytics 4: The Complete Guide",
+    description:
+      "Learn how UTM parameters work in GA4. Covers utm_source, utm_medium, utm_campaign and more — with examples, naming conventions, and common mistakes to avoid.",
+    category: "guides",
+    type: "guide",
+    readTime: "12 min read",
+  },
 ];
 
 export function getArticlesByCategory(categorySlug: string): Article[] {
