@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -24,7 +24,7 @@ function TypeBadge({ type }: { type: Article["type"] }) {
   );
 }
 
-export default function DocsPage() {
+function DocsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -412,5 +412,17 @@ export default function DocsPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function DocsPage() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)" }}>
+        <span style={{ color: "var(--text-muted)" }}>Loading...</span>
+      </div>
+    }>
+      <DocsContent />
+    </Suspense>
   );
 }
