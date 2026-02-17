@@ -31,16 +31,16 @@ export function ArticlePageNav() {
           Pricing
         </Link>
         <Link
-          href="/resources"
+          href="/docs"
           className="text-sm transition-colors"
           style={{
             color:
-              pathname?.startsWith("/resources")
+              pathname?.startsWith("/docs")
                 ? "var(--accent)"
                 : "var(--text-secondary)",
           }}
         >
-          Resources
+          Docs
         </Link>
         <Link
           href="/login"

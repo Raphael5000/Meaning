@@ -29,8 +29,8 @@ export const categories: Category[] = [
     icon: "M12 2a10 10 0 1 0 10 10H12V2z M20 12a8 8 0 0 0-8-8v8h8z",
   },
   {
-    slug: "asking-questions",
-    label: "Asking Questions",
+    slug: "generative-search",
+    label: "Generative Search",
     description: "Get the most out of natural language queries.",
     icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   },
@@ -81,6 +81,15 @@ export const articles: Article[] = [
     category: "guides",
     type: "guide",
     readTime: "12 min read",
+  },
+  {
+    slug: "ga4-key-events-conversions-guide",
+    title: "GA4 Key Events Explained: The Complete Guide to Conversions in Google Analytics 4",
+    description:
+      "Learn what GA4 key events are, how they differ from conversions, and how to set them up. A practical guide to tracking what matters in Google Analytics 4.",
+    category: "google-analytics",
+    type: "article",
+    readTime: "10 min read",
   },
 ];
 

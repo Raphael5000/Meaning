@@ -48,11 +48,11 @@ export default function TermsPage() {
             Pricing
           </Link>
           <Link
-            href="/resources"
+            href="/docs"
             className="text-sm transition-colors"
             style={{ color: "var(--text-secondary)" }}
           >
-            Resources
+            Docs
           </Link>
           <Link
             href="/login"

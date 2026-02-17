@@ -383,6 +383,42 @@ body {
   margin: 2rem 0;
 }
 
+/* Code block container (docs) */
+.article-body .article-code-container {
+  margin: 1.25rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: rgba(15, 22, 20, 0.8);
+}
+
+.article-body .article-code-container pre {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.article-body .article-code-container pre code {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color: inherit;
+}
+
+/* Inline code in articles (unchanged from default) */
+.article-body :not(pre) > code {
+  padding: 0.2em 0.4em;
+  border-radius: 0.375rem;
+  font-size: 0.875em;
+  background: rgba(16, 163, 127, 0.12);
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
 /* Related article card hover */
 .related-article-card:hover {
   border-color: rgba(16, 163, 127, 0.4);

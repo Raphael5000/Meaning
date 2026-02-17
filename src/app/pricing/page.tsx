@@ -96,7 +96,7 @@ export default function PricingPage() {
         />
       </div>
 
-      {/* Navigation - same structure as resources for consistency */}
+      {/* Navigation - same structure as docs for consistency */}
       <nav className="relative z-50 flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 sm:gap-4">
         <Link href="/" className="shrink-0">
           <Image
@@ -120,16 +120,16 @@ export default function PricingPage() {
             Pricing
           </Link>
           <Link
-            href="/resources"
+            href="/docs"
             className="text-sm transition-colors"
             style={{
               color:
-                pathname?.startsWith("/resources")
+                pathname?.startsWith("/docs")
                   ? "var(--accent)"
                   : "var(--text-secondary)",
             }}
           >
-            Resources
+            Docs
           </Link>
           <Link
             href="/login"

@@ -1,14 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  getArticle,
-  getCategory,
-  getArticlesByCategory,
-  categories,
-} from "../../data";
+import { getArticle, getCategory, getArticlesByCategory } from "../../data";
 import type { Article } from "../../data";
 import { ArticlePageNav } from "./ArticlePageNav";
+import { TableOfContents } from "@/components/TableOfContents";
 
 function TypeBadge({ type }: { type: Article["type"] }) {
   const config = {
@@ -57,8 +53,11 @@ export default async function ArticlePage({
     (a) => a.slug !== slug
   );
 
-  const { getArticleContent } = await import("@/lib/mdx");
-  const mdxContent = await getArticleContent(slug);
+  const { getArticleContent, getArticleHeadings } = await import("@/lib/mdx");
+  const [mdxContent, headings] = await Promise.all([
+    getArticleContent(slug),
+    getArticleHeadings(slug),
+  ]);
 
   return (
     <div
@@ -85,15 +84,15 @@ export default async function ArticlePage({
             {/* Breadcrumb */}
             <div className="mb-6 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pt-6 text-sm sm:mb-8 sm:pt-8">
               <Link
-                href="/resources"
+                href="/docs"
                 className="shrink-0 transition-colors hover:underline"
                 style={{ color: "var(--text-muted)" }}
               >
-                Resources
+                Docs
               </Link>
               <span className="shrink-0" style={{ color: "var(--text-muted)" }}>/</span>
               <Link
-                href={`/resources?category=${categorySlug}`}
+                href={`/docs?category=${categorySlug}`}
                 className="shrink-0 transition-colors hover:underline"
                 style={{ color: "var(--text-muted)" }}
               >
@@ -206,7 +205,7 @@ export default async function ArticlePage({
                       {relatedArticles.slice(0, 3).map((related) => (
                         <Link
                           key={related.slug}
-                          href={`/resources/${related.category}/${related.slug}`}
+                          href={`/docs/${related.category}/${related.slug}`}
                           className="related-article-card group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 sm:p-6"
                           style={{
                             background:
@@ -244,58 +243,22 @@ export default async function ArticlePage({
                 )}
               </div>
 
-              {/* Right sidebar: Categories above Sign up, sticky */}
+              {/* Right sidebar: Table of contents above Sign up, sticky */}
               <aside className="hidden w-72 shrink-0 lg:block">
                 <div className="sticky top-20 flex flex-col gap-4">
-                  {/* Categories card */}
-                  <div
-                    className="rounded-2xl p-4"
-                    style={{
-                      background:
-                        "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <p
-                      className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider"
-                      style={{ color: "var(--text-muted)" }}
+                  {/* Table of contents */}
+                  {headings.length > 0 && (
+                    <div
+                      className="rounded-2xl p-4"
+                      style={{
+                        background:
+                          "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                        border: "1px solid var(--border-color)",
+                      }}
                     >
-                      Categories
-                    </p>
-                    <nav className="flex flex-col gap-1">
-                      {categories.map((cat) => (
-                        <Link
-                          key={cat.slug}
-                          href={`/resources?category=${cat.slug}`}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
-                          style={{
-                            background:
-                              cat.slug === categorySlug
-                                ? "rgba(16, 163, 127, 0.12)"
-                                : "transparent",
-                            color:
-                              cat.slug === categorySlug
-                                ? "var(--accent)"
-                                : "var(--text-secondary)",
-                          }}
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d={cat.icon} />
-                          </svg>
-                          {cat.label}
-                        </Link>
-                      ))}
-                    </nav>
-                  </div>
+                      <TableOfContents headings={headings} />
+                    </div>
+                  )}
                   {/* Sign up CTA card */}
                   <div
                     className="rounded-2xl p-5"

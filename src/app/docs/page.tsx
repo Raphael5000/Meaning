@@ -24,7 +24,7 @@ function TypeBadge({ type }: { type: Article["type"] }) {
   );
 }
 
-export default function ResourcesPage() {
+export default function DocsPage() {
   const pathname = usePathname();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export default function ResourcesPage() {
 
   const activeLabel = activeCategory
     ? categories.find((c) => c.slug === activeCategory)?.label
-    : "All Resources";
+    : "All Docs";
 
   return (
     <div
@@ -80,16 +80,16 @@ export default function ResourcesPage() {
             Pricing
           </Link>
           <Link
-            href="/resources"
+            href="/docs"
             className="text-sm transition-colors"
             style={{
               color:
-                pathname?.startsWith("/resources")
+                pathname?.startsWith("/docs")
                   ? "var(--accent)"
                   : "var(--text-secondary)",
             }}
           >
-            Resources
+            Docs
           </Link>
           <Link
             href="/login"
@@ -129,7 +129,7 @@ export default function ResourcesPage() {
             className="mb-3 text-3xl font-bold sm:text-4xl md:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
-            Resources
+            Docs
           </h1>
           <p
             className="max-w-2xl text-base leading-relaxed sm:text-lg"
@@ -191,7 +191,7 @@ export default function ResourcesPage() {
                     <rect x="14" y="14" width="7" height="7" />
                     <rect x="3" y="14" width="7" height="7" />
                   </svg>
-                  All Resources
+                  All Docs
                   <span
                     className="ml-auto text-xs"
                     style={{ color: "var(--text-muted)" }}
@@ -307,7 +307,7 @@ export default function ResourcesPage() {
               {displayedArticles.map((article) => (
                 <Link
                   key={`${article.category}-${article.slug}`}
-                  href={`/resources/${article.category}/${article.slug}`}
+                  href={`/docs/${article.category}/${article.slug}`}
                   className="group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 sm:p-6"
                   style={{
                     background:
