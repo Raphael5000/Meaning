@@ -41,9 +41,9 @@ export const categories: Category[] = [
     icon: "M3 3v18h18 M18.7 8l-5.1 5.2-2.8-2.7L7 14.3",
   },
   {
-    slug: "tips-and-tricks",
-    label: "Tips & Tricks",
-    description: "Power user techniques and advanced workflows.",
+    slug: "guides",
+    label: "Guides",
+    description: "Step-by-step guides and tutorials to help you master Meaning.",
     icon: "M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5",
   },
   {
@@ -63,6 +63,15 @@ export const articles: Article[] = [
     category: "metrics-and-dimensions",
     type: "article",
     readTime: "5 min read",
+  },
+  {
+    slug: "sessions-vs-users-ga4",
+    title: "Sessions vs Users in GA4",
+    description:
+      "Understand the difference between sessions and users in Google Analytics 4. Learn when to use each metric, how GA4 counts them, and practical examples.",
+    category: "metrics-and-dimensions",
+    type: "article",
+    readTime: "8 min read",
   },
 ];
 
