@@ -91,6 +91,24 @@ export const articles: Article[] = [
     type: "article",
     readTime: "10 min read",
   },
+  {
+    slug: "what-is-geo-generative-engine-optimisation",
+    title: "What Is Generative Engine Optimisation (GEO)? A Plain-English Guide for Business Owners",
+    description:
+      "Generative Engine Optimisation (GEO) helps your business appear in AI-powered search answers. Learn what GEO is, how it differs from SEO, and 5 steps to start.",
+    category: "generative-search",
+    type: "guide",
+    readTime: "14 min read",
+  },
+  {
+    slug: "9-techniques-boost-ai-search-visibility",
+    title: "9 Proven Techniques That Boost AI Search Visibility by 40%",
+    description:
+      "Princeton researchers tested 9 content optimisation techniques for AI search engines. Three methods delivered 30-40% visibility gains. Here's exactly how to implement each one.",
+    category: "generative-search",
+    type: "guide",
+    readTime: "16 min read",
+  },
 ];
 
 export function getArticlesByCategory(categorySlug: string): Article[] {

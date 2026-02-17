@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { categories, articles, getArticlesByCategory } from "./data";
 import type { Article } from "./data";
 
@@ -26,7 +26,16 @@ function TypeBadge({ type }: { type: Article["type"] }) {
 
 export default function DocsPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Sync active category from URL (e.g. when opening /docs?category=... from breadcrumb)
+  useEffect(() => {
+    const category = searchParams.get("category");
+    const valid =
+      category && categories.some((c) => c.slug === category) ? category : null;
+    setActiveCategory(valid);
+  }, [searchParams]);
 
   const displayedArticles = activeCategory
     ? getArticlesByCategory(activeCategory)
