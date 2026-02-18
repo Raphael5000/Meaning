@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { categories, articles, getArticlesByCategory } from "./data";
+import { categories, articles, getArticlesByCategory, getFeaturedArticle } from "./data";
 import type { Article } from "./data";
 
 function TypeBadge({ type }: { type: Article["type"] }) {
@@ -37,9 +37,12 @@ function DocsContent() {
     setActiveCategory(valid);
   }, [searchParams]);
 
+  const featuredArticle = getFeaturedArticle();
   const displayedArticles = activeCategory
     ? getArticlesByCategory(activeCategory)
-    : articles;
+    : featuredArticle
+      ? articles.filter((a) => !a.featured)
+      : articles;
 
   const activeLabel = activeCategory
     ? categories.find((c) => c.slug === activeCategory)?.label
@@ -307,10 +310,110 @@ function DocsContent() {
                 className="text-sm"
                 style={{ color: "var(--text-muted)" }}
               >
-                {displayedArticles.length}{" "}
-                {displayedArticles.length === 1 ? "article" : "articles"}
+                {(activeCategory ? displayedArticles : articles).length}{" "}
+                {(activeCategory ? displayedArticles : articles).length === 1
+                  ? "article"
+                  : "articles"}
               </span>
             </div>
+
+            {/* Featured article card - only on All Docs when a featured article exists */}
+            {!activeCategory && featuredArticle && (
+              <Link
+                href={`/docs/${featuredArticle.category}/${featuredArticle.slug}`}
+                className="group relative mb-6 block overflow-hidden rounded-2xl transition-all duration-300"
+                style={{
+                  background:
+                    "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                  border: "1px solid var(--border-color)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(16, 163, 127, 0.4)";
+                  e.currentTarget.style.boxShadow =
+                    "0 10px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16, 163, 127, 0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-color)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <div className="card-noise" aria-hidden />
+                <div className="relative z-10 flex flex-col sm:flex-row">
+                  <div className="relative h-48 w-full shrink-0 overflow-hidden sm:h-56 sm:w-80 md:h-64 md:w-96">
+                    {featuredArticle.image ? (
+                      <Image
+                        src={featuredArticle.image}
+                        alt=""
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 640px) 100vw, 24rem"
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, rgba(16, 163, 127, 0.15) 0%, rgba(16, 163, 127, 0.05) 100%)",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        <span className="text-sm">Featured</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col justify-center p-5 sm:p-6 md:p-8">
+                    <div className="mb-2 inline-flex items-center gap-2">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                        style={{
+                          background: "rgba(16, 163, 127, 0.12)",
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Featured
+                      </span>
+                      <TypeBadge type={featuredArticle.type} />
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {featuredArticle.readTime ?? featuredArticle.duration}
+                      </span>
+                    </div>
+                    <h3
+                      className="mb-2 text-xl font-semibold leading-tight sm:text-2xl"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {featuredArticle.title}
+                    </h3>
+                    <p
+                      className="mb-4 text-sm leading-relaxed sm:text-base"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {featuredArticle.description}
+                    </p>
+                    <span
+                      className="inline-flex items-center gap-1 text-sm font-medium"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      Read the guide
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {displayedArticles.map((article) => (

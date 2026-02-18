@@ -6,6 +6,10 @@ export interface Article {
   type: "article" | "video" | "guide";
   readTime?: string;
   duration?: string;
+  /** When true, shown as the main featured card on the docs landing (All Docs view). */
+  featured?: boolean;
+  /** Image URL for the featured card. Used when featured is true. */
+  image?: string;
 }
 
 export interface Category {
@@ -153,11 +157,17 @@ export const articles: Article[] = [
     category: "generative-search",
     type: "guide",
     readTime: "16 min read",
+    featured: true,
+    image: "/docs/featured-placeholder.svg",
   },
 ];
 
 export function getArticlesByCategory(categorySlug: string): Article[] {
   return articles.filter((a) => a.category === categorySlug);
+}
+
+export function getFeaturedArticle(): Article | undefined {
+  return articles.find((a) => a.featured === true);
 }
 
 export function getArticle(

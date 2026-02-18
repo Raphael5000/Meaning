@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color: rgba(16, 163, 127, 0.12)" />
+      <stop offset="100%" style="stop-color: rgba(16, 163, 127, 0.04)" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)" />
+  <rect width="800" height="400" stroke="rgba(16, 163, 127, 0.2)" strokeWidth="1" fill="none" />
+  <g fill="rgba(16, 163, 127, 0.4)" stroke="rgba(16, 163, 127, 0.5)" strokeWidth="1.5">
+    <path d="M360 160 L400 200 L360 240 L320 200 Z" />
+    <path d="M340 180 L400 180 L400 220 L340 220 Z" fill="none" />
+  </g>
+  <text x="400" y="300" textAnchor="middle" fill="rgba(255,255,255,0.25)" fontFamily="system-ui, sans-serif" fontSize="14">Featured article image placeholder</text>
+</svg>
