@@ -118,6 +118,42 @@ export const articles: Article[] = [
     type: "guide",
     readTime: "18 min read",
   },
+  {
+    slug: "entity-clarity-why-ai-cant-recommend-you",
+    title: "Entity Clarity: Why AI Can't Recommend You If It Doesn't Understand What You Do",
+    description:
+      "AI systems need to understand what your brand is before they can recommend it. Learn how entity clarity, consistent descriptions, and schema markup help you appear in AI-generated answers.",
+    category: "generative-search",
+    type: "article",
+    readTime: "12 min read",
+  },
+  {
+    slug: "co-citations-brand-mentions-ai-search",
+    title: "Co-Citations and Brand Mentions: The New Backlinks for AI Search",
+    description:
+      "Brand mentions now correlate 3x more strongly with AI visibility than backlinks. Learn how co-citations, review signals, and brand presence drive AI search recommendations — with a practical audit framework.",
+    category: "generative-search",
+    type: "article",
+    readTime: "14 min read",
+  },
+  {
+    slug: "tracking-geo-performance-metrics",
+    title: "Tracking Your GEO Performance: Metrics That Actually Matter",
+    description:
+      "Learn how to measure AI search visibility when traditional CTR no longer tells the full story. Discover the GEO metrics, tools, and GA4 techniques that track your performance in AI Overviews, ChatGPT, and Perplexity.",
+    category: "generative-search",
+    type: "guide",
+    readTime: "11 min read",
+  },
+  {
+    slug: "schema-markup-structured-data-generative-search",
+    title: "Schema Markup and Structured Data for Generative Search: The Complete Guide",
+    description:
+      "Learn how schema markup and structured data help AI engines understand, trust, and cite your content. Complete JSON-LD examples, implementation checklist, and the tools you need for GEO success.",
+    category: "generative-search",
+    type: "guide",
+    readTime: "16 min read",
+  },
 ];
 
 export function getArticlesByCategory(categorySlug: string): Article[] {
