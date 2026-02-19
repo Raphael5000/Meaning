@@ -12,7 +12,7 @@ interface Property {
 }
 
 function ConnectAnalyticsContent() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const searchParams = useSearchParams();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -69,12 +69,23 @@ function ConnectAnalyticsContent() {
       .finally(() => setLoadingProps(false));
   }, [hasToken]);
 
-  // After redirect from the connect-google OAuth flow, refresh the
-  // session so the JWT picks up the new tokens from the DB.
+  // After redirect from the connect-google OAuth flow, re-check the
+  // onboarding status so the DB-backed token detection picks up the
+  // newly stored Google account.  The JWT callback in auth.ts already
+  // loads tokens from the DB on every API request, so a client-side
+  // session update() (which is a Server Action in NextAuth v5) is not
+  // needed and was causing "Failed to find Server Action" errors.
   useEffect(() => {
     if (!connected) return;
-    update();
-  }, [connected, update]);
+    fetch("/api/user/onboarding-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.hasGoogleAccount) {
+          setHasToken(true);
+        }
+      })
+      .catch(() => {});
+  }, [connected]);
 
   async function handleContinue() {
     setCompleting(true);
