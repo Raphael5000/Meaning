@@ -642,6 +642,12 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                 answer="We only access the Google Analytics data you explicitly grant us permission to read. We do not access personal files, emails, or any other Google account data. The AI processes your queries securely and does not retain conversation history between sessions."
               />
             </FadeInSection>
+            <FadeInSection delay={240}>
+              <FaqItem
+                question="What LLM does Meaning use?"
+                answer="Meaning is powered by Anthropic's Claude, one of the most capable and safety-focused large language models available. This allows us to provide accurate, nuanced interpretations of your analytics data while maintaining the highest standards of data privacy and security."
+              />
+            </FadeInSection>
           </div>
 
           <p
