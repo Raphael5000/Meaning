@@ -129,8 +129,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.refreshToken = googleAccount.refresh_token ?? undefined;
             token.expiresAt = googleAccount.expires_at ?? undefined;
           }
-        } catch {
-          // DB lookup failed — continue without GA tokens
+        } catch (err) {
+          console.error("[auth] Google account DB lookup failed:", err);
         }
       }
 

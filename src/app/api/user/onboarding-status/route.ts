@@ -13,15 +13,21 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { gaConnected: true },
-  });
-
-  const hasSubscription = await hasActiveSubscription(userId);
+  const [user, googleAccount, hasSubscription] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { gaConnected: true },
+    }),
+    prisma.account.findFirst({
+      where: { userId, provider: "google" },
+      select: { id: true },
+    }),
+    hasActiveSubscription(userId),
+  ]);
 
   return NextResponse.json({
     gaConnected: user?.gaConnected ?? false,
+    hasGoogleAccount: !!googleAccount,
     hasSubscription,
   });
 }

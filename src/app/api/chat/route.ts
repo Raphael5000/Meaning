@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { GA4_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
+import { getGoogleAccessToken } from "@/lib/google-token";
 
 export const dynamic = "force-dynamic";
 
@@ -97,14 +98,18 @@ Do not include this block in your main answer. Your main answer should end befor
 
 export async function POST(request: NextRequest) {
   const session = await auth();
+  const accessToken = await getGoogleAccessToken(
+    session as { accessToken?: string; userId?: string } | null
+  );
 
-  if (!session?.accessToken) {
+  if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   // Check subscription
-  if (session.userId) {
-    const active = await hasActiveSubscription(session.userId);
+  const userId = (session as { userId?: string })?.userId;
+  if (userId) {
+    const active = await hasActiveSubscription(userId);
     if (!active) {
       return NextResponse.json(
         { error: "Active subscription required", code: "SUBSCRIPTION_REQUIRED" },
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
                 limit?: number;
                 orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
               };
-              result = await runReport(session.accessToken!, {
+              result = await runReport(accessToken, {
                 propertyId,
                 metrics: input.metrics,
                 dimensions: input.dimensions,
@@ -190,7 +195,7 @@ export async function POST(request: NextRequest) {
                 dimensions?: string[];
                 limit?: number;
               };
-              result = await runRealtimeReport(session.accessToken!, {
+              result = await runRealtimeReport(accessToken, {
                 propertyId,
                 metrics: input.metrics,
                 dimensions: input.dimensions,
@@ -201,7 +206,7 @@ export async function POST(request: NextRequest) {
             case "get_metadata": {
               const input = toolUse.input as { type?: string };
               const metadata = await getMetadata(
-                session.accessToken!,
+                accessToken,
                 propertyId
               );
               if (input.type === "metrics") {
