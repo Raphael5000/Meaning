@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /**
  * Handles the Google OAuth callback after the user consents.
@@ -48,22 +49,40 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Exchange authorization code for tokens
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: `${baseUrl}/api/auth/connect-google/callback`,
-        grant_type: "authorization_code",
-      }),
+    // Exchange authorization code for tokens.
+    // Use an AbortController timeout + one retry to match the resilience
+    // of the NextAuth token exchange (which uses fetchWithTimeout in auth.ts).
+    const tokenBody = new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirect_uri: `${baseUrl}/api/auth/connect-google/callback`,
+      grant_type: "authorization_code",
     });
 
-    const tokens = await tokenRes.json();
+    let tokenRes: Response | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25_000);
+      try {
+        tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: tokenBody,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        break; // success — stop retrying
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (attempt === 1) throw fetchErr; // second attempt failed
+        console.warn("[connect-google] Token fetch attempt 1 failed, retrying…", fetchErr);
+      }
+    }
 
-    if (!tokenRes.ok) {
+    const tokens = await tokenRes!.json();
+
+    if (!tokenRes!.ok) {
       console.error("[connect-google] Token exchange failed:", tokens);
       return NextResponse.redirect(
         new URL("/connect-analytics?error=token_failed", baseUrl)
