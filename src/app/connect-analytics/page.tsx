@@ -12,7 +12,7 @@ interface Property {
 }
 
 function ConnectAnalyticsContent() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const searchParams = useSearchParams();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -20,11 +20,14 @@ function ConnectAnalyticsContent() {
   const [hasToken, setHasToken] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(true);
 
   const connected = searchParams.get("connected") === "true";
   const oauthError = searchParams.get("error");
 
-  // Enforce onboarding order: must have subscription before connecting GA
+  // Enforce onboarding order and detect Google Account from DB.
+  // This is the primary detection path for credentials users who linked
+  // Google separately — it doesn't rely on the JWT having the token.
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/user/onboarding-status")
@@ -32,12 +35,18 @@ function ConnectAnalyticsContent() {
       .then((data) => {
         if (data.hasSubscription === false) {
           window.location.href = "/pricing";
+          return;
+        }
+        if (data.hasGoogleAccount) {
+          setHasToken(true);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCheckingConnection(false));
   }, [status]);
 
-  // Check whether the session has a Google access token
+  // Also check whether the session JWT has a Google access token
+  // (fast path for users who signed up with Google OAuth)
   useEffect(() => {
     if (status !== "authenticated") return;
     const token = (session as { accessToken?: string })?.accessToken;
@@ -46,7 +55,7 @@ function ConnectAnalyticsContent() {
     }
   }, [session, status]);
 
-  // Once we have a token (direct or after connect), fetch GA properties
+  // Once we know Google is linked, fetch GA properties
   useEffect(() => {
     if (!hasToken) return;
     setLoadingProps(true);
@@ -60,16 +69,12 @@ function ConnectAnalyticsContent() {
       .finally(() => setLoadingProps(false));
   }, [hasToken]);
 
-  // After a redirect back from the connect-google flow, the session
-  // may not yet have the token. Reload once to pick up the updated JWT.
+  // After redirect from the connect-google OAuth flow, refresh the
+  // session so the JWT picks up the new tokens from the DB.
   useEffect(() => {
-    if (!connected || hasToken) return;
-    const t = setTimeout(
-      () => window.location.replace("/connect-analytics"),
-      1500
-    );
-    return () => clearTimeout(t);
-  }, [connected, hasToken]);
+    if (!connected) return;
+    update();
+  }, [connected, update]);
 
   async function handleContinue() {
     setCompleting(true);
@@ -89,7 +94,7 @@ function ConnectAnalyticsContent() {
     }
   }
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && checkingConnection && !hasToken)) {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
