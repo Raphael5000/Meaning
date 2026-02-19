@@ -73,9 +73,10 @@ export default function Chat() {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [messages, loading]);
 
-  // Fetch user plan for account section
+  // Fetch user plan for account section (plan name e.g. "Monthly")
   useEffect(() => {
-    if (!(session?.user as { id?: string })?.id) return;
+    const sessionUserId = (session as { userId?: string } | null)?.userId;
+    if (!session?.user || !sessionUserId) return;
     fetch("/api/user/profile")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
@@ -85,7 +86,7 @@ export default function Chat() {
         }
       })
       .catch(() => {});
-  }, [session?.user]);
+  }, [session]);
 
   // Close account menu when clicking outside
   useEffect(() => {
