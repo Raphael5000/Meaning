@@ -41,6 +41,8 @@ export const config = {
   matcher: [
     "/account/:path*",
     "/connect-analytics/:path*",
+    // Include auth callback routes so www→non-www redirect covers OAuth callbacks
+    "/api/auth/:path*",
     "/((?!_next/static|_next/image|favicon.ico|api/).*)",
   ],
 };

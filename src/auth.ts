@@ -40,8 +40,9 @@ function fetchWithTimeout(
 // Share auth cookies across www and apex so PKCE/state are available on callback.
 // Set AUTH_COOKIE_DOMAIN=0 or false to disable (e.g. to fix 502 or PKCE issues).
 const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
+const isSecure = nextAuthUrl.startsWith("https://");
 const isProductionUsemeaning =
-  nextAuthUrl.startsWith("https://") && nextAuthUrl.includes("usemeaning.io");
+  isSecure && nextAuthUrl.includes("usemeaning.io");
 const raw = process.env.AUTH_COOKIE_DOMAIN;
 const cookieDomain =
   raw === "0" || raw === "false" || raw === ""
@@ -52,6 +53,29 @@ const cookieDomain =
         ? ".usemeaning.io"
         : undefined;
 
+// Provide FULL cookie options for every override — Auth.js beta can
+// shallow-replace the options object, so only setting `domain` would
+// drop httpOnly / sameSite / secure / path / maxAge.  Without secure
+// the __Secure- prefixed cookie is rejected by the browser, causing
+// "InvalidCheck: pkceCodeVerifier value could not be parsed" on callback.
+// PKCE & state cookies additionally need sameSite:"none" because the
+// OAuth redirect from Google is a cross-site navigation.
+const crossSiteOpts = {
+  httpOnly: true,
+  sameSite: "none" as const,
+  path: "/",
+  secure: isSecure,
+  maxAge: 900, // 15 min — matches Auth.js default
+  ...(cookieDomain && { domain: cookieDomain }),
+};
+const sameSiteOpts = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+  secure: isSecure,
+  ...(cookieDomain && { domain: cookieDomain }),
+};
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
@@ -61,14 +85,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     newUser: "/pricing",
     error: "/auth-error",
   },
-  ...(cookieDomain && {
-    cookies: {
-      pkceCodeVerifier: { options: { domain: cookieDomain } },
-      state: { options: { domain: cookieDomain } },
-      sessionToken: { options: { domain: cookieDomain } },
-      callbackUrl: { options: { domain: cookieDomain } },
-    },
-  }),
+  cookies: {
+    pkceCodeVerifier: { options: crossSiteOpts },
+    state: { options: crossSiteOpts },
+    sessionToken: { options: sameSiteOpts },
+    callbackUrl: { options: sameSiteOpts },
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
