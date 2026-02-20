@@ -4,6 +4,7 @@ import { sendAlertEmail } from "@/lib/resend";
 import { generateAlertContent } from "@/lib/alert-content";
 import { ALERT_TYPES } from "@/lib/alert-prompts";
 import { buildEmailWrapper } from "@/lib/email-wrapper";
+import { getValidGoogleTokenForUser } from "@/lib/google-token";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +37,7 @@ export async function POST(request: NextRequest) {
     const alerts = await prisma.emailAlert.findMany({
       where: { enabled: true, frequency },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            accounts: {
-              where: { provider: "google" },
-              select: { access_token: true },
-            },
-          },
-        },
+        user: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -69,8 +60,8 @@ export async function POST(request: NextRequest) {
       try {
         let contentHtml: string;
 
-        // If we have a property and a Google access token, generate AI content
-        const accessToken = alert.user.accounts[0]?.access_token;
+        // Get a valid (refreshed if needed) Google access token for this user
+        const accessToken = await getValidGoogleTokenForUser(alert.user.id);
         if (alert.propertyId && accessToken) {
           try {
             contentHtml = await generateAlertContent(
