@@ -14,18 +14,17 @@ function getResend(): Resend {
 }
 
 const SENDER_EMAIL =
-  process.env.RESEND_FROM_EMAIL || "Meaning <alerts@usemeaning.io>";
+  process.env.RESEND_FROM_EMAIL || "Meaning <onboarding@resend.dev>";
 
 export async function sendAlertEmail(
   to: string[],
   subject: string,
-  html: string,
-  from?: string
+  html: string
 ): Promise<{ id: string }> {
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
-    from: from || SENDER_EMAIL,
+    from: SENDER_EMAIL,
     to,
     subject,
     html,
