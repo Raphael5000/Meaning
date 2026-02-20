@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isValidAlertType } from "@/lib/alert-prompts";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export async function PUT(
   const body = (await request.json()) as {
     recipients?: string;
     frequency?: string;
+    alertType?: string;
     propertyId?: string | null;
     propertyName?: string | null;
     enabled?: boolean;
@@ -68,6 +70,16 @@ export async function PUT(
         );
       }
       data.frequency = body.frequency;
+    }
+
+    if (body.alertType !== undefined) {
+      if (!isValidAlertType(body.alertType)) {
+        return NextResponse.json(
+          { error: "Invalid alert type" },
+          { status: 400 }
+        );
+      }
+      data.alertType = body.alertType;
     }
 
     if (body.propertyId !== undefined) data.propertyId = body.propertyId;

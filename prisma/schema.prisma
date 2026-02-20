@@ -140,12 +140,13 @@ model EmailAlert {
   id     String @id @default(cuid())
   userId String
 
-  recipients String   // comma-separated email addresses
-  frequency  String   // "daily" | "weekly" | "monthly"
+  recipients   String   // comma-separated email addresses
+  frequency    String   // "daily" | "weekly" | "monthly"
+  alertType    String   @default("weekly_snapshot") // alert prompt template key
   propertyId   String?  // GA4 property id
   propertyName String?  // GA4 property display name
-  enabled    Boolean @default(true)
-  lastSentAt DateTime?
+  enabled      Boolean  @default(true)
+  lastSentAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
