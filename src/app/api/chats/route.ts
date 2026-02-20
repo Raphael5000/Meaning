@@ -12,15 +12,20 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const chats = await prisma.chat.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      messages: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  try {
+    const chats = await prisma.chat.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        messages: { orderBy: { sortOrder: "asc" } },
+      },
+    });
 
-  return NextResponse.json(chats);
+    return NextResponse.json(chats);
+  } catch (err) {
+    console.error("[api/chats] GET error:", err);
+    return NextResponse.json({ error: "Failed to fetch chats" }, { status: 500 });
+  }
 }
 
 /** POST /api/chats – create a new chat with its initial messages */
@@ -46,27 +51,32 @@ export async function POST(request: NextRequest) {
     }[];
   };
 
-  const chat = await prisma.chat.create({
-    data: {
-      id: body.id,
-      userId,
-      title: body.title,
-      propertyId: body.propertyId ?? null,
-      propertyName: body.propertyName ?? null,
-      messages: {
-        create: body.messages.map((m, i) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          scorecard: m.scorecard ?? undefined,
-          scorecardRevealed: m.scorecardRevealed ?? false,
-          suggestedQuestions: m.suggestedQuestions ?? undefined,
-          sortOrder: i,
-        })),
+  try {
+    const chat = await prisma.chat.create({
+      data: {
+        id: body.id,
+        userId,
+        title: body.title,
+        propertyId: body.propertyId ?? null,
+        propertyName: body.propertyName ?? null,
+        messages: {
+          create: body.messages.map((m, i) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            scorecard: m.scorecard ?? undefined,
+            scorecardRevealed: m.scorecardRevealed ?? false,
+            suggestedQuestions: m.suggestedQuestions ?? undefined,
+            sortOrder: i,
+          })),
+        },
       },
-    },
-    include: { messages: { orderBy: { sortOrder: "asc" } } },
-  });
+      include: { messages: { orderBy: { sortOrder: "asc" } } },
+    });
 
-  return NextResponse.json(chat, { status: 201 });
+    return NextResponse.json(chat, { status: 201 });
+  } catch (err) {
+    console.error("[api/chats] POST error:", err);
+    return NextResponse.json({ error: "Failed to create chat" }, { status: 500 });
+  }
 }
