@@ -3,7 +3,11 @@ import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { GA4_TOOLS } from "@/lib/tools";
 import { ALERT_TYPES } from "@/lib/alert-prompts";
 
-const anthropic = new Anthropic();
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) _anthropic = new Anthropic();
+  return _anthropic;
+}
 
 const SYSTEM_PROMPT = `You are a Google Analytics expert that generates concise, professional email reports. You query GA4 data using the provided tools and return a well-formatted HTML summary.
 
@@ -46,6 +50,8 @@ export async function generateAlertContent(
   const anthropicMessages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },
   ];
+
+  const anthropic = getAnthropic();
 
   let response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
