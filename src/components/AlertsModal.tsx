@@ -189,23 +189,29 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     }
   }
 
-  async function handleTestSend(alert: EmailAlert) {
+  async function handleTestSend(alert: EmailAlert, live = false) {
     setSendingTestId(alert.id);
     setError(null);
     setTestSuccess(null);
 
     try {
-      const res = await fetch(`/api/alerts/${alert.id}/test-send`, {
-        method: "POST",
-      });
+      const url = live
+        ? `/api/alerts/${alert.id}/test-send?live=true`
+        : `/api/alerts/${alert.id}/test-send`;
+      const res = await fetch(url, { method: "POST" });
       if (!res.ok) {
         const text = await res.text();
         let msg = "Failed to send test email";
         try { msg = JSON.parse(text).error || msg; } catch {}
         throw new Error(msg);
       }
+      const data = await res.json();
       setTestSuccess(alert.id);
-      setTimeout(() => setTestSuccess(null), 3000);
+      if (data.message) {
+        setError(null);
+        setTestSuccess(alert.id);
+      }
+      setTimeout(() => setTestSuccess(null), live ? 5000 : 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send test email");
     } finally {
@@ -337,7 +343,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                               </svg>
                             )}
                           </button>
-                          {/* Send Test */}
+                          {/* Send sample test */}
                           <button
                             type="button"
                             onClick={() => handleTestSend(alert)}
@@ -353,8 +359,8 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                               sendingTestId === alert.id
                                 ? "Sending..."
                                 : testSuccess === alert.id
-                                  ? "Test sent!"
-                                  : "Send test email"
+                                  ? "Sent!"
+                                  : "Send sample test"
                             }
                           >
                             {sendingTestId === alert.id ? (
@@ -372,6 +378,19 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
                               </svg>
                             )}
+                          </button>
+                          {/* Send live test with real AI data */}
+                          <button
+                            type="button"
+                            onClick={() => handleTestSend(alert, true)}
+                            disabled={sendingTestId === alert.id}
+                            className="cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Send live test (real data, ~1 min)"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
                           </button>
                           {/* Edit */}
                           <button
