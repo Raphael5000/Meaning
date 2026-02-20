@@ -188,6 +188,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (tokens.refresh_token) {
           token.refreshToken = tokens.refresh_token;
         }
+
+        // Persist refreshed token to Account table so cron jobs can use it
+        if (token.userId) {
+          try {
+            const acct = await prisma.account.findFirst({
+              where: { userId: token.userId as string, provider: "google" },
+              select: { id: true },
+            });
+            if (acct) {
+              await prisma.account.update({
+                where: { id: acct.id },
+                data: {
+                  access_token: tokens.access_token,
+                  expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
+                  ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
+                },
+              });
+            }
+          } catch (dbErr) {
+            console.error("[auth] Failed to persist refreshed token:", dbErr);
+          }
+        }
       } catch {
         token.error = "RefreshAccessTokenError";
       }
