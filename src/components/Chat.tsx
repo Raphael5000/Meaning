@@ -547,7 +547,7 @@ export default function Chat() {
               </p>
 
               {propertyId && (
-                <div className="grid max-w-2xl grid-cols-2 gap-3">
+                <div className="flex max-w-2xl flex-wrap justify-center gap-3">
                   {EXAMPLE_QUESTIONS.map((q) => (
                     <button
                       key={q}
