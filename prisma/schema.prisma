@@ -31,6 +31,7 @@ model User {
   subscription Subscription?
   payments     Payment[]
   chats        Chat[]
+  emailAlerts  EmailAlert[]
 }
 
 model Account {
@@ -129,6 +130,30 @@ model ChatMessage {
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
+}
+
+// ──────────────────────────────────────────────
+// Email Alerts
+// ──────────────────────────────────────────────
+
+model EmailAlert {
+  id     String @id @default(cuid())
+  userId String
+
+  recipients String   // comma-separated email addresses
+  frequency  String   // "daily" | "weekly" | "monthly"
+  propertyId   String?  // GA4 property id
+  propertyName String?  // GA4 property display name
+  enabled    Boolean @default(true)
+  lastSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([enabled, frequency])
 }
 
 model Payment {
