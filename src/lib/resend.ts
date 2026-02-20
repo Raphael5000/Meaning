@@ -19,12 +19,13 @@ const SENDER_EMAIL =
 export async function sendAlertEmail(
   to: string[],
   subject: string,
-  html: string
+  html: string,
+  from?: string
 ): Promise<{ id: string }> {
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
-    from: SENDER_EMAIL,
+    from: from || SENDER_EMAIL,
     to,
     subject,
     html,

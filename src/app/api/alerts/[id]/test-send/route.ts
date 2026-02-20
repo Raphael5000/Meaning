@@ -64,7 +64,7 @@ export async function POST(
       </div>
     `.trim();
 
-    await sendAlertEmail(recipients, subject, html);
+    await sendAlertEmail(recipients, subject, html, "Meaning <onboarding@resend.dev>");
 
     return NextResponse.json({ success: true });
   } catch (err) {
