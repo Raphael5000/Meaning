@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+/** PUT /api/chats/:id – update chat title and/or replace messages */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.chat.findFirst({ where: { id, userId } });
+  if (!existing) {
+    return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+  }
+
+  const body = (await request.json()) as {
+    title?: string;
+    propertyId?: string | null;
+    propertyName?: string;
+    messages?: {
+      id: string;
+      role: string;
+      content: string;
+      scorecard?: { value: string; label: string; change?: string } | null;
+      scorecardRevealed?: boolean;
+      suggestedQuestions?: string[];
+    }[];
+  };
+
+  // Build update data
+  const updateData: Record<string, unknown> = {};
+  if (body.title !== undefined) updateData.title = body.title;
+  if (body.propertyId !== undefined) updateData.propertyId = body.propertyId;
+  if (body.propertyName !== undefined) updateData.propertyName = body.propertyName;
+
+  // If messages provided, delete old ones and insert the new set
+  if (body.messages) {
+    await prisma.chatMessage.deleteMany({ where: { chatId: id } });
+    updateData.messages = {
+      create: body.messages.map((m, i) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        scorecard: m.scorecard ?? undefined,
+        scorecardRevealed: m.scorecardRevealed ?? false,
+        suggestedQuestions: m.suggestedQuestions ?? undefined,
+        sortOrder: i,
+      })),
+    };
+  }
+
+  const chat = await prisma.chat.update({
+    where: { id },
+    data: updateData,
+    include: { messages: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  return NextResponse.json(chat);
+}
+
+/** DELETE /api/chats/:id – delete a chat and its messages */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.chat.findFirst({ where: { id, userId } });
+  if (!existing) {
+    return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+  }
+
+  await prisma.chat.delete({ where: { id } });
+
+  return NextResponse.json({ ok: true });
+}

@@ -20,37 +20,122 @@ export interface StoredChat {
   propertyName?: string;
 }
 
-const STORAGE_PREFIX = "meaning_chats_";
 const MAX_TITLE_LENGTH = 45;
-
-export function getStorageKey(userId: string): string {
-  return `${STORAGE_PREFIX}${userId}`;
-}
-
-export function getChats(userId: string): StoredChat[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(getStorageKey(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredChat[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveChats(userId: string, chats: StoredChat[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(getStorageKey(userId), JSON.stringify(chats));
-  } catch {
-    // ignore quota or parse errors
-  }
-}
 
 export function titleFromFirstMessage(content: string): string {
   const trimmed = content.trim();
   if (!trimmed) return "New chat";
   if (trimmed.length <= MAX_TITLE_LENGTH) return trimmed;
   return trimmed.slice(0, MAX_TITLE_LENGTH).trim() + "…";
+}
+
+// ──────────────────────────────────────────────
+// Database-backed chat history API helpers
+// ──────────────────────────────────────────────
+
+/** Shape returned by the /api/chats endpoints (DB row with nested messages) */
+interface DbChat {
+  id: string;
+  title: string;
+  propertyId: string | null;
+  propertyName: string | null;
+  createdAt: string; // ISO date string from JSON
+  messages: {
+    id: string;
+    role: string;
+    content: string;
+    scorecard: { value: string; label: string; change?: string } | null;
+    scorecardRevealed: boolean;
+    suggestedQuestions: string[] | null;
+    sortOrder: number;
+  }[];
+}
+
+/** Convert a DB chat row into the frontend StoredChat shape */
+function toStoredChat(db: DbChat): StoredChat {
+  return {
+    id: db.id,
+    title: db.title,
+    createdAt: new Date(db.createdAt).getTime(),
+    propertyId: db.propertyId,
+    propertyName: db.propertyName ?? undefined,
+    messages: db.messages.map((m) => ({
+      id: m.id,
+      role: m.role as Message["role"],
+      content: m.content,
+      scorecard: m.scorecard ?? undefined,
+      scorecardRevealed: m.scorecardRevealed || undefined,
+      suggestedQuestions: m.suggestedQuestions ?? undefined,
+    })),
+  };
+}
+
+/** Convert frontend messages to the API payload shape */
+function messagesToPayload(messages: Message[]) {
+  return messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    scorecard: m.scorecard ?? null,
+    scorecardRevealed: m.scorecardRevealed ?? false,
+    suggestedQuestions: m.suggestedQuestions,
+  }));
+}
+
+/** Fetch all chats for the current user from the database */
+export async function fetchChats(): Promise<StoredChat[]> {
+  try {
+    const res = await fetch("/api/chats");
+    if (!res.ok) return [];
+    const data = (await res.json()) as DbChat[];
+    return data.map(toStoredChat);
+  } catch {
+    return [];
+  }
+}
+
+/** Create a new chat in the database */
+export async function createChat(chat: StoredChat): Promise<void> {
+  try {
+    await fetch("/api/chats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: chat.id,
+        title: chat.title,
+        propertyId: chat.propertyId ?? null,
+        propertyName: chat.propertyName,
+        messages: messagesToPayload(chat.messages),
+      }),
+    });
+  } catch {
+    // silently ignore – chat still exists in local state
+  }
+}
+
+/** Update an existing chat in the database (title, property, and/or messages) */
+export async function updateChat(chat: StoredChat): Promise<void> {
+  try {
+    await fetch(`/api/chats/${chat.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: chat.title,
+        propertyId: chat.propertyId ?? null,
+        propertyName: chat.propertyName,
+        messages: messagesToPayload(chat.messages),
+      }),
+    });
+  } catch {
+    // silently ignore
+  }
+}
+
+/** Delete a chat from the database */
+export async function deleteRemoteChat(chatId: string): Promise<void> {
+  try {
+    await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
+  } catch {
+    // silently ignore
+  }
 }

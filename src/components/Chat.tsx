@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,8 +9,10 @@ import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 import {
-  getChats,
-  saveChats,
+  fetchChats,
+  createChat,
+  updateChat,
+  deleteRemoteChat,
   titleFromFirstMessage,
   type Message,
   type StoredChat,
@@ -40,7 +42,6 @@ function getInitials(name: string | null | undefined, email?: string | null): st
 
 export default function Chat() {
   const { data: session } = useSession();
-  const userId = (session?.user as { id?: string })?.id ?? session?.user?.email ?? "anonymous";
 
   const [chats, setChats] = useState<StoredChat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -56,16 +57,16 @@ export default function Chat() {
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load chats from storage when user is available
+  // Load chats from the database when the session is available
   useEffect(() => {
-    setChats(getChats(userId));
-  }, [userId]);
-
-  // Persist chats whenever they change
-  useEffect(() => {
-    if (chats.length === 0) return;
-    saveChats(userId, chats);
-  }, [userId, chats]);
+    const sessionUserId = (session as { userId?: string } | null)?.userId;
+    if (!sessionUserId) return;
+    let cancelled = false;
+    fetchChats().then((loaded) => {
+      if (!cancelled) setChats(loaded);
+    });
+    return () => { cancelled = true; };
+  }, [(session as { userId?: string } | null)?.userId]);
 
   useEffect(() => {
     // Keep the top of the latest answer in view instead of scrolling to the bottom
@@ -124,6 +125,11 @@ export default function Chat() {
     );
   }
 
+  /** Fire-and-forget save of a single chat to the database */
+  const persistChat = useCallback((chat: StoredChat) => {
+    updateChat(chat);
+  }, []);
+
   function markScorecardRevealed(messageId: string) {
     setMessages((prev) =>
       prev.map((m) =>
@@ -133,9 +139,10 @@ export default function Chat() {
       )
     );
     if (!currentChatId) return;
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === currentChatId
+    const chatId = currentChatId;
+    setChats((prev) => {
+      const updated = prev.map((c) =>
+        c.id === chatId
           ? {
               ...c,
               messages: c.messages.map((m) =>
@@ -145,8 +152,11 @@ export default function Chat() {
               ),
             }
           : c
-      )
-    );
+      );
+      const chatToSave = updated.find((c) => c.id === chatId);
+      if (chatToSave) persistChat(chatToSave);
+      return updated;
+    });
   }
 
   async function sendMessage(content: string) {
@@ -183,6 +193,7 @@ export default function Chat() {
       setChats((prev) => [newChat, ...prev]);
       setCurrentChatId(newChat.id);
       setMessages([userMessage]);
+      createChat(newChat);
     } else {
       setMessages(updatedMessages);
       if (currentChatId && messages.length === 0) {
@@ -231,11 +242,15 @@ export default function Chat() {
       // Use chatIdToUpdate so we update the right chat in the async callback
       // (avoids stale closure where currentChatId is still null for new chats)
       const idToUpdate = chatIdToUpdate;
-      setChats((prev) =>
-        prev.map((c) =>
+      setChats((prev) => {
+        const updated = prev.map((c) =>
           c.id === idToUpdate ? { ...c, messages: finalMessages } : c
-        )
-      );
+        );
+        // Persist the updated chat to the database
+        const chatToSave = updated.find((c) => c.id === idToUpdate);
+        if (chatToSave) persistChat(chatToSave);
+        return updated;
+      });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -248,6 +263,7 @@ export default function Chat() {
   function deleteChat(e: React.MouseEvent, chatId: string) {
     e.stopPropagation();
     setChats((prev) => prev.filter((c) => c.id !== chatId));
+    deleteRemoteChat(chatId);
     if (currentChatId === chatId) {
       setCurrentChatId(null);
       setMessages([]);
@@ -475,11 +491,17 @@ export default function Chat() {
                   setPropertyId(id);
                   setPropertyName(name);
                   if (currentChatId) {
-                    updateCurrentChatInList((c) => ({
-                      ...c,
-                      propertyId: id,
-                      propertyName: name,
-                    }));
+                    const chatId = currentChatId;
+                    setChats((prev) => {
+                      const updated = prev.map((c) =>
+                        c.id === chatId
+                          ? { ...c, propertyId: id, propertyName: name }
+                          : c
+                      );
+                      const chatToSave = updated.find((c) => c.id === chatId);
+                      if (chatToSave) persistChat(chatToSave);
+                      return updated;
+                    });
                   }
                 }}
               />
