@@ -5,7 +5,7 @@ import { sendAlertEmail } from "@/lib/resend";
 import { generateAlertContent } from "@/lib/alert-content";
 import { ALERT_TYPES } from "@/lib/alert-prompts";
 import { getGoogleAccessToken } from "@/lib/google-token";
-import { buildEmailWrapper } from "@/app/api/alerts/send/route";
+import { buildEmailWrapper } from "@/lib/email-wrapper";
 
 export const dynamic = "force-dynamic";
 
