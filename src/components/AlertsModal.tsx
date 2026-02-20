@@ -29,7 +29,9 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -153,6 +155,28 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     }
   }
 
+  async function handleTestSend(alert: EmailAlert) {
+    setSendingTestId(alert.id);
+    setError(null);
+    setTestSuccess(null);
+
+    try {
+      const res = await fetch(`/api/alerts/${alert.id}/test-send`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send test email");
+      }
+      setTestSuccess(alert.id);
+      setTimeout(() => setTestSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send test email");
+    } finally {
+      setSendingTestId(null);
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -272,6 +296,42 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                                 <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
                                 <path d="M18 8a6 6 0 0 0-9.33-5" />
                                 <line x1="1" y1="1" x2="23" y2="23" />
+                              </svg>
+                            )}
+                          </button>
+                          {/* Send Test */}
+                          <button
+                            type="button"
+                            onClick={() => handleTestSend(alert)}
+                            disabled={sendingTestId === alert.id}
+                            className="cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{
+                              color:
+                                testSuccess === alert.id
+                                  ? "var(--accent)"
+                                  : "var(--text-muted)",
+                            }}
+                            title={
+                              sendingTestId === alert.id
+                                ? "Sending..."
+                                : testSuccess === alert.id
+                                  ? "Test sent!"
+                                  : "Send test email"
+                            }
+                          >
+                            {sendingTestId === alert.id ? (
+                              <div
+                                className="h-4 w-4 animate-spin rounded-full border-2 border-current"
+                                style={{ borderTopColor: "transparent" }}
+                              />
+                            ) : testSuccess === alert.id ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="22" y1="2" x2="11" y2="13" />
+                                <polygon points="22 2 15 22 11 13 2 9 22 2" />
                               </svg>
                             )}
                           </button>
