@@ -50,7 +50,9 @@ export default function Chat() {
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -108,6 +110,10 @@ export default function Chat() {
     setPropertyId(chat.propertyId ?? null);
     setPropertyName(chat.propertyName ?? "");
     setError(null);
+    // Close sidebar on mobile after selecting a chat
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
   }
 
   function handleNewChat() {
@@ -277,10 +283,20 @@ export default function Chat() {
       className="flex h-screen"
       style={{ background: "var(--bg-primary)" }}
     >
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`flex shrink-0 flex-col border-r transition-[width] duration-200 md:flex ${
-          sidebarOpen ? "w-64" : "w-0 overflow-hidden border-transparent md:w-0"
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:transition-[width] ${
+          sidebarOpen
+            ? "w-64 translate-x-0"
+            : "w-64 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden md:border-transparent"
         }`}
         style={{
           borderColor: "var(--border-color)",
@@ -288,7 +304,7 @@ export default function Chat() {
         }}
       >
         {/* Top row: logo */}
-        <div className="flex min-w-[16rem] items-center pl-[18px] pr-3 pt-[18px] md:min-w-0">
+        <div className="flex items-center pl-[18px] pr-3 pt-[18px]">
           <Link href="/" className="flex shrink-0 items-center" aria-label="Home">
             <Image
               src="/Hivory icon.svg"
@@ -300,7 +316,7 @@ export default function Chat() {
           </Link>
         </div>
         {/* New chat button */}
-        <div className="px-3 py-2 pt-8 md:min-w-0 space-y-0.5">
+        <div className="px-3 py-2 pt-8 space-y-0.5">
           <button
             onClick={handleNewChat}
             className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
