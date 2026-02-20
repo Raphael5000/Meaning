@@ -86,10 +86,14 @@ function messagesToPayload(messages: Message[]) {
 export async function fetchChats(): Promise<StoredChat[]> {
   try {
     const res = await fetch("/api/chats");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error("[chatHistory] fetchChats failed:", res.status, await res.text().catch(() => ""));
+      return [];
+    }
     const data = (await res.json()) as DbChat[];
     return data.map(toStoredChat);
-  } catch {
+  } catch (err) {
+    console.error("[chatHistory] fetchChats error:", err);
     return [];
   }
 }
@@ -97,7 +101,7 @@ export async function fetchChats(): Promise<StoredChat[]> {
 /** Create a new chat in the database */
 export async function createChat(chat: StoredChat): Promise<void> {
   try {
-    await fetch("/api/chats", {
+    const res = await fetch("/api/chats", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -108,15 +112,18 @@ export async function createChat(chat: StoredChat): Promise<void> {
         messages: messagesToPayload(chat.messages),
       }),
     });
-  } catch {
-    // silently ignore – chat still exists in local state
+    if (!res.ok) {
+      console.error("[chatHistory] createChat failed:", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.error("[chatHistory] createChat error:", err);
   }
 }
 
 /** Update an existing chat in the database (title, property, and/or messages) */
 export async function updateChat(chat: StoredChat): Promise<void> {
   try {
-    await fetch(`/api/chats/${chat.id}`, {
+    const res = await fetch(`/api/chats/${chat.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -126,16 +133,22 @@ export async function updateChat(chat: StoredChat): Promise<void> {
         messages: messagesToPayload(chat.messages),
       }),
     });
-  } catch {
-    // silently ignore
+    if (!res.ok) {
+      console.error("[chatHistory] updateChat failed:", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.error("[chatHistory] updateChat error:", err);
   }
 }
 
 /** Delete a chat from the database */
 export async function deleteRemoteChat(chatId: string): Promise<void> {
   try {
-    await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
-  } catch {
-    // silently ignore
+    const res = await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
+    if (!res.ok) {
+      console.error("[chatHistory] deleteChat failed:", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.error("[chatHistory] deleteChat error:", err);
   }
 }
