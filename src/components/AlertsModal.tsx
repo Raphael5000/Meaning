@@ -133,8 +133,10 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Failed to update alert");
+          const text = await res.text();
+          let msg = "Failed to update alert";
+          try { msg = JSON.parse(text).error || msg; } catch {}
+          throw new Error(msg);
         }
         const updated = await res.json();
         setAlerts((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
@@ -145,8 +147,10 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Failed to create alert");
+          const text = await res.text();
+          let msg = "Failed to create alert";
+          try { msg = JSON.parse(text).error || msg; } catch {}
+          throw new Error(msg);
         }
         const created = await res.json();
         setAlerts((prev) => [created, ...prev]);
@@ -195,8 +199,10 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
         method: "POST",
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to send test email");
+        const text = await res.text();
+        let msg = "Failed to send test email";
+        try { msg = JSON.parse(text).error || msg; } catch {}
+        throw new Error(msg);
       }
       setTestSuccess(alert.id);
       setTimeout(() => setTestSuccess(null), 3000);
