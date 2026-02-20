@@ -58,6 +58,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   const [sendingTestId, setSendingTestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -193,6 +194,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setSendingTestId(alert.id);
     setError(null);
     setTestSuccess(null);
+    setLiveMessage(null);
 
     try {
       const url = live
@@ -207,9 +209,9 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
       }
       const data = await res.json();
       setTestSuccess(alert.id);
-      if (data.message) {
-        setError(null);
-        setTestSuccess(alert.id);
+      if (live && data.message) {
+        setLiveMessage(data.message);
+        setTimeout(() => setLiveMessage(null), 10000);
       }
       setTimeout(() => setTestSuccess(null), live ? 5000 : 3000);
     } catch (err) {
@@ -278,6 +280,16 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                   style={{ color: "var(--error)", background: "var(--bg-tertiary)" }}
                 >
                   {error}
+                </div>
+              )}
+
+              {/* Live test status */}
+              {liveMessage && (
+                <div
+                  className="mb-4 rounded-lg px-3 py-2 text-sm"
+                  style={{ color: "var(--accent)", background: "var(--bg-tertiary)" }}
+                >
+                  {liveMessage}
                 </div>
               )}
 
