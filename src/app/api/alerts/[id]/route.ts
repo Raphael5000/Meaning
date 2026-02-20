@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { isValidAlertType } from "@/lib/alert-prompts";
 
 export const dynamic = "force-dynamic";
+
+const VALID_ALERT_TYPES = new Set(["weekly_snapshot", "traffic_report", "top_pages"]);
 
 /** PUT /api/alerts/[id] – update an email alert */
 export async function PUT(
@@ -73,7 +74,7 @@ export async function PUT(
     }
 
     if (body.alertType !== undefined) {
-      if (!isValidAlertType(body.alertType)) {
+      if (!VALID_ALERT_TYPES.has(body.alertType)) {
         return NextResponse.json(
           { error: "Invalid alert type" },
           { status: 400 }
