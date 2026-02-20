@@ -2,10 +2,36 @@
 
 import { useState, useEffect, useRef } from "react";
 
+const ALERT_TYPES = [
+  {
+    key: "weekly_snapshot",
+    label: "Weekly Snapshot",
+    description:
+      "Traffic summary compared to last week, top pages, traffic sources, and recommendations.",
+  },
+  {
+    key: "traffic_report",
+    label: "Traffic Report",
+    description:
+      "Detailed traffic breakdown by source, medium, and channel with trends.",
+  },
+  {
+    key: "top_pages",
+    label: "Top Pages",
+    description:
+      "Best-performing pages ranked by views with engagement metrics.",
+  },
+] as const;
+
+const ALERT_TYPE_MAP: Record<string, string> = Object.fromEntries(
+  ALERT_TYPES.map((t) => [t.key, t.label])
+);
+
 interface EmailAlert {
   id: string;
   recipients: string;
   frequency: string;
+  alertType: string;
   propertyId: string | null;
   propertyName: string | null;
   enabled: boolean;
@@ -38,6 +64,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState("");
   const [frequency, setFrequency] = useState("weekly");
+  const [alertType, setAlertType] = useState("weekly_snapshot");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [selectedPropertyName, setSelectedPropertyName] = useState("");
 
@@ -69,6 +96,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setEditingId(null);
     setRecipients("");
     setFrequency("weekly");
+    setAlertType("weekly_snapshot");
     setSelectedPropertyId(null);
     setSelectedPropertyName("");
     setError(null);
@@ -78,6 +106,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setEditingId(alert.id);
     setRecipients(alert.recipients);
     setFrequency(alert.frequency);
+    setAlertType(alert.alertType || "weekly_snapshot");
     setSelectedPropertyId(alert.propertyId);
     setSelectedPropertyName(alert.propertyName || "");
     setShowForm(true);
@@ -91,6 +120,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     const payload = {
       recipients,
       frequency,
+      alertType,
       propertyId: selectedPropertyId,
       propertyName: selectedPropertyName || null,
     };
@@ -269,6 +299,8 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                             className="mt-0.5 text-xs"
                             style={{ color: "var(--text-muted)" }}
                           >
+                            {ALERT_TYPE_MAP[alert.alertType] || "Weekly Snapshot"}
+                            {" · "}
                             {alert.frequency.charAt(0).toUpperCase() + alert.frequency.slice(1)}
                             {alert.lastSentAt
                               ? ` · Last sent ${new Date(alert.lastSentAt).toLocaleDateString()}`
@@ -376,26 +408,95 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                       className="mb-1.5 block text-sm font-medium"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      Recipient emails
+                      Property
                     </label>
-                    <input
-                      type="text"
-                      value={recipients}
-                      onChange={(e) => setRecipients(e.target.value)}
-                      placeholder="email@example.com, another@example.com"
-                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors focus:ring-1"
+                    <select
+                      value={selectedPropertyId || ""}
+                      onChange={(e) => {
+                        const prop = properties.find(
+                          (p) => p.propertyId === e.target.value
+                        );
+                        setSelectedPropertyId(e.target.value || null);
+                        setSelectedPropertyName(prop?.displayName || "");
+                      }}
+                      className="w-full cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none"
                       style={{
                         background: "var(--bg-secondary)",
                         borderColor: "var(--border-color)",
                         color: "var(--text-primary)",
                       }}
-                    />
-                    <p
-                      className="mt-1 text-xs"
-                      style={{ color: "var(--text-muted)" }}
                     >
-                      Separate multiple emails with commas
-                    </p>
+                      <option value="">All properties</option>
+                      {properties.map((p) => (
+                        <option key={p.propertyId} value={p.propertyId}>
+                          {p.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      className="mb-1.5 block text-sm font-medium"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Report type
+                    </label>
+                    <div className="space-y-2">
+                      {ALERT_TYPES.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setAlertType(t.key)}
+                          className="flex w-full cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition-colors"
+                          style={{
+                            borderColor:
+                              alertType === t.key
+                                ? "var(--accent)"
+                                : "var(--border-color)",
+                            background:
+                              alertType === t.key
+                                ? "var(--bg-tertiary)"
+                                : "var(--bg-secondary)",
+                          }}
+                        >
+                          <div
+                            className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
+                            style={{
+                              borderColor:
+                                alertType === t.key
+                                  ? "var(--accent)"
+                                  : "var(--border-color)",
+                              background:
+                                alertType === t.key
+                                  ? "var(--accent)"
+                                  : "transparent",
+                            }}
+                          >
+                            {alertType === t.key && (
+                              <div
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ background: "#fff" }}
+                              />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="text-sm font-medium"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {t.label}
+                            </p>
+                            <p
+                              className="mt-0.5 text-xs leading-relaxed"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {t.description}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -435,31 +536,26 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                       className="mb-1.5 block text-sm font-medium"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      Property
+                      Recipient emails
                     </label>
-                    <select
-                      value={selectedPropertyId || ""}
-                      onChange={(e) => {
-                        const prop = properties.find(
-                          (p) => p.propertyId === e.target.value
-                        );
-                        setSelectedPropertyId(e.target.value || null);
-                        setSelectedPropertyName(prop?.displayName || "");
-                      }}
-                      className="w-full cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none"
+                    <input
+                      type="text"
+                      value={recipients}
+                      onChange={(e) => setRecipients(e.target.value)}
+                      placeholder="email@example.com, another@example.com"
+                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors focus:ring-1"
                       style={{
                         background: "var(--bg-secondary)",
                         borderColor: "var(--border-color)",
                         color: "var(--text-primary)",
                       }}
+                    />
+                    <p
+                      className="mt-1 text-xs"
+                      style={{ color: "var(--text-muted)" }}
                     >
-                      <option value="">All properties</option>
-                      {properties.map((p) => (
-                        <option key={p.propertyId} value={p.propertyId}>
-                          {p.displayName}
-                        </option>
-                      ))}
-                    </select>
+                      Separate multiple emails with commas
+                    </p>
                   </div>
 
                   <div className="flex gap-2 pt-2">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isValidAlertType } from "@/lib/alert-prompts";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     recipients: string;
     frequency: string;
+    alertType?: string;
     propertyId?: string | null;
     propertyName?: string | null;
   };
@@ -73,12 +75,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate alert type
+  const alertType = body.alertType || "weekly_snapshot";
+  if (!isValidAlertType(alertType)) {
+    return NextResponse.json(
+      { error: "Invalid alert type" },
+      { status: 400 }
+    );
+  }
+
   try {
     const alert = await prisma.emailAlert.create({
       data: {
         userId,
         recipients: emails.join(", "),
         frequency: body.frequency,
+        alertType,
         propertyId: body.propertyId ?? null,
         propertyName: body.propertyName ?? null,
       },
