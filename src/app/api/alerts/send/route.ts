@@ -17,7 +17,15 @@ export const dynamic = "force-dynamic";
  * Query parameter `frequency` filters which alerts to send: daily | weekly | monthly.
  * Schedule three cron jobs that each call this endpoint with the relevant frequency.
  */
+export async function GET(request: NextRequest) {
+  return handleSend(request);
+}
+
 export async function POST(request: NextRequest) {
+  return handleSend(request);
+}
+
+async function handleSend(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 

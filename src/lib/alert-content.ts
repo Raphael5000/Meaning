@@ -47,23 +47,31 @@ export async function generateAlertContent(
 
   const userPrompt = `${typeDefinition.prompt}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
 
-  const anthropicMessages: Anthropic.MessageParam[] = [
+  const messages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },
   ];
 
   const anthropic = getAnthropic();
+
+  console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}`);
 
   let response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
     tools: GA4_TOOLS,
-    messages: anthropicMessages,
+    messages,
   });
 
-  // Agentic tool-use loop — identical pattern to the chat endpoint
+  // Agentic tool-use loop — accumulate full conversation across rounds
+  let round = 0;
   while (response.stop_reason === "tool_use") {
+    round++;
     const assistantContent = response.content;
+
+    // Append assistant turn to conversation
+    messages.push({ role: "assistant", content: assistantContent });
+
     const toolUseBlocks = assistantContent.filter(
       (
         block
@@ -74,6 +82,8 @@ export async function generateAlertContent(
         input: Record<string, unknown>;
       } => block.type === "tool_use"
     );
+
+    console.log(`[alert-content] Round ${round}: ${toolUseBlocks.length} tool call(s) — ${toolUseBlocks.map((t) => t.name).join(", ")}`);
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
@@ -140,6 +150,7 @@ export async function generateAlertContent(
       } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : "Tool execution failed";
+        console.error(`[alert-content] Tool ${toolUse.name} failed:`, message);
         result = { error: message };
         isError = true;
       }
@@ -152,18 +163,19 @@ export async function generateAlertContent(
       });
     }
 
+    // Append tool results as a user turn and continue
+    messages.push({ role: "user", content: toolResults });
+
     response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools: GA4_TOOLS,
-      messages: [
-        ...anthropicMessages,
-        { role: "assistant", content: assistantContent },
-        { role: "user", content: toolResults },
-      ],
+      messages,
     });
   }
+
+  console.log(`[alert-content] Generation complete after ${round} tool-use round(s), stop_reason=${response.stop_reason}`);
 
   // Extract the final text
   const textBlocks = response.content.filter(
