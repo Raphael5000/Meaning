@@ -80,13 +80,16 @@ export async function POST(
       const capturedSenderName = alert.user.name || alert.user.email;
 
       void (async () => {
+        console.log(`[test-send] Starting live generation for alert ${id}, property=${capturedPropertyId}, type=${capturedAlertType}`);
         try {
+          console.log(`[test-send] Calling generateAlertContent...`);
           const contentHtml = await generateAlertContent(
             capturedToken,
             capturedPropertyId,
             capturedAlertType,
             capturedFrequency
           );
+          console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
 
           const subject = `[TEST] ${alertTypeLabel} – ${propertyLabel}`;
           const html = buildEmailWrapper(
