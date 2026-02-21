@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/Navbar";
 
 function FadeInSection({
   children,
@@ -79,47 +80,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
       </div>
 
       {/* Navigation */}
-      <nav
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-black/50 px-6 py-4 backdrop-blur-[15px] md:bg-transparent md:backdrop-blur-none"
-      >
-        <div className="flex items-center gap-2">
-          <Image
-            src="/Logo.svg"
-            alt="Meaning"
-            width={120}
-            height={42}
-            className="w-auto"
-            style={{ height: "36px" }}
-            priority
-          />
-        </div>
-        <div className="flex items-center gap-4">
-          <a
-            href="/pricing"
-            className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Pricing
-          </a>
-          <a
-            href="/docs"
-            className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Docs
-          </a>
-          <a
-            href="/login"
-            className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Log in
-          </a>
-          <Button asChild className="rounded-full">
-            <a href="/signup">Get started</a>
-          </Button>
-        </div>
-      </nav>
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-[15px] md:bg-transparent md:backdrop-blur-none">
+        <Navbar />
+      </div>
 
       {/* Hero Section */}
       <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pt-20 text-center">
