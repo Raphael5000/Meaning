@@ -3,6 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  ChevronsDown,
+  LayoutGrid,
+  Lock,
+  MessageSquare,
+  PieChart,
+  Search,
+  Zap,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function FadeInSection({
   children,
@@ -49,7 +59,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
       }}
     >
-      {/* Full-page gradient orbs – scroll with content so the glow is always visible */}
+      {/* Full-page gradient orbs */}
       <div
         className="pointer-events-none absolute inset-0 z-0"
         aria-hidden
@@ -105,25 +115,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           >
             Log in
           </a>
-          <a
-            href="/signup"
-            className="cursor-pointer rounded-[100px] px-5 py-2 text-sm font-medium transition-all duration-200"
-            style={{
-              background:
-                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-              color: "white",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background =
-                "linear-gradient(180deg, #10a37f 0%, #0d8c6d 50%, #0b7a5f 100%)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background =
-                "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)";
-            }}
-          >
-            Get started
-          </a>
+          <Button asChild className="rounded-full">
+            <a href="/signup">Get started</a>
+          </Button>
         </div>
       </nav>
 
@@ -166,32 +160,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </p>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <a
-              href="/signup"
-              className="cursor-pointer rounded-[100px] px-8 py-4 text-base font-semibold transition-all duration-200"
-              style={{
-                background:
-                  "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                color: "white",
-                boxShadow: "0 0 30px rgba(16, 163, 127, 0.3)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(180deg, #10a37f 0%, #0d8c6d 50%, #0b7a5f 100%)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 40px rgba(16, 163, 127, 0.5)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 30px rgba(16, 163, 127, 0.3)";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            >
-              Get started
-            </a>
+            <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
+              <a href="/signup">Get started</a>
+            </Button>
             <a
               href="/pricing"
               className="text-sm underline-offset-4 hover:underline"
@@ -316,17 +287,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
 
         {/* Scroll indicator */}
         <div className="landing-bounce absolute bottom-8 z-10">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
-          </svg>
+          <ChevronsDown className="h-6 w-6 text-muted-foreground" />
         </div>
       </section>
 
@@ -356,142 +317,52 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </FadeInSection>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Feature Card 1 */}
             <FadeInSection delay={0}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
-              }
-              title="Natural Language Queries"
-              description="Ask questions in plain English. No need to learn complex query languages or navigate confusing dashboards."
-            />
+              <FeatureCard
+                icon={<Search className="h-6 w-6" />}
+                title="Natural Language Queries"
+                description="Ask questions in plain English. No need to learn complex query languages or navigate confusing dashboards."
+              />
             </FadeInSection>
 
-            {/* Feature Card 2 */}
             <FadeInSection delay={80}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                </svg>
-              }
-              title="Real-time Analytics"
-              description="Get live data from your Google Analytics properties. See what's happening on your site right now."
-            />
+              <FeatureCard
+                icon={<Zap className="h-6 w-6" />}
+                title="Real-time Analytics"
+                description="Get live data from your Google Analytics properties. See what's happening on your site right now."
+              />
             </FadeInSection>
 
-            {/* Feature Card 3 */}
             <FadeInSection delay={160}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
-                  <path d="M20 12a8 8 0 0 0-8-8v8h8z" />
-                </svg>
-              }
-              title="Instant Insights"
-              description="AI-powered analysis that surfaces the metrics that matter. Get summaries, trends, and recommendations."
-            />
+              <FeatureCard
+                icon={<PieChart className="h-6 w-6" />}
+                title="Instant Insights"
+                description="AI-powered analysis that surfaces the metrics that matter. Get summaries, trends, and recommendations."
+              />
             </FadeInSection>
 
-            {/* Feature Card 4 */}
             <FadeInSection delay={240}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-              }
-              title="GA4 Integration"
-              description="Connects directly to your Google Analytics 4 properties. Switch between multiple properties seamlessly."
-            />
+              <FeatureCard
+                icon={<LayoutGrid className="h-6 w-6" />}
+                title="GA4 Integration"
+                description="Connects directly to your Google Analytics 4 properties. Switch between multiple properties seamlessly."
+              />
             </FadeInSection>
 
-            {/* Feature Card 5 */}
             <FadeInSection delay={320}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              }
-              title="Privacy First"
-              description="We only request read-only access to your analytics. Your data is never stored or used for training."
-            />
+              <FeatureCard
+                icon={<Lock className="h-6 w-6" />}
+                title="Privacy First"
+                description="We only request read-only access to your analytics. Your data is never stored or used for training."
+              />
             </FadeInSection>
 
-            {/* Feature Card 6 */}
             <FadeInSection delay={400}>
-            <FeatureCard
-              icon={
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              }
-              title="Conversational Interface"
-              description="Have a natural conversation with your data. Ask follow-ups, dive deeper, and explore your metrics intuitively."
-            />
+              <FeatureCard
+                icon={<MessageSquare className="h-6 w-6" />}
+                title="Conversational Interface"
+                description="Have a natural conversation with your data. Ask follow-ups, dive deeper, and explore your metrics intuitively."
+              />
             </FadeInSection>
           </div>
         </div>
@@ -568,32 +439,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               Join the beta and start getting insights from your Google Analytics
               data in seconds.
             </p>
-            <a
-              href="/signup"
-              className="cursor-pointer rounded-[100px] px-8 py-4 text-base font-semibold transition-all duration-200"
-              style={{
-                background:
-                  "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                color: "white",
-                boxShadow: "0 0 30px rgba(16, 163, 127, 0.3)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(180deg, #10a37f 0%, #0d8c6d 50%, #0b7a5f 100%)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 40px rgba(16, 163, 127, 0.5)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 30px rgba(16, 163, 127, 0.3)";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            >
-              Get started
-            </a>
+            <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
+              <a href="/signup">Get started</a>
+            </Button>
           </div>
         </div>
         </FadeInSection>

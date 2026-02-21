@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
 
 export default function SignIn() {
   return (
@@ -36,13 +37,10 @@ export default function SignIn() {
           </p>
         </div>
 
-        <button
+        <Button
           onClick={() => signIn("google")}
-          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-[100px] px-6 py-3 text-sm font-medium transition-colors"
-          style={{
-            background: "white",
-            color: "#1f1f1f",
-          }}
+          variant="secondary"
+          className="w-full rounded-full bg-white text-[#1f1f1f] hover:bg-white/90"
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path
@@ -63,9 +61,9 @@ export default function SignIn() {
             />
           </svg>
           Sign in with Google
-        </button>
+        </Button>
 
-        <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="mt-4 text-xs text-muted-foreground">
           We only request read-only access to your Analytics data.
         </p>
         </div>

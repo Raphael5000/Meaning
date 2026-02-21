@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BarChart3, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Property {
   propertyId: string;
@@ -20,7 +28,6 @@ export default function PropertySelector({
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     async function fetchProperties() {
@@ -46,20 +53,10 @@ export default function PropertySelector({
     fetchProperties();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedProperty = properties.find(
-    (p) => p.propertyId === selectedPropertyId
-  );
-
   if (loading) {
     return (
-      <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-        style={{ color: "var(--text-muted)" }}
-      >
-        <div
-          className="h-4 w-4 animate-spin rounded-full border-2 border-current"
-          style={{ borderTopColor: "transparent" }}
-        />
+      <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
         Loading properties...
       </div>
     );
@@ -67,7 +64,7 @@ export default function PropertySelector({
 
   if (error) {
     return (
-      <div className="rounded-lg px-3 py-2 text-sm" style={{ color: "var(--error)" }}>
+      <div className="rounded-lg px-3 py-2 text-sm text-destructive">
         {error}
       </div>
     );
@@ -75,86 +72,38 @@ export default function PropertySelector({
 
   if (properties.length === 0) {
     return (
-      <div className="rounded-lg px-3 py-2 text-sm" style={{ color: "var(--text-muted)" }}>
+      <div className="rounded-lg px-3 py-2 text-sm text-muted-foreground">
         No GA4 properties found. Make sure your Google account has access to a GA4 property.
       </div>
     );
   }
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[100px] px-3 py-2 text-sm transition-colors"
-        style={{
-          background: "var(--bg-tertiary)",
-          color: "var(--text-primary)",
-          border: "1px solid var(--border-color)",
-        }}
-      >
-        <span className="flex items-center gap-2 truncate">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 20V10" />
-            <path d="M12 20V4" />
-            <path d="M6 20v-6" />
-          </svg>
-          {selectedProperty
-            ? selectedProperty.displayName
-            : "Select a property"}
-        </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg py-1 shadow-lg"
-          style={{
-            background: "var(--bg-secondary)",
-            border: "1px solid var(--border-color)",
-          }}
-        >
-          {properties.map((prop) => (
-            <button
-              key={prop.propertyId}
-              onClick={() => {
-                onSelect(prop.propertyId, prop.displayName);
-                setOpen(false);
-              }}
-              className="flex w-full cursor-pointer flex-col rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
-              style={{
-                color:
-                  prop.propertyId === selectedPropertyId
-                    ? "var(--accent)"
-                    : "var(--text-primary)",
-              }}
-            >
+    <Select
+      value={selectedPropertyId || undefined}
+      onValueChange={(value) => {
+        const prop = properties.find((p) => p.propertyId === value);
+        if (prop) onSelect(prop.propertyId, prop.displayName);
+      }}
+    >
+      <SelectTrigger className="rounded-[100px] bg-muted">
+        <div className="flex items-center gap-2 truncate">
+          <BarChart3 className="h-4 w-4 shrink-0" />
+          <SelectValue placeholder="Select a property" />
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        {properties.map((prop) => (
+          <SelectItem key={prop.propertyId} value={prop.propertyId}>
+            <div className="flex flex-col">
               <span className="font-medium">{prop.displayName}</span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs text-muted-foreground">
                 {prop.account} &middot; {prop.propertyId}
               </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
