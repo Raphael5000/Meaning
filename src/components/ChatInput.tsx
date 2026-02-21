@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { ArrowUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -38,11 +40,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     <div className="flex w-full justify-center px-4 pb-4 pt-2">
       <form
         onSubmit={handleSubmit}
-        className="relative flex w-full max-w-3xl items-end rounded-2xl"
-        style={{
-          background: "var(--bg-tertiary)",
-          border: "1px solid var(--border-color)",
-        }}
+        className="relative flex w-full max-w-3xl items-end rounded-2xl border border-border bg-muted"
       >
         <textarea
           ref={textareaRef}
@@ -52,34 +50,21 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Ask about your analytics..."
           disabled={disabled}
           rows={1}
-          className="max-h-[200px] w-full resize-none bg-transparent px-4 py-3 pr-12 text-sm outline-none placeholder:text-[var(--text-muted)]"
-          style={{ color: "var(--text-primary)" }}
+          className="max-h-[200px] w-full resize-none bg-transparent px-4 py-3 pr-12 text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
-        <button
+        <Button
           type="submit"
           disabled={disabled || !input.trim()}
-          className="absolute bottom-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-[100px] transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+          size="icon"
+          className="absolute bottom-2 right-2 h-8 w-8 rounded-full"
           style={{
             background: input.trim()
               ? "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)"
               : "transparent",
-            color: "white",
           }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="19" x2="12" y2="5" />
-            <polyline points="5 12 12 5 19 12" />
-          </svg>
-        </button>
+          <ArrowUp className="h-4 w-4" />
+        </Button>
       </form>
     </div>
   );

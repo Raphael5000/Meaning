@@ -4,6 +4,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  Bell,
+  ChevronLeft,
+  LogOut,
+  Menu,
+  SquarePen,
+  Trash2,
+  User,
+  AlertCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import PropertySelector from "./PropertySelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
@@ -28,7 +39,7 @@ const EXAMPLE_QUESTIONS = [
 
 function truncateTitle(title: string, max = 36): string {
   if (title.length <= max) return title;
-  return title.slice(0, max).trim() + "…";
+  return title.slice(0, max).trim() + "\u2026";
 }
 
 function getInitials(name: string | null | undefined, email?: string | null): string {
@@ -319,38 +330,30 @@ export default function Chat() {
         </div>
         {/* New chat button */}
         <div className="px-3 py-2 pt-8 space-y-0.5">
-          <button
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
             onClick={handleNewChat}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
-            style={{ color: "var(--text-primary)" }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <SquarePen className="h-4 w-4" />
             New chat
-          </button>
-          {/* Alerts */}
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
             onClick={() => setAlertsOpen(true)}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--bg-hover)]"
-            style={{ color: "var(--text-primary)" }}
             aria-label="Email alerts"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
+            <Bell className="h-4 w-4" />
             Alerts
-          </button>
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 pt-6">
-          <p className="mb-2 px-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
             Chat history
           </p>
           {sortedChats.length === 0 ? (
-            <p className="px-2 text-sm" style={{ color: "var(--text-muted)" }}>
+            <p className="px-2 text-sm text-muted-foreground">
               No chats yet
             </p>
           ) : (
@@ -360,9 +363,8 @@ export default function Chat() {
                   <button
                     type="button"
                     onClick={() => selectChat(chat)}
-                    className="group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
+                    className="group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                     style={{
-                      color: "var(--text-primary)",
                       backgroundColor: currentChatId === chat.id ? "var(--bg-hover)" : undefined,
                     }}
                   >
@@ -372,16 +374,10 @@ export default function Chat() {
                     <button
                       type="button"
                       onClick={(e) => deleteChat(e, chat.id)}
-                      className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-[var(--bg-tertiary)] group-hover:opacity-100"
-                      style={{ color: "var(--text-muted)" }}
+                      className="shrink-0 cursor-pointer rounded p-1 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
                       aria-label="Delete chat"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   </button>
                 </li>
@@ -400,8 +396,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setAccountMenuOpen((o) => !o)}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
-              style={{ color: "var(--text-primary)" }}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-foreground transition-colors hover:bg-accent"
             >
               {session.user.image ? (
                 <img
@@ -411,40 +406,29 @@ export default function Chat() {
                 />
               ) : (
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium text-white"
-                  style={{ backgroundColor: "var(--accent)" }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
                 >
                   {getInitials(session.user.name ?? null, session.user.email ?? null)}
                 </div>
               )}
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                <p className="truncate text-sm font-medium text-foreground">
                   {session.user.name ?? "Account"}
                 </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs text-muted-foreground">
                   {userPlan}
                 </p>
               </div>
             </button>
 
             {accountMenuOpen && (
-              <div
-                className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg shadow-lg"
-                style={{
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border-color)",
-                }}
-              >
+              <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
                 <Link
                   href="/account"
                   onClick={() => setAccountMenuOpen(false)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-[var(--bg-hover)]"
-                  style={{ color: "var(--text-primary)" }}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                  <User className="h-4 w-4" />
                   Account
                 </Link>
                 <button
@@ -453,14 +437,9 @@ export default function Chat() {
                     setAccountMenuOpen(false);
                     signOut();
                   }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
-                  style={{ color: "var(--text-primary)" }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 17 21 12 16 7" />
-                    <line x1="21" y1="12" x2="9" y2="12" />
-                  </svg>
+                  <LogOut className="h-4 w-4" />
                   Log out
                 </button>
               </div>
@@ -474,25 +453,18 @@ export default function Chat() {
         {/* Header */}
         <header className="flex shrink-0 items-center justify-between px-3 py-2 md:px-4 md:py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setSidebarOpen((o) => !o)}
-              className="flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-2 transition-colors hover:bg-[var(--bg-hover)]"
-              style={{ color: "var(--text-primary)" }}
               aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
             >
               {sidebarOpen ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
+                <ChevronLeft className="h-5 w-5" />
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
+                <Menu className="h-5 w-5" />
               )}
-            </button>
+            </Button>
             <div className="w-48 md:w-64">
               <PropertySelector
                 selectedPropertyId={propertyId}
@@ -522,18 +494,12 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
-              <h2
-                className="mb-2 text-xl font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
+              <h2 className="mb-2 text-xl font-semibold text-foreground">
                 {propertyName
                   ? `Ask about ${propertyName}`
                   : "Chat with your Analytics"}
               </h2>
-              <p
-                className="mb-8 max-w-md text-center text-sm"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="mb-8 max-w-md text-center text-sm" style={{ color: "var(--text-secondary)" }}>
                 {propertyId
                   ? "Ask any question about your website analytics in plain English."
                   : "Select a GA4 property above to get started."}
@@ -545,11 +511,8 @@ export default function Chat() {
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}
-                      className="cursor-pointer rounded-[100px] border p-3 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
-                      style={{
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-secondary)",
-                      }}
+                      className="cursor-pointer rounded-full border border-border p-3 text-left text-sm transition-colors hover:bg-accent"
+                      style={{ color: "var(--text-secondary)" }}
                     >
                       {q}
                     </button>
@@ -598,26 +561,12 @@ export default function Chat() {
 
         {/* Error banner */}
         {error && (
-          <div
-            className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2 text-sm"
-            style={{ color: "var(--error)" }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+          <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2 text-sm text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
             {error}
             <button
               onClick={() => setError(null)}
-              className="ml-auto cursor-pointer rounded-[100px] px-3 py-1 text-xs underline"
+              className="ml-auto cursor-pointer rounded-full px-3 py-1 text-xs underline"
             >
               Dismiss
             </button>

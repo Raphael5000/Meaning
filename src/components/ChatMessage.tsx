@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -90,18 +91,11 @@ export default function ChatMessage({
         >
           {role === "assistant" && scorecard && (
             <div
-              className="scorecard mb-3 inline-flex w-fit flex-col gap-0 rounded-2xl border px-4 py-3"
-              style={{
-                background: "var(--bg-secondary)",
-                borderColor: "var(--border-color)",
-              }}
+              className="scorecard mb-3 inline-flex w-fit flex-col gap-0 rounded-2xl border border-border bg-secondary px-4 py-3"
             >
               <div className="flex items-baseline gap-3">
                 <div className="flex flex-col items-baseline gap-0 text-3xl leading-[1.2]">
-                  <span
-                    className="font-semibold tabular-nums tracking-tight"
-                    style={{ color: "var(--text-primary)" }}
-                  >
+                  <span className="font-semibold tabular-nums tracking-tight text-foreground">
                     {scorecard.value}
                   </span>
                   {scorecard.change && (
@@ -115,17 +109,14 @@ export default function ChatMessage({
                       }}
                     >
                       {scorecard.change.startsWith("-") ? (
-                        <>↓ {scorecard.change}</>
+                        <>&darr; {scorecard.change}</>
                       ) : (
-                        <>↑ {scorecard.change.startsWith("+") ? scorecard.change : `+${scorecard.change}`}</>
+                        <>&uarr; {scorecard.change.startsWith("+") ? scorecard.change : `+${scorecard.change}`}</>
                       )}
                     </span>
                   )}
                 </div>
-                <span
-                  className="text-sm"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {scorecard.label}
                 </span>
               </div>
@@ -151,18 +142,15 @@ export default function ChatMessage({
             onSuggestedQuestionClick && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {suggestedQuestions.map((q) => (
-                  <button
+                  <Button
                     key={q}
-                    type="button"
+                    variant="outline"
+                    className="rounded-full text-left"
                     onClick={() => onSuggestedQuestionClick(q)}
-                    className="cursor-pointer rounded-[100px] border px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-hover)]"
-                    style={{
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-secondary)",
-                    }}
+                    style={{ color: "var(--text-secondary)" }}
                   >
                     {q}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
