@@ -1,10 +1,10 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback } from "react";
-import { useSession, signOut } from "next-auth/react";
-import Image from "next/image";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Navbar } from "@/components/Navbar";
 
 interface UserProfile {
   id: string;
@@ -173,36 +173,7 @@ function AccountContent() {
           "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
       }}
     >
-      {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4">
-        <Link href="/">
-          <Image
-            src="/Logo.svg"
-            alt="Meaning"
-            width={120}
-            height={42}
-            className="w-auto"
-            style={{ height: "36px" }}
-            priority
-          />
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-sm transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Chat
-          </Link>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="cursor-pointer text-sm transition-colors"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Sign out
-          </button>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="mx-auto max-w-3xl px-6 py-8">
         <h1
