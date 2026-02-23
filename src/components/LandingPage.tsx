@@ -128,7 +128,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             </Button>
             <a
               href="/pricing"
-              className="text-sm underline-offset-4 hover:underline"
+              className="text-sm underline-offset-4 transition-all duration-150 hover:underline hover:text-[var(--text-secondary)] active:opacity-70"
               style={{ color: "var(--text-muted)" }}
             >
               View pricing &rarr;
@@ -468,7 +468,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <a
               href="mailto:artemis@hivory.io"
               style={{ color: "var(--accent)" }}
-              className="underline-offset-4 hover:underline"
+              className="underline-offset-4 transition-all duration-150 hover:underline active:opacity-70"
             >
               Email us
             </a>
@@ -493,10 +493,10 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+            <Link href="/privacy" className="transition-all duration-150 hover:text-[var(--text-primary)] active:scale-[0.97]" style={{ color: "var(--text-secondary)" }}>
               Privacy
             </Link>
-            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+            <Link href="/terms" className="transition-all duration-150 hover:text-[var(--text-primary)] active:scale-[0.97]" style={{ color: "var(--text-secondary)" }}>
               Terms
             </Link>
             <span>Copyright © 2026 - All rights reserved | A product by Hivory</span>
@@ -519,22 +519,11 @@ function FeatureCard({
 }) {
   return (
     <div
-      className="landing-feature-card relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
+      className="landing-feature-card relative overflow-hidden rounded-2xl p-6"
       style={{
         background:
           "var(--card-bg)",
         border: "1px solid var(--border-color)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(16, 163, 127, 0.4)";
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow =
-          "var(--shadow-card-hover)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--border-color)";
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
       }}
     >
       <div className="card-noise" aria-hidden />
@@ -610,24 +599,13 @@ function FaqItem({
 
   return (
     <div
-      className="relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300"
+      className="landing-faq-card relative cursor-pointer overflow-hidden rounded-2xl"
       style={{
         background:
           "var(--card-bg)",
         border: "1px solid var(--border-color)",
       }}
       onClick={() => setOpen(!open)}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(16, 163, 127, 0.4)";
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow =
-          "var(--shadow-card-hover)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--border-color)";
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
-      }}
     >
       <div className="card-noise" aria-hidden />
       <div className="relative z-10">
