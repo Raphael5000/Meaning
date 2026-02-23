@@ -35,12 +35,11 @@ function AuthErrorContent() {
           background:
             "var(--card-bg)",
           border: "1px solid var(--border-color)",
-          boxShadow:
-            "0 20px 50px rgba(0,0,0,0.45), 0 0 25px rgba(16, 163, 127, 0.12)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         <Image
-          className="mx-auto mb-6"
+          className="mx-auto mb-6 invert dark:invert-0"
           src="/Logo.svg"
           alt="Meaning"
           width={120}

@@ -13,11 +13,13 @@ type Theme = "light" | "dark" | "system";
 
 interface ThemeContextValue {
   theme: Theme;
+  resolvedTheme: "light" | "dark";
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: "system",
+  resolvedTheme: "dark",
   setTheme: () => {},
 });
 
@@ -40,6 +42,9 @@ function applyTheme(theme: Theme) {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [theme, setThemeState] = useState<Theme>("system");
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
+    () => (typeof window !== "undefined" ? getSystemTheme() : "dark")
+  );
   const [loaded, setLoaded] = useState(false);
 
   // Fetch user's saved theme on login
@@ -68,13 +73,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loaded) return;
     applyTheme(theme);
+    setResolvedTheme(theme === "system" ? getSystemTheme() : theme);
   }, [theme, loaded]);
 
   // Listen for OS theme changes when in "system" mode
   useEffect(() => {
     if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => applyTheme("system");
+    const handler = () => {
+      applyTheme("system");
+      setResolvedTheme(getSystemTheme());
+    };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, [theme]);
@@ -97,7 +106,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

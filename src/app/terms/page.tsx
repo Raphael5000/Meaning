@@ -190,7 +190,7 @@ export default function TermsPage() {
               alt="Meaning"
               width={90}
               height={32}
-              className="h-6 w-auto"
+              className="h-6 w-auto invert dark:invert-0"
             />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>

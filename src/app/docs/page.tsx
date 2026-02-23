@@ -276,7 +276,7 @@ function DocsContent() {
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "rgba(16, 163, 127, 0.4)";
                   e.currentTarget.style.boxShadow =
-                    "0 10px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16, 163, 127, 0.1)";
+                    "var(--shadow-card-hover)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "var(--border-color)";
@@ -377,7 +377,7 @@ function DocsContent() {
                       "rgba(16, 163, 127, 0.4)";
                     e.currentTarget.style.transform = "translateY(-4px)";
                     e.currentTarget.style.boxShadow =
-                      "0 10px 40px rgba(0,0,0,0.3), 0 0 20px rgba(16, 163, 127, 0.1)";
+                      "var(--shadow-card-hover)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = "var(--border-color)";
@@ -446,7 +446,7 @@ function DocsContent() {
               alt="Meaning"
               width={90}
               height={32}
-              className="h-6 w-auto"
+              className="h-6 w-auto invert dark:invert-0"
             />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
