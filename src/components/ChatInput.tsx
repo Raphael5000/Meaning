@@ -61,6 +61,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
             background: input.trim()
               ? "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)"
               : "transparent",
+            color: input.trim() ? "#ffffff" : "var(--text-muted)",
           }}
         >
           <ArrowUp className="h-4 w-4" />

@@ -324,7 +324,7 @@ export default function Chat() {
               alt="Hivory"
               width={28}
               height={28}
-              className="h-7 w-7"
+              className="h-7 w-7 invert dark:invert-0"
             />
           </Link>
         </div>
