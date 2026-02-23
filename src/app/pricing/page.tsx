@@ -130,8 +130,7 @@ export default function PricingPage() {
               background:
                 "var(--card-bg)",
               border: "1px solid rgba(16, 163, 127, 0.4)",
-              boxShadow:
-                "0 20px 50px rgba(0,0,0,0.45), 0 0 25px rgba(16, 163, 127, 0.12)",
+              boxShadow: "var(--shadow-card)",
             }}
           >
             <div className="card-noise" aria-hidden />
@@ -207,7 +206,7 @@ export default function PricingPage() {
                   background:
                     "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
                   color: "white",
-                  boxShadow: "0 0 20px rgba(16, 163, 127, 0.3)",
+                  boxShadow: "var(--shadow-button)",
                 }}
               >
                 {loading

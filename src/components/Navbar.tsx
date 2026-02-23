@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -35,7 +36,12 @@ function isActive(pathname: string | null, href: string) {
 export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
 
   return (
     <nav className="relative z-50 flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
@@ -46,7 +52,7 @@ export function Navbar() {
           alt="Meaning"
           width={120}
           height={42}
-          className="h-8 w-auto sm:h-9"
+          className="h-8 w-auto sm:h-9 invert dark:invert-0"
           priority
         />
       </Link>
@@ -72,6 +78,21 @@ export function Navbar() {
                 </NavigationMenuLink>
               </NavigationMenuItem>
             ))}
+
+            {/* Theme toggle */}
+            <NavigationMenuItem>
+              <button
+                onClick={toggleTheme}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]"
+                aria-label="Toggle theme"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Moon className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
+                ) : (
+                  <Sun className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
+                )}
+              </button>
+            </NavigationMenuItem>
 
             {session ? (
               <>
@@ -158,7 +179,7 @@ export function Navbar() {
                 alt="Meaning"
                 width={100}
                 height={36}
-                className="h-7 w-auto"
+                className="h-7 w-auto invert dark:invert-0"
               />
             </Link>
           </div>
@@ -180,6 +201,19 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {/* Mobile theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+            >
+              {resolvedTheme === "dark" ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+              {resolvedTheme === "dark" ? "Dark mode" : "Light mode"}
+            </button>
 
             {session ? (
               <>

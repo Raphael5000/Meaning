@@ -220,11 +220,15 @@ function AccountContent() {
               className="cursor-pointer flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200"
               style={{
                 background:
-                  tab === key ? "var(--bg-tertiary)" : "transparent",
+                  tab === key ? "var(--bg-primary)" : "transparent",
                 color:
                   tab === key
                     ? "var(--text-primary)"
                     : "var(--text-muted)",
+                boxShadow:
+                  tab === key
+                    ? "0 1px 3px rgba(0, 0, 0, 0.08)"
+                    : "none",
               }}
             >
               {label}
