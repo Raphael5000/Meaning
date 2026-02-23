@@ -53,7 +53,7 @@ function DocsContent() {
       className="relative min-h-screen"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       {/* Background orbs */}
@@ -109,7 +109,7 @@ function DocsContent() {
               className="sticky top-20 rounded-2xl p-4"
               style={{
                 background:
-                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                  "var(--card-bg)",
                 border: "1px solid var(--border-color)",
               }}
             >
@@ -270,7 +270,7 @@ function DocsContent() {
                 className="group relative mb-6 block overflow-hidden rounded-2xl transition-all duration-300"
                 style={{
                   background:
-                    "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                    "var(--card-bg)",
                   border: "1px solid var(--border-color)",
                 }}
                 onMouseEnter={(e) => {
@@ -369,7 +369,7 @@ function DocsContent() {
                   className="group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 sm:p-6"
                   style={{
                     background:
-                      "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                      "var(--card-bg)",
                     border: "1px solid var(--border-color)",
                   }}
                   onMouseEnter={(e) => {
@@ -467,7 +467,7 @@ function DocsContent() {
 export default function DocsPage() {
   return (
     <Suspense fallback={
-      <div className="relative min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)" }}>
+      <div className="relative min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
         <span style={{ color: "var(--text-muted)" }}>Loading...</span>
       </div>
     }>

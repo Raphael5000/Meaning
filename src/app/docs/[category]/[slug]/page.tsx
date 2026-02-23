@@ -64,7 +64,7 @@ export default async function ArticlePage({
       className="relative min-h-screen"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       {/* Background orbs */}
@@ -142,7 +142,7 @@ export default async function ArticlePage({
                   className="mb-12 rounded-2xl p-4 sm:mb-16 sm:p-8 md:p-12"
                   style={{
                     background:
-                      "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                      "var(--card-bg)",
                     border: "1px solid var(--border-color)",
                   }}
                 >
@@ -209,7 +209,7 @@ export default async function ArticlePage({
                           className="related-article-card group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 sm:p-6"
                           style={{
                             background:
-                              "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                              "var(--card-bg)",
                             borderColor: "var(--border-color)",
                           }}
                         >
@@ -252,7 +252,7 @@ export default async function ArticlePage({
                       className="rounded-2xl p-4"
                       style={{
                         background:
-                          "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.04) 100%)",
+                          "var(--card-bg)",
                         border: "1px solid var(--border-color)",
                       }}
                     >
@@ -264,7 +264,7 @@ export default async function ArticlePage({
                     className="rounded-2xl p-5"
                     style={{
                       background:
-                        "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.08) 100%)",
+                        "var(--card-bg)",
                       border: "1px solid var(--border-color)",
                     }}
                   >

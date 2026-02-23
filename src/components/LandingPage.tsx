@@ -57,7 +57,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
       className="relative min-h-screen"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       {/* Full-page gradient orbs */}
@@ -523,7 +523,7 @@ function FeatureCard({
       className="landing-feature-card relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
       style={{
         background:
-          "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+          "var(--card-bg)",
         border: "1px solid var(--border-color)",
       }}
       onMouseEnter={(e) => {
@@ -614,7 +614,7 @@ function FaqItem({
       className="relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300"
       style={{
         background:
-          "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+          "var(--card-bg)",
         border: "1px solid var(--border-color)",
       }}
       onClick={() => setOpen(!open)}

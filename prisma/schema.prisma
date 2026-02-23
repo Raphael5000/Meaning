@@ -18,6 +18,7 @@ model User {
   image         String?
   passwordHash  String? // null for OAuth-only users
   gaConnected   Boolean @default(false) // true after user completes GA onboarding
+  theme         String  @default("system") // "light" | "dark" | "system"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

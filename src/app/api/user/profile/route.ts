@@ -17,6 +17,7 @@ export async function GET() {
       name: true,
       email: true,
       image: true,
+      theme: true,
       createdAt: true,
       subscription: {
         select: {
@@ -44,12 +45,18 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { name } = await req.json();
+    const { name, theme } = await req.json();
+
+    const data: Record<string, string> = {};
+    if (name !== undefined) data.name = name;
+    if (theme !== undefined && ["light", "dark", "system"].includes(theme)) {
+      data.theme = theme;
+    }
 
     const user = await prisma.user.update({
       where: { id: session.userId },
-      data: { name },
-      select: { id: true, name: true, email: true, image: true },
+      data,
+      select: { id: true, name: true, email: true, image: true, theme: true },
     });
 
     return NextResponse.json(user);
