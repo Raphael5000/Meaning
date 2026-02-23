@@ -56,7 +56,7 @@ function AccountContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [tab, setTab] = useState<"profile" | "subscription" | "billing">(
@@ -202,7 +202,7 @@ function AccountContent() {
         {/* Tabs */}
         <div
           className="mb-8 flex gap-1 rounded-lg p-1"
-          style={{ background: "var(--bg-secondary)" }}
+          style={{ background: resolvedTheme === "dark" ? "#0a0a0a" : "#e0e0e0" }}
         >
           {(
             [
