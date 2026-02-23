@@ -57,14 +57,14 @@ export default function SignUpPage() {
       className="flex min-h-screen items-center justify-center px-4"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       <div
         className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl p-8"
         style={{
           background:
-            "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.08) 100%)",
+            "var(--card-bg)",
           border: "1px solid var(--border-color)",
           boxShadow:
             "0 20px 50px rgba(0,0,0,0.45), 0 0 25px rgba(16, 163, 127, 0.12)",

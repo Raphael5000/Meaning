@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface UserProfile {
   id: string;
@@ -55,6 +56,7 @@ function AccountContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { theme, setTheme } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [tab, setTab] = useState<"profile" | "subscription" | "billing">(
@@ -170,7 +172,7 @@ function AccountContent() {
       className="min-h-screen"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       <Navbar />
@@ -232,99 +234,194 @@ function AccountContent() {
 
         {/* Profile Tab */}
         {tab === "profile" && (
-          <div
-            className="relative overflow-hidden rounded-2xl p-6"
-            style={{
-              background:
-                "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
-              border: "1px solid var(--border-color)",
-            }}
-          >
-            <div className="card-noise" aria-hidden />
-            <div className="relative z-10">
-              <h2
-                className="mb-6 text-lg font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Profile Information
-              </h2>
-
-              <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
-                <div>
-                  <label
-                    className="mb-1 block text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    onFocus={(e) =>
-                      (e.target.style.borderColor = "var(--accent)")
-                    }
-                    onBlur={(e) =>
-                      (e.target.style.borderColor = "var(--border-color)")
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="mb-1 block text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={profile.email}
-                    disabled
-                    className="w-full rounded-lg px-4 py-2.5 text-sm opacity-60"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-secondary)",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="mb-1 block text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Member since
-                  </label>
-                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    {new Date(profile.createdAt).toLocaleDateString("en-ZA", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="mt-2 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                    color: "white",
-                  }}
+          <div className="flex flex-col gap-6">
+            <div
+              className="relative overflow-hidden rounded-2xl p-6"
+              style={{
+                background:
+                  "var(--card-bg)",
+                border: "1px solid var(--border-color)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10">
+                <h2
+                  className="mb-6 text-lg font-semibold"
+                  style={{ color: "var(--text-primary)" }}
                 >
-                  {saving ? "Saving..." : "Save changes"}
-                </button>
-              </form>
+                  Profile Information
+                </h2>
+
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
+                  <div>
+                    <label
+                      className="mb-1 block text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-primary)",
+                      }}
+                      onFocus={(e) =>
+                        (e.target.style.borderColor = "var(--accent)")
+                      }
+                      onBlur={(e) =>
+                        (e.target.style.borderColor = "var(--border-color)")
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      className="mb-1 block text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={profile.email}
+                      disabled
+                      className="w-full rounded-lg px-4 py-2.5 text-sm opacity-60"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-secondary)",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      className="mb-1 block text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Member since
+                    </label>
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      {new Date(profile.createdAt).toLocaleDateString("en-ZA", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="mt-2 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
+                    style={{
+                      background:
+                        "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
+                      color: "white",
+                    }}
+                  >
+                    {saving ? "Saving..." : "Save changes"}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Appearance */}
+            <div
+              className="relative overflow-hidden rounded-2xl p-6"
+              style={{
+                background:
+                  "var(--card-bg)",
+                border: "1px solid var(--border-color)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10">
+                <h2
+                  className="mb-2 text-lg font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Appearance
+                </h2>
+                <p
+                  className="mb-5 text-sm"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Choose how Meaning looks to you. Select a single theme, or sync with your system settings.
+                </p>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {(
+                    [
+                      {
+                        value: "light" as const,
+                        label: "Light",
+                        icon: (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        value: "dark" as const,
+                        label: "Dark",
+                        icon: (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        value: "system" as const,
+                        label: "System",
+                        icon: (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                          </svg>
+                        ),
+                      },
+                    ]
+                  ).map(({ value, label, icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTheme(value)}
+                      className="flex cursor-pointer flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200"
+                      style={{
+                        background:
+                          theme === value
+                            ? "rgba(16, 163, 127, 0.12)"
+                            : "var(--bg-primary)",
+                        border:
+                          theme === value
+                            ? "1px solid rgba(16, 163, 127, 0.4)"
+                            : "1px solid var(--border-color)",
+                        color:
+                          theme === value
+                            ? "var(--accent)"
+                            : "var(--text-secondary)",
+                      }}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -337,7 +434,7 @@ function AccountContent() {
               className="relative overflow-hidden rounded-2xl p-6"
               style={{
                 background:
-                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                  "var(--card-bg)",
                 border: "1px solid var(--border-color)",
               }}
             >
@@ -493,7 +590,7 @@ function AccountContent() {
                 className="relative overflow-hidden rounded-2xl p-6"
                 style={{
                   background:
-                    "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                    "var(--card-bg)",
                   border: "1px solid var(--border-color)",
                 }}
               >
@@ -550,7 +647,7 @@ function AccountContent() {
               className="relative overflow-hidden rounded-2xl p-6"
               style={{
                 background:
-                  "linear-gradient(145deg, rgba(20, 24, 23, 0.98) 0%, rgba(15, 22, 20, 0.99) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                  "var(--card-bg)",
                 border: "1px solid var(--border-color)",
               }}
             >
@@ -695,7 +792,7 @@ function AccountContent() {
                   className="relative w-full max-w-md overflow-hidden rounded-2xl p-6"
                   style={{
                     background:
-                      "linear-gradient(145deg, rgba(20, 24, 23, 1) 0%, rgba(15, 22, 20, 1) 45%, rgba(16, 163, 127, 0.06) 100%)",
+                      "var(--card-bg-solid)",
                     border: "1px solid var(--border-color)",
                   }}
                   onClick={(e) => e.stopPropagation()}

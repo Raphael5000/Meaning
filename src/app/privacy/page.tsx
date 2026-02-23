@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       className="relative min-h-screen"
       style={{
         background:
-          "linear-gradient(180deg, #050505 0%, #080a09 40%, rgba(16, 163, 127, 0.04) 100%)",
+          "var(--page-bg)",
       }}
     >
       {/* Background orbs */}
