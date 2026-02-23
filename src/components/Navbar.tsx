@@ -256,11 +256,7 @@ export function Navbar() {
                 <Link
                   href="/signup"
                   onClick={() => setOpen(false)}
-                  className="rounded-full px-6 py-3 text-center text-base font-semibold text-white transition-all"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                  }}
+                  className="btn-primary-gradient text-center text-base font-semibold"
                 >
                   Get started
                 </Link>

@@ -251,8 +251,7 @@ function ConnectAnalyticsContent() {
               </p>
               <a
                 href="/api/auth/connect-google"
-                className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-[100px] px-6 py-3 text-sm font-medium transition-colors"
-                style={{ background: "white", color: "#1f1f1f" }}
+                className="btn-google"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path
@@ -406,12 +405,7 @@ function ConnectAnalyticsContent() {
               <button
                 onClick={handleContinue}
                 disabled={completing}
-                className="w-full cursor-pointer rounded-[100px] px-6 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50"
-                style={{
-                  background:
-                    "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                  color: "white",
-                }}
+                className="btn-primary-gradient w-full"
               >
                 {completing ? "Setting up..." : "Continue to Dashboard"}
               </button>
