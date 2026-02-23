@@ -201,13 +201,8 @@ export default function PricingPage() {
               <button
                 onClick={handleSubscribe}
                 disabled={loading}
-                className="w-full cursor-pointer rounded-[100px] px-6 py-3 text-sm font-semibold transition-all duration-200 disabled:opacity-50"
-                style={{
-                  background:
-                    "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                  color: "white",
-                  boxShadow: "var(--shadow-button)",
-                }}
+                className="btn-primary-gradient w-full font-semibold"
+                style={{ boxShadow: "var(--shadow-button)" }}
               >
                 {loading
                   ? "Opening checkout..."

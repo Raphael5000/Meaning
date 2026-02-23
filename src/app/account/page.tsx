@@ -217,7 +217,9 @@ function AccountContent() {
                 setTab(key);
                 setMessage("");
               }}
-              className="cursor-pointer flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200"
+              className={`cursor-pointer flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all duration-150 ${
+                tab === key ? "" : "hover:text-[var(--text-secondary)] active:scale-[0.97]"
+              }`}
               style={{
                 background:
                   tab === key ? "var(--bg-primary)" : "transparent",
@@ -322,12 +324,7 @@ function AccountContent() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="mt-2 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                      color: "white",
-                    }}
+                    className="btn-primary-gradient mt-2 w-fit"
                   >
                     {saving ? "Saving..." : "Save changes"}
                   </button>
@@ -404,7 +401,11 @@ function AccountContent() {
                     <button
                       key={value}
                       onClick={() => setTheme(value)}
-                      className="flex cursor-pointer flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200"
+                      className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-150 active:scale-[0.97] ${
+                        theme === value
+                          ? ""
+                          : "hover:border-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
+                      }`}
                       style={{
                         background:
                           theme === value
@@ -551,12 +552,7 @@ function AccountContent() {
                         <button
                           onClick={handleCancelSubscription}
                           disabled={cancelling}
-                          className="mt-4 w-fit cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50"
-                          style={{
-                            background: "transparent",
-                            border: "1px solid var(--border-color)",
-                            color: "var(--text-secondary)",
-                          }}
+                          className="btn-outline mt-4 w-fit"
                         >
                           {cancelling
                             ? "Cancelling..."
@@ -574,12 +570,7 @@ function AccountContent() {
                     </p>
                     <Link
                       href="/pricing"
-                      className="inline-block rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200"
-                      style={{
-                        background:
-                          "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-                        color: "white",
-                      }}
+                      className="btn-primary-gradient"
                     >
                       View pricing
                     </Link>
@@ -946,12 +937,7 @@ function AccountContent() {
 
                     <button
                       onClick={() => setSelectedInvoice(null)}
-                      className="mt-4 w-full cursor-pointer rounded-[100px] px-6 py-2.5 text-sm font-medium transition-all duration-200"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-secondary)",
-                      }}
+                      className="btn-outline mt-4 w-full"
                     >
                       Close
                     </button>

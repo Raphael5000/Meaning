@@ -66,12 +66,7 @@ function AuthErrorContent() {
         </p>
         <Link
           href="/login"
-          className="inline-block rounded-[100px] px-6 py-3 text-sm font-medium transition-all"
-          style={{
-            background:
-              "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)",
-            color: "white",
-          }}
+          className="btn-primary-gradient"
         >
           Try again
         </Link>

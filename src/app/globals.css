@@ -215,6 +215,97 @@ body {
   margin-bottom: 0;
 }
 
+/* ─── Shared button styles ─── */
+
+/* Primary gradient CTA (green) */
+.btn-primary-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 100px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  background: linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%);
+  transition: all 150ms ease;
+}
+
+.btn-primary-gradient:hover {
+  filter: brightness(1.08);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-primary-gradient:active {
+  filter: brightness(0.95);
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+.btn-primary-gradient:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Google OAuth button */
+.btn-google {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 100px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #ffffff;
+  color: #1f1f1f;
+  transition: all 150ms ease;
+}
+
+.btn-google:hover {
+  background: #f5f5f5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.btn-google:active {
+  background: #ebebeb;
+  transform: scale(0.97);
+}
+
+/* Outline/secondary button (cancel, close, etc.) */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 100px;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  transition: all 150ms ease;
+}
+
+.btn-outline:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.btn-outline:active {
+  background: var(--bg-tertiary);
+  transform: scale(0.97);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* Typing indicator animation */
 @keyframes typing {
   0%,
