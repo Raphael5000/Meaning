@@ -202,19 +202,6 @@ export function Navbar() {
               </Link>
             ))}
 
-            {/* Mobile theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-            >
-              {resolvedTheme === "dark" ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-              {resolvedTheme === "dark" ? "Dark mode" : "Light mode"}
-            </button>
-
             {session ? (
               <>
                 <Link
@@ -279,6 +266,19 @@ export function Navbar() {
                 </Link>
               </>
             )}
+
+            {/* Mobile theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="mt-2 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]"
+              aria-label="Toggle theme"
+            >
+              {resolvedTheme === "dark" ? (
+                <Moon className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
+              ) : (
+                <Sun className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
+              )}
+            </button>
           </div>
         </SheetContent>
       </Sheet>
