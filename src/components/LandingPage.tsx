@@ -80,7 +80,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
       </div>
 
       {/* Navigation */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-[15px] md:bg-transparent md:backdrop-blur-none">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-[15px] dark:bg-black/50 md:bg-transparent md:backdrop-blur-none md:dark:bg-transparent">
         <Navbar />
       </div>
 
