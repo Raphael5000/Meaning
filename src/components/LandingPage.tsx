@@ -12,7 +12,6 @@ import {
   Search,
   Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 
 function FadeInSection({
@@ -123,9 +122,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </p>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
-              <a href="/signup">Get started</a>
-            </Button>
+            <a href="/signup" className="btn-primary-gradient px-8 py-4 text-base font-semibold">
+              Get started
+            </a>
             <a
               href="/pricing"
               className="text-sm underline-offset-4 hover:underline"
@@ -401,9 +400,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               Join the beta and start getting insights from your Google Analytics
               data in seconds.
             </p>
-            <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
-              <a href="/signup">Get started</a>
-            </Button>
+            <a href="/signup" className="btn-primary-gradient px-8 py-4 text-base font-semibold">
+              Get started
+            </a>
           </div>
         </div>
         </FadeInSection>

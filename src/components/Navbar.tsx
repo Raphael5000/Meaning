@@ -19,7 +19,6 @@ import {
   SheetTrigger,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -133,9 +132,9 @@ export function Navbar() {
                   </NavigationMenuLink>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <Button asChild className="rounded-full">
-                    <Link href="/signup">Get started</Link>
-                  </Button>
+                  <Link href="/signup" className="btn-primary-gradient text-sm">
+                    Get started
+                  </Link>
                 </NavigationMenuItem>
               </>
             )}
