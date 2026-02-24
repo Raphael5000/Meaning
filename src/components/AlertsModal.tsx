@@ -29,6 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const ALERT_TYPES = [
   {
@@ -399,73 +405,99 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                             </p>
                           )}
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleToggle(alert)}
-                            title={alert.enabled ? "Disable" : "Enable"}
-                            style={{ color: alert.enabled ? "var(--accent)" : undefined }}
-                          >
-                            {alert.enabled ? (
-                              <Bell className="h-4 w-4" />
-                            ) : (
-                              <BellOff className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleTestSend(alert)}
-                            disabled={sendingTestId === alert.id}
-                            title={
-                              sendingTestId === alert.id
-                                ? "Sending..."
-                                : testSuccess === alert.id
-                                  ? "Sent!"
-                                  : "Send sample test"
-                            }
-                            style={{
-                              color:
-                                testSuccess === alert.id
-                                  ? "var(--accent)"
-                                  : undefined,
-                            }}
-                          >
-                            {sendingTestId === alert.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : testSuccess === alert.id ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleTestSend(alert, true)}
-                            disabled={sendingTestId === alert.id}
-                            title="Send live test (real data, ~1 min)"
-                          >
-                            <Play className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => startEditing(alert)}
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(alert.id)}
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <TooltipProvider delayDuration={300}>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleToggle(alert)}
+                                  style={{ color: alert.enabled ? "var(--accent)" : undefined }}
+                                >
+                                  {alert.enabled ? (
+                                    <Bell className="h-4 w-4" />
+                                  ) : (
+                                    <BellOff className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {alert.enabled ? "Disable" : "Enable"}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleTestSend(alert)}
+                                  disabled={sendingTestId === alert.id}
+                                  style={{
+                                    color:
+                                      testSuccess === alert.id
+                                        ? "var(--accent)"
+                                        : undefined,
+                                  }}
+                                >
+                                  {sendingTestId === alert.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : testSuccess === alert.id ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <Send className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {sendingTestId === alert.id
+                                  ? "Sending..."
+                                  : testSuccess === alert.id
+                                    ? "Sent!"
+                                    : "Send sample test"}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleTestSend(alert, true)}
+                                  disabled={sendingTestId === alert.id}
+                                >
+                                  <Play className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Send live test (real data, ~1 min)
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => startEditing(alert)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDelete(alert.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </div>
                     </div>
                   ))}
@@ -568,7 +600,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                         onChange={(e) => setCustomPrompt(e.target.value)}
                         placeholder='e.g. "Show me my top 5 landing pages by conversion rate this week vs last week, and highlight any pages where bounce rate increased by more than 10%"'
                         rows={4}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
                       />
                       <p className="text-xs text-muted-foreground">
                         Describe what you want in your report in plain English. The AI will fetch the relevant data and format it nicely in the email.
