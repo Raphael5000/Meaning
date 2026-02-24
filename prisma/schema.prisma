@@ -143,6 +143,7 @@ model EmailAlert {
 
   recipients   String   // comma-separated email addresses
   alertType    String   @default("weekly_snapshot") // alert prompt template key
+  customPrompt String?  // user-defined prompt for "custom" alertType
   propertyId   String?  // GA4 property id
   propertyName String?  // GA4 property display name
   enabled      Boolean  @default(true)

@@ -13,6 +13,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   weekly_snapshot: "Weekly Snapshot",
   traffic_report: "Traffic Report",
   top_pages: "Top Pages",
+  custom: "Custom Report",
 };
 
 /** POST /api/alerts/[id]/test-send – send a test email for the given alert.
@@ -79,6 +80,7 @@ export async function POST(
       const capturedToken = accessToken;
       const capturedPropertyId = alert.propertyId;
       const capturedAlertType = alert.alertType;
+      const capturedCustomPrompt = alert.customPrompt;
       const capturedFreqLabel = freqLabel;
       const capturedSenderName = alert.user.name || alert.user.email;
 
@@ -90,7 +92,8 @@ export async function POST(
             capturedToken,
             capturedPropertyId,
             capturedAlertType,
-            capturedFreqLabel
+            capturedFreqLabel,
+            capturedCustomPrompt
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
 

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { GA4_TOOLS } from "@/lib/tools";
-import { ALERT_TYPES } from "@/lib/alert-prompts";
+import { ALERT_TYPES, buildCustomPrompt } from "@/lib/alert-prompts";
 
 let _anthropic: Anthropic | null = null;
 function getAnthropic(): Anthropic {
@@ -28,24 +28,36 @@ Important rules:
 /**
  * Generate alert email content by running the prompt against the user's GA4 property.
  *
- * @param accessToken - Google OAuth access token for the alert owner
- * @param propertyId  - GA4 property ID
- * @param alertType   - Key from ALERT_TYPES (e.g. "weekly_snapshot")
- * @param frequency   - "daily" | "weekly" | "monthly" (used for context in the prompt)
+ * @param accessToken  - Google OAuth access token for the alert owner
+ * @param propertyId   - GA4 property ID
+ * @param alertType    - Key from ALERT_TYPES (e.g. "weekly_snapshot" or "custom")
+ * @param frequency    - "daily" | "weekly" | "monthly" (used for context in the prompt)
+ * @param customPrompt - User-defined prompt text (required when alertType is "custom")
  * @returns The generated HTML string for the email body
  */
 export async function generateAlertContent(
   accessToken: string,
   propertyId: string,
   alertType: string,
-  frequency: string
+  frequency: string,
+  customPrompt?: string | null
 ): Promise<string> {
-  const typeDefinition = ALERT_TYPES[alertType];
-  if (!typeDefinition) {
-    throw new Error(`Unknown alert type: ${alertType}`);
+  let promptText: string;
+
+  if (alertType === "custom") {
+    if (!customPrompt) {
+      throw new Error("Custom alert type requires a customPrompt");
+    }
+    promptText = buildCustomPrompt(customPrompt);
+  } else {
+    const typeDefinition = ALERT_TYPES[alertType];
+    if (!typeDefinition) {
+      throw new Error(`Unknown alert type: ${alertType}`);
+    }
+    promptText = typeDefinition.prompt;
   }
 
-  const userPrompt = `${typeDefinition.prompt}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
+  const userPrompt = `${promptText}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
 
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },

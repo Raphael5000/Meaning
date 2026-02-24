@@ -5,7 +5,7 @@ import { VALID_DAYS } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
-const VALID_ALERT_TYPES = new Set(["weekly_snapshot", "traffic_report", "top_pages"]);
+const VALID_ALERT_TYPES = new Set(["weekly_snapshot", "traffic_report", "top_pages", "custom"]);
 
 /** PUT /api/alerts/[id] – update an email alert */
 export async function PUT(
@@ -23,6 +23,7 @@ export async function PUT(
   const body = (await request.json()) as {
     recipients?: string;
     alertType?: string;
+    customPrompt?: string | null;
     propertyId?: string | null;
     propertyName?: string | null;
     enabled?: boolean;
@@ -74,6 +75,31 @@ export async function PUT(
         );
       }
       data.alertType = body.alertType;
+    }
+
+    // Determine the effective alert type (updated or existing)
+    const effectiveAlertType = (data.alertType as string) ?? existing.alertType;
+
+    if (body.customPrompt !== undefined) {
+      data.customPrompt = body.customPrompt ? body.customPrompt.trim() : null;
+    }
+
+    // If alert type is (or is being changed to) "custom", ensure a prompt exists
+    if (effectiveAlertType === "custom") {
+      const effectivePrompt = data.customPrompt !== undefined
+        ? data.customPrompt
+        : existing.customPrompt;
+      if (!effectivePrompt) {
+        return NextResponse.json(
+          { error: "A custom prompt is required for the Custom Report type" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Clear customPrompt when switching away from custom type
+    if (effectiveAlertType !== "custom" && data.alertType !== undefined) {
+      data.customPrompt = null;
     }
 
     if (body.sendDays !== undefined) {

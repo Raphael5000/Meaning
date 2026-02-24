@@ -5,7 +5,7 @@ import { VALID_DAYS } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
-const VALID_ALERT_TYPES = new Set(["weekly_snapshot", "traffic_report", "top_pages"]);
+const VALID_ALERT_TYPES = new Set(["weekly_snapshot", "traffic_report", "top_pages", "custom"]);
 
 /** GET /api/alerts – list all email alerts for the authenticated user */
 export async function GET() {
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     recipients: string;
     alertType?: string;
+    customPrompt?: string;
     propertyId?: string | null;
     propertyName?: string | null;
     sendDays?: string[];
@@ -76,6 +77,15 @@ export async function POST(request: NextRequest) {
   if (!VALID_ALERT_TYPES.has(alertType)) {
     return NextResponse.json(
       { error: "Invalid alert type" },
+      { status: 400 }
+    );
+  }
+
+  // Validate custom prompt
+  const customPrompt = alertType === "custom" ? (body.customPrompt ?? "").trim() : null;
+  if (alertType === "custom" && !customPrompt) {
+    return NextResponse.json(
+      { error: "A custom prompt is required for the Custom Report type" },
       { status: 400 }
     );
   }
@@ -119,6 +129,7 @@ export async function POST(request: NextRequest) {
         userId,
         recipients: emails.join(", "),
         alertType,
+        customPrompt,
         propertyId: body.propertyId ?? null,
         propertyName: body.propertyName ?? null,
         sendDays,
