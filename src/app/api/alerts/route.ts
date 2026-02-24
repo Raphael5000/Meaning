@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { VALID_DAYS } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +41,13 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as {
     recipients: string;
-    frequency: string;
     alertType?: string;
     propertyId?: string | null;
     propertyName?: string | null;
+    sendDays?: string[];
+    sendHour?: number;
+    sendMinute?: number;
+    intervalWeeks?: number;
   };
 
   // Validate recipients
@@ -67,15 +71,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Validate frequency
-  const validFrequencies = ["daily", "weekly", "monthly"];
-  if (!validFrequencies.includes(body.frequency)) {
-    return NextResponse.json(
-      { error: "Frequency must be daily, weekly, or monthly" },
-      { status: 400 }
-    );
-  }
-
   // Validate alert type
   const alertType = body.alertType || "weekly_snapshot";
   if (!VALID_ALERT_TYPES.has(alertType)) {
@@ -85,15 +80,51 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate schedule fields
+  const sendDays = body.sendDays || ["monday"];
+  if (!Array.isArray(sendDays) || sendDays.length === 0 || !sendDays.every((d) => VALID_DAYS.has(d))) {
+    return NextResponse.json(
+      { error: "sendDays must be a non-empty array of valid day names (e.g. monday, tuesday)" },
+      { status: 400 }
+    );
+  }
+
+  const sendHour = body.sendHour ?? 9;
+  if (!Number.isInteger(sendHour) || sendHour < 0 || sendHour > 23) {
+    return NextResponse.json(
+      { error: "sendHour must be an integer between 0 and 23" },
+      { status: 400 }
+    );
+  }
+
+  const sendMinute = body.sendMinute ?? 0;
+  if (!Number.isInteger(sendMinute) || sendMinute < 0 || sendMinute > 59) {
+    return NextResponse.json(
+      { error: "sendMinute must be an integer between 0 and 59" },
+      { status: 400 }
+    );
+  }
+
+  const intervalWeeks = body.intervalWeeks ?? 1;
+  if (!Number.isInteger(intervalWeeks) || intervalWeeks < 1 || intervalWeeks > 52) {
+    return NextResponse.json(
+      { error: "intervalWeeks must be an integer between 1 and 52" },
+      { status: 400 }
+    );
+  }
+
   try {
     const alert = await prisma.emailAlert.create({
       data: {
         userId,
         recipients: emails.join(", "),
-        frequency: body.frequency,
         alertType,
         propertyId: body.propertyId ?? null,
         propertyName: body.propertyName ?? null,
+        sendDays,
+        sendHour,
+        sendMinute,
+        intervalWeeks,
       },
     });
 

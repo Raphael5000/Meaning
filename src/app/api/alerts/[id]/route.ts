@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { VALID_DAYS } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,14 @@ export async function PUT(
 
   const body = (await request.json()) as {
     recipients?: string;
-    frequency?: string;
     alertType?: string;
     propertyId?: string | null;
     propertyName?: string | null;
     enabled?: boolean;
+    sendDays?: string[];
+    sendHour?: number;
+    sendMinute?: number;
+    intervalWeeks?: number;
   };
 
   try {
@@ -62,17 +66,6 @@ export async function PUT(
       data.recipients = emails.join(", ");
     }
 
-    if (body.frequency !== undefined) {
-      const validFrequencies = ["daily", "weekly", "monthly"];
-      if (!validFrequencies.includes(body.frequency)) {
-        return NextResponse.json(
-          { error: "Frequency must be daily, weekly, or monthly" },
-          { status: 400 }
-        );
-      }
-      data.frequency = body.frequency;
-    }
-
     if (body.alertType !== undefined) {
       if (!VALID_ALERT_TYPES.has(body.alertType)) {
         return NextResponse.json(
@@ -81,6 +74,46 @@ export async function PUT(
         );
       }
       data.alertType = body.alertType;
+    }
+
+    if (body.sendDays !== undefined) {
+      if (!Array.isArray(body.sendDays) || body.sendDays.length === 0 || !body.sendDays.every((d) => VALID_DAYS.has(d))) {
+        return NextResponse.json(
+          { error: "sendDays must be a non-empty array of valid day names" },
+          { status: 400 }
+        );
+      }
+      data.sendDays = body.sendDays;
+    }
+
+    if (body.sendHour !== undefined) {
+      if (!Number.isInteger(body.sendHour) || body.sendHour < 0 || body.sendHour > 23) {
+        return NextResponse.json(
+          { error: "sendHour must be an integer between 0 and 23" },
+          { status: 400 }
+        );
+      }
+      data.sendHour = body.sendHour;
+    }
+
+    if (body.sendMinute !== undefined) {
+      if (!Number.isInteger(body.sendMinute) || body.sendMinute < 0 || body.sendMinute > 59) {
+        return NextResponse.json(
+          { error: "sendMinute must be an integer between 0 and 59" },
+          { status: 400 }
+        );
+      }
+      data.sendMinute = body.sendMinute;
+    }
+
+    if (body.intervalWeeks !== undefined) {
+      if (!Number.isInteger(body.intervalWeeks) || body.intervalWeeks < 1 || body.intervalWeeks > 52) {
+        return NextResponse.json(
+          { error: "intervalWeeks must be an integer between 1 and 52" },
+          { status: 400 }
+        );
+      }
+      data.intervalWeeks = body.intervalWeeks;
     }
 
     if (body.propertyId !== undefined) data.propertyId = body.propertyId;

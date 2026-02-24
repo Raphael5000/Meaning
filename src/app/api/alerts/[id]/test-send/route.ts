@@ -5,6 +5,7 @@ import { sendAlertEmail } from "@/lib/resend";
 import { buildEmailWrapper } from "@/lib/email-wrapper";
 import { generateAlertContent } from "@/lib/alert-content";
 import { getGoogleAccessToken } from "@/lib/google-token";
+import { describeSchedule, frequencyLabel } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,8 @@ export async function POST(
       alert.propertyName || alert.propertyId || "your website";
     const alertTypeLabel =
       ALERT_TYPE_LABELS[alert.alertType] || "Performance Summary";
+    const scheduleDesc = describeSchedule(alert.sendDays, alert.sendHour, alert.sendMinute, alert.intervalWeeks);
+    const freqLabel = frequencyLabel(alert.sendDays, alert.intervalWeeks);
 
     if (useLive) {
       // Get access token while we still have the session context
@@ -76,7 +79,7 @@ export async function POST(
       const capturedToken = accessToken;
       const capturedPropertyId = alert.propertyId;
       const capturedAlertType = alert.alertType;
-      const capturedFrequency = alert.frequency;
+      const capturedFreqLabel = freqLabel;
       const capturedSenderName = alert.user.name || alert.user.email;
 
       void (async () => {
@@ -87,14 +90,14 @@ export async function POST(
             capturedToken,
             capturedPropertyId,
             capturedAlertType,
-            capturedFrequency
+            capturedFreqLabel
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
 
           const subject = `[TEST] ${alertTypeLabel} – ${propertyLabel}`;
           const html = buildEmailWrapper(
             propertyLabel,
-            capturedFrequency,
+            scheduleDesc,
             alertTypeLabel,
             contentHtml,
             capturedSenderName,
@@ -116,11 +119,11 @@ export async function POST(
 
     // Default: instant send with sample content
     const subject = `[TEST] ${alertTypeLabel} – ${propertyLabel}`;
-    const contentHtml = buildSampleContent(alertTypeLabel, propertyLabel, alert.frequency);
+    const contentHtml = buildSampleContent(alertTypeLabel, propertyLabel, scheduleDesc);
 
     const html = buildEmailWrapper(
       propertyLabel,
-      alert.frequency,
+      scheduleDesc,
       alertTypeLabel,
       contentHtml,
       alert.user.name || alert.user.email,
@@ -143,12 +146,12 @@ export async function POST(
 function buildSampleContent(
   alertTypeLabel: string,
   propertyLabel: string,
-  frequency: string
+  scheduleDescription: string
 ): string {
   return `
     <p style="color: #333; font-size: 15px; line-height: 1.6;">
-      This is a preview of your <strong>${frequency} ${alertTypeLabel}</strong> for
-      <strong>${propertyLabel}</strong>.
+      This is a preview of your <strong>${alertTypeLabel}</strong> for
+      <strong>${propertyLabel}</strong> (${scheduleDescription}).
     </p>
     <p style="color: #333; font-size: 15px; line-height: 1.6;">
       When your scheduled alert runs, this section will contain AI-generated analytics
