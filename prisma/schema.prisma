@@ -142,12 +142,17 @@ model EmailAlert {
   userId String
 
   recipients   String   // comma-separated email addresses
-  frequency    String   // "daily" | "weekly" | "monthly"
   alertType    String   @default("weekly_snapshot") // alert prompt template key
   propertyId   String?  // GA4 property id
   propertyName String?  // GA4 property display name
   enabled      Boolean  @default(true)
   lastSentAt   DateTime?
+
+  // Custom schedule fields
+  sendDays      String[] @default(["monday"]) // e.g. ["monday", "wednesday", "friday"]
+  sendHour      Int      @default(9)          // 0-23, hour of day in UTC
+  sendMinute    Int      @default(0)          // 0 or 30
+  intervalWeeks Int      @default(1)          // 1 = every week, 2 = biweekly, 4 = monthly
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -155,7 +160,7 @@ model EmailAlert {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([enabled, frequency])
+  @@index([enabled, sendHour])
 }
 
 model Payment {

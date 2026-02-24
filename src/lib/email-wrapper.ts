@@ -1,7 +1,7 @@
 /** Wrap generated alert content in a consistent email layout. */
 export function buildEmailWrapper(
   propertyLabel: string,
-  frequency: string,
+  scheduleDescription: string,
   alertTypeLabel: string,
   contentHtml: string,
   senderName: string,
@@ -17,7 +17,7 @@ export function buildEmailWrapper(
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       ${testBanner}
       <h2 style="color: #1a1a1a; margin-bottom: 4px;">${alertTypeLabel}</h2>
-      <p style="color: #666; font-size: 14px; margin-top: 0;">${propertyLabel} &middot; ${frequency} report</p>
+      <p style="color: #666; font-size: 14px; margin-top: 0;">${propertyLabel} &middot; ${scheduleDescription}</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
       ${contentHtml}
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />

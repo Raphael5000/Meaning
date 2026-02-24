@@ -55,16 +55,66 @@ const ALERT_TYPE_MAP: Record<string, string> = Object.fromEntries(
   ALERT_TYPES.map((t) => [t.key, t.label])
 );
 
+const DAYS_OF_WEEK = [
+  { key: "monday", short: "Mon" },
+  { key: "tuesday", short: "Tue" },
+  { key: "wednesday", short: "Wed" },
+  { key: "thursday", short: "Thu" },
+  { key: "friday", short: "Fri" },
+  { key: "saturday", short: "Sat" },
+  { key: "sunday", short: "Sun" },
+] as const;
+
+const INTERVAL_OPTIONS = [
+  { value: 1, label: "Every week" },
+  { value: 2, label: "Every 2 weeks" },
+  { value: 4, label: "Every 4 weeks" },
+] as const;
+
+function formatScheduleShort(
+  sendDays: string[],
+  sendHour: number,
+  sendMinute: number,
+  intervalWeeks: number
+): string {
+  const h = sendHour % 12 || 12;
+  const m = sendMinute.toString().padStart(2, "0");
+  const period = sendHour >= 12 ? "PM" : "AM";
+  const time = `${h}:${m} ${period} UTC`;
+
+  if (sendDays.length === 7) {
+    return intervalWeeks === 1 ? `Daily at ${time}` : `Every ${intervalWeeks}w, daily at ${time}`;
+  }
+
+  const dayShorts = sendDays.map((d) => {
+    const found = DAYS_OF_WEEK.find((dw) => dw.key === d);
+    return found ? found.short : d;
+  });
+
+  if (sendDays.length === 1) {
+    const dayName = sendDays[0].charAt(0).toUpperCase() + sendDays[0].slice(1);
+    if (intervalWeeks === 1) return `${dayName} at ${time}`;
+    return `Every ${intervalWeeks}w on ${dayName} at ${time}`;
+  }
+
+  const dayList = dayShorts.join(", ");
+  if (intervalWeeks === 1) return `${dayList} at ${time}`;
+  return `Every ${intervalWeeks}w on ${dayList} at ${time}`;
+}
+
 interface EmailAlert {
   id: string;
   recipients: string;
-  frequency: string;
   alertType: string;
   propertyId: string | null;
   propertyName: string | null;
   enabled: boolean;
   lastSentAt: string | null;
   createdAt: string;
+  sendDays: string[];
+  sendHour: number;
+  sendMinute: number;
+  intervalWeeks: number;
 }
 
 interface Property {
@@ -92,10 +142,13 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState("");
-  const [frequency, setFrequency] = useState("weekly");
   const [alertType, setAlertType] = useState("weekly_snapshot");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [selectedPropertyName, setSelectedPropertyName] = useState("");
+  const [sendDays, setSendDays] = useState<string[]>(["monday"]);
+  const [sendHour, setSendHour] = useState(9);
+  const [sendMinute, setSendMinute] = useState(0);
+  const [intervalWeeks, setIntervalWeeks] = useState(1);
 
   useEffect(() => {
     if (!open) return;
@@ -122,20 +175,26 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setShowForm(false);
     setEditingId(null);
     setRecipients("");
-    setFrequency("weekly");
     setAlertType("weekly_snapshot");
     setSelectedPropertyId(null);
     setSelectedPropertyName("");
+    setSendDays(["monday"]);
+    setSendHour(9);
+    setSendMinute(0);
+    setIntervalWeeks(1);
     setError(null);
   }
 
   function startEditing(alert: EmailAlert) {
     setEditingId(alert.id);
     setRecipients(alert.recipients);
-    setFrequency(alert.frequency);
     setAlertType(alert.alertType || "weekly_snapshot");
     setSelectedPropertyId(alert.propertyId);
     setSelectedPropertyName(alert.propertyName || "");
+    setSendDays(alert.sendDays || ["monday"]);
+    setSendHour(alert.sendHour ?? 9);
+    setSendMinute(alert.sendMinute ?? 0);
+    setIntervalWeeks(alert.intervalWeeks ?? 1);
     setShowForm(true);
     setError(null);
   }
@@ -146,10 +205,13 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
 
     const payload = {
       recipients,
-      frequency,
       alertType,
       propertyId: selectedPropertyId,
       propertyName: selectedPropertyName || null,
+      sendDays,
+      sendHour,
+      sendMinute,
+      intervalWeeks,
     };
 
     try {
@@ -247,6 +309,17 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     }
   }
 
+  function toggleDay(day: string) {
+    setSendDays((prev) => {
+      if (prev.includes(day)) {
+        // Don't allow removing the last day
+        if (prev.length === 1) return prev;
+        return prev.filter((d) => d !== day);
+      }
+      return [...prev, day];
+    });
+  }
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden">
@@ -299,7 +372,12 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {ALERT_TYPE_MAP[alert.alertType] || "Weekly Snapshot"}
                             {" · "}
-                            {alert.frequency.charAt(0).toUpperCase() + alert.frequency.slice(1)}
+                            {formatScheduleShort(
+                              alert.sendDays || ["monday"],
+                              alert.sendHour ?? 9,
+                              alert.sendMinute ?? 0,
+                              alert.intervalWeeks ?? 1
+                            )}
                             {alert.lastSentAt
                               ? ` · Last sent ${new Date(alert.lastSentAt).toLocaleDateString()}`
                               : " · Not sent yet"}
@@ -465,21 +543,85 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                     </div>
                   </div>
 
+                  {/* Schedule: Days */}
                   <div className="space-y-1.5">
-                    <Label>Frequency</Label>
-                    <div className="flex gap-2">
-                      {(["daily", "weekly", "monthly"] as const).map((f) => (
+                    <Label>Days</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAYS_OF_WEEK.map((d) => (
                         <Button
-                          key={f}
+                          key={d.key}
                           type="button"
-                          variant={frequency === f ? "default" : "outline"}
+                          variant={sendDays.includes(d.key) ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setFrequency(f)}
+                          onClick={() => toggleDay(d.key)}
+                          className="min-w-[3rem]"
                         >
-                          {f.charAt(0).toUpperCase() + f.slice(1)}
+                          {d.short}
                         </Button>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Select the days you want to receive this alert
+                    </p>
+                  </div>
+
+                  {/* Schedule: Time */}
+                  <div className="space-y-1.5">
+                    <Label>Time (UTC)</Label>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={String(sendHour)}
+                        onValueChange={(v) => setSendHour(Number(v))}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 24 }, (_, i) => {
+                            const h = i % 12 || 12;
+                            const period = i >= 12 ? "PM" : "AM";
+                            return (
+                              <SelectItem key={i} value={String(i)}>
+                                {h}:00 {period}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">:</span>
+                      <Select
+                        value={String(sendMinute)}
+                        onValueChange={(v) => setSendMinute(Number(v))}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">00</SelectItem>
+                          <SelectItem value="30">30</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Schedule: Interval */}
+                  <div className="space-y-1.5">
+                    <Label>Repeat</Label>
+                    <Select
+                      value={String(intervalWeeks)}
+                      onValueChange={(v) => setIntervalWeeks(Number(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTERVAL_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={String(opt.value)}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">
