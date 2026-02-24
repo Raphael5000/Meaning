@@ -7,6 +7,7 @@ import Image from "next/image";
 import {
   Bell,
   ChevronLeft,
+  Link2,
   LogOut,
   Menu,
   SquarePen,
@@ -20,6 +21,7 @@ import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 import AlertsModal from "./AlertsModal";
+import ConnectionsModal from "./ConnectionsModal";
 import {
   fetchChats,
   createChat,
@@ -67,6 +69,7 @@ export default function Chat() {
   );
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -435,6 +438,17 @@ export default function Chat() {
                   type="button"
                   onClick={() => {
                     setAccountMenuOpen(false);
+                    setConnectionsOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                >
+                  <Link2 className="h-4 w-4" />
+                  Connections
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
                     signOut();
                   }}
                   className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
@@ -577,6 +591,7 @@ export default function Chat() {
       </div>
 
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
+      <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
     </div>
   );
 }
