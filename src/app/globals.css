@@ -57,6 +57,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow-x: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: "Söhne", ui-sans-serif, system-ui, -apple-system, sans-serif;
