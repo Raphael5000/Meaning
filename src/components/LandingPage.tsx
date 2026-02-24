@@ -54,7 +54,7 @@ function FadeInSection({
 export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
   return (
     <div
-      className="relative min-h-screen"
+      className="relative min-h-screen overflow-x-hidden"
       style={{
         background:
           "var(--page-bg)",
