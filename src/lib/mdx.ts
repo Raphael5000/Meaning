@@ -1,6 +1,7 @@
 import { compileMDX } from "next-mdx-remote/rsc";
 import path from "path";
 import { readFile } from "fs/promises";
+import { cache } from "react";
 import GithubSlugger from "github-slugger";
 import rehypeSlug from "rehype-slug";
 import { CodeBlockContainer } from "@/components/CodeBlockContainer";
@@ -48,30 +49,42 @@ export function extractHeadings(source: string): TocHeading[] {
   return headings;
 }
 
-export async function getArticleHeadings(slug: string): Promise<TocHeading[]> {
+/**
+ * Read and compile an MDX article in a single pass, returning both the
+ * rendered content and the table-of-contents headings.
+ *
+ * Wrapped with React `cache()` so that multiple calls with the same slug
+ * within a single server request are deduplicated (one file read, one compile).
+ */
+export const getArticleData = cache(async (slug: string) => {
   const filePath = path.join(CONTENT_DIR, `${slug}.mdx`);
   try {
     const raw = await readFile(filePath, "utf-8");
-    return extractHeadings(raw);
+
+    const [{ content }, headings] = await Promise.all([
+      compileMDX({
+        source: raw,
+        options: {
+          parseFrontmatter: true,
+          mdxOptions: { rehypePlugins: [rehypeSlug] },
+        },
+        components: mdxComponents,
+      }),
+      Promise.resolve(extractHeadings(raw)),
+    ]);
+
+    return { content, headings };
   } catch {
-    return [];
+    return { content: null, headings: [] as TocHeading[] };
   }
+});
+
+export async function getArticleHeadings(slug: string): Promise<TocHeading[]> {
+  const { headings } = await getArticleData(slug);
+  return headings;
 }
 
 export async function getArticleContent(slug: string) {
-  const filePath = path.join(CONTENT_DIR, `${slug}.mdx`);
-  try {
-    const raw = await readFile(filePath, "utf-8");
-    const { content } = await compileMDX({
-      source: raw,
-      options: {
-        parseFrontmatter: true,
-        mdxOptions: { rehypePlugins: [rehypeSlug] },
-      },
-      components: mdxComponents,
-    });
-    return content;
-  } catch {
-    return null;
-  }
+  const { content } = await getArticleData(slug);
+  return content;
 }

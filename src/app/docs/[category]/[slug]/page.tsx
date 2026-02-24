@@ -1,10 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArticle, getCategory, getArticlesByCategory } from "../../data";
+import { getArticle, getCategory, getArticlesByCategory, articles } from "../../data";
 import type { Article } from "../../data";
 import { ArticlePageNav } from "./ArticlePageNav";
 import { TableOfContents } from "@/components/TableOfContents";
+import { getArticleData } from "@/lib/mdx";
+
+/** Pre-render every known doc page at build time so visitors get instant loads. */
+export function generateStaticParams() {
+  return articles.map((a) => ({ category: a.category, slug: a.slug }));
+}
 
 function TypeBadge({ type }: { type: Article["type"] }) {
   const config = {
@@ -53,11 +59,7 @@ export default async function ArticlePage({
     (a) => a.slug !== slug
   );
 
-  const { getArticleContent, getArticleHeadings } = await import("@/lib/mdx");
-  const [mdxContent, headings] = await Promise.all([
-    getArticleContent(slug),
-    getArticleHeadings(slug),
-  ]);
+  const { content: mdxContent, headings } = await getArticleData(slug);
 
   return (
     <div
