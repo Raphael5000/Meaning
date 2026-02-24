@@ -68,7 +68,7 @@ async function handleSend(request: NextRequest) {
 
       const propertyLabel = alert.propertyName || alert.propertyId || "your website";
       const alertTypeDef = ALERT_TYPES[alert.alertType];
-      const alertTypeLabel = alertTypeDef?.label || "Performance Summary";
+      const alertTypeLabel = alertTypeDef?.label ?? "Performance Summary";
       const subject = `${alertTypeLabel} – ${propertyLabel}`;
       const scheduleDesc = describeSchedule(alert.sendDays, alert.sendHour, alert.sendMinute, alert.intervalWeeks);
       const freqLabel = frequencyLabel(alert.sendDays, alert.intervalWeeks);
@@ -84,7 +84,8 @@ async function handleSend(request: NextRequest) {
               accessToken,
               alert.propertyId,
               alert.alertType,
-              freqLabel
+              freqLabel,
+              alert.customPrompt
             );
           } catch (genErr) {
             console.error(

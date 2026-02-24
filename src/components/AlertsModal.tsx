@@ -49,6 +49,12 @@ const ALERT_TYPES = [
     description:
       "Best-performing pages ranked by views with engagement metrics.",
   },
+  {
+    key: "custom",
+    label: "Custom Report",
+    description:
+      "Write your own prompt to get a personalised report with the data you care about.",
+  },
 ] as const;
 
 const ALERT_TYPE_MAP: Record<string, string> = Object.fromEntries(
@@ -106,6 +112,7 @@ interface EmailAlert {
   id: string;
   recipients: string;
   alertType: string;
+  customPrompt: string | null;
   propertyId: string | null;
   propertyName: string | null;
   enabled: boolean;
@@ -143,6 +150,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState("");
   const [alertType, setAlertType] = useState("weekly_snapshot");
+  const [customPrompt, setCustomPrompt] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [selectedPropertyName, setSelectedPropertyName] = useState("");
   const [sendDays, setSendDays] = useState<string[]>(["monday"]);
@@ -176,6 +184,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setEditingId(null);
     setRecipients("");
     setAlertType("weekly_snapshot");
+    setCustomPrompt("");
     setSelectedPropertyId(null);
     setSelectedPropertyName("");
     setSendDays(["monday"]);
@@ -189,6 +198,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setEditingId(alert.id);
     setRecipients(alert.recipients);
     setAlertType(alert.alertType || "weekly_snapshot");
+    setCustomPrompt(alert.customPrompt || "");
     setSelectedPropertyId(alert.propertyId);
     setSelectedPropertyName(alert.propertyName || "");
     setSendDays(alert.sendDays || ["monday"]);
@@ -206,6 +216,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     const payload = {
       recipients,
       alertType,
+      customPrompt: alertType === "custom" ? customPrompt : null,
       propertyId: selectedPropertyId,
       propertyName: selectedPropertyName || null,
       sendDays,
@@ -382,6 +393,11 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                               ? ` · Last sent ${new Date(alert.lastSentAt).toLocaleDateString()}`
                               : " · Not sent yet"}
                           </p>
+                          {alert.alertType === "custom" && alert.customPrompt && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground italic">
+                              &ldquo;{alert.customPrompt}&rdquo;
+                            </p>
+                          )}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           <Button
@@ -543,6 +559,23 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                     </div>
                   </div>
 
+                  {/* Custom prompt textarea */}
+                  {alertType === "custom" && (
+                    <div className="space-y-1.5">
+                      <Label>Your prompt</Label>
+                      <textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder='e.g. "Show me my top 5 landing pages by conversion rate this week vs last week, and highlight any pages where bounce rate increased by more than 10%"'
+                        rows={4}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Describe what you want in your report in plain English. The AI will fetch the relevant data and format it nicely in the email.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Schedule: Days */}
                   <div className="space-y-1.5">
                     <Label>Days</Label>
@@ -640,7 +673,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                   <div className="flex gap-2 pt-2">
                     <Button
                       onClick={handleSave}
-                      disabled={saving || !recipients.trim()}
+                      disabled={saving || !recipients.trim() || (alertType === "custom" && !customPrompt.trim())}
                     >
                       {saving
                         ? "Saving..."

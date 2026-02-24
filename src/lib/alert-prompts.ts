@@ -92,6 +92,14 @@ Format your response as clean HTML suitable for an email body. Use inline styles
 
 Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`,
   },
+
+  custom: {
+    key: "custom",
+    label: "Custom Report",
+    description:
+      "Write your own prompt to get a personalised report with the data you care about.",
+    prompt: "", // Placeholder — the actual prompt comes from the user's customPrompt field
+  },
 };
 
 /** Ordered list of alert types for UI rendering. */
@@ -100,4 +108,29 @@ export const ALERT_TYPE_LIST: AlertTypeDefinition[] = Object.values(ALERT_TYPES)
 /** Validate that a string is a known alert type key. */
 export function isValidAlertType(type: string): boolean {
   return type in ALERT_TYPES;
+}
+
+/**
+ * Build the final prompt for a custom report by wrapping the user's
+ * natural-language request with formatting instructions so the email
+ * output is always well-structured HTML.
+ */
+export function buildCustomPrompt(userPrompt: string): string {
+  return `The user has requested a custom analytics report. Here is what they want:
+
+---
+${userPrompt}
+---
+
+Use the run_report tool (and run_realtime_report or get_metadata if useful) to fetch the relevant data from Google Analytics, then write a clear, professional report that answers the user's request.
+
+Format your response as clean HTML suitable for an email body. Use inline styles only (no classes). Use a clean, professional style with:
+- A readable font stack (system fonts)
+- Subtle colors (#1a1a1a for text, #666 for secondary text, #f8f9fa for table header backgrounds)
+- Simple bordered tables for data where appropriate
+- Percentage changes shown in green (#16a34a) for positive and red (#dc2626) for negative
+- Recommendations or insights as a numbered list when applicable
+- Use clear section headings, short paragraphs, and good spacing for scannability
+
+Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`;
 }
