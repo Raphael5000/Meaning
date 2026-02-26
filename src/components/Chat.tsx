@@ -353,15 +353,6 @@ export default function Chat() {
             <Bell className="h-4 w-4" />
             Alerts
           </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => setBugReportOpen(true)}
-            aria-label="Submit a bug report"
-          >
-            <Bug className="h-4 w-4" />
-            Report a bug
-          </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 pt-6">
           <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
@@ -456,6 +447,17 @@ export default function Chat() {
                 >
                   <Link2 className="h-4 w-4" />
                   Connections
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    setBugReportOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                >
+                  <Bug className="h-4 w-4" />
+                  Report a bug
                 </button>
                 <button
                   type="button"
