@@ -199,11 +199,11 @@ export default function PrivacyPage() {
             <p>
               You may request deletion of your data at any time by contacting us at{" "}
               <a
-                href="mailto:support@meaning.ai"
+                href="mailto:hi@hivory.io"
                 style={{ color: "var(--accent)" }}
                 className="underline hover:no-underline"
               >
-                support@meaning.ai
+                hi@hivory.io
               </a>
               . Upon receiving a verified deletion request, we will delete your personal data and associated information within 30 days, except where retention is required by law.
             </p>
@@ -238,11 +238,11 @@ export default function PrivacyPage() {
             <p>
               To exercise any of these rights, please contact us at{" "}
               <a
-                href="mailto:support@meaning.ai"
+                href="mailto:hi@hivory.io"
                 style={{ color: "var(--accent)" }}
                 className="underline hover:no-underline"
               >
-                support@meaning.ai
+                hi@hivory.io
               </a>
               .
             </p>
@@ -264,11 +264,11 @@ export default function PrivacyPage() {
             <p>
               For questions about this Privacy Policy or our data practices, contact us at{" "}
               <a
-                href="mailto:support@meaning.ai"
+                href="mailto:hi@hivory.io"
                 style={{ color: "var(--accent)" }}
                 className="underline hover:no-underline"
               >
-                support@meaning.ai
+                hi@hivory.io
               </a>
               .
             </p>
