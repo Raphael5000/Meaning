@@ -235,11 +235,11 @@ export default function TermsPage() {
             <p>
               For questions about these Terms, contact us at{" "}
               <a
-                href="mailto:support@meaning.ai"
+                href="mailto:hi@hivory.io"
                 style={{ color: "var(--accent)" }}
                 className="underline hover:no-underline"
               >
-                support@meaning.ai
+                hi@hivory.io
               </a>
               .
             </p>
