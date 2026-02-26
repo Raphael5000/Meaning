@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Bell,
+  Bug,
   ChevronLeft,
   Link2,
   LogOut,
@@ -21,6 +22,7 @@ import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 import AlertsModal from "./AlertsModal";
+import BugReportModal from "./BugReportModal";
 import ConnectionsModal from "./ConnectionsModal";
 import {
   fetchChats,
@@ -69,6 +71,7 @@ export default function Chat() {
   );
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -350,6 +353,15 @@ export default function Chat() {
             <Bell className="h-4 w-4" />
             Alerts
           </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={() => setBugReportOpen(true)}
+            aria-label="Submit a bug report"
+          >
+            <Bug className="h-4 w-4" />
+            Report a bug
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 pt-6">
           <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
@@ -591,6 +603,7 @@ export default function Chat() {
       </div>
 
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
+      <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
       <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
     </div>
   );
