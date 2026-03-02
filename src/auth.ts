@@ -60,9 +60,12 @@ const cookieDomain =
 // "InvalidCheck: pkceCodeVerifier value could not be parsed" on callback.
 // PKCE & state cookies additionally need sameSite:"none" because the
 // OAuth redirect from Google is a cross-site navigation.
+// However, sameSite:"none" REQUIRES secure:true — browsers silently
+// reject the cookie otherwise.  On HTTP localhost we fall back to "lax",
+// which still works because the Google redirect is a top-level GET.
 const crossSiteOpts = {
   httpOnly: true,
-  sameSite: "none" as const,
+  sameSite: (isSecure ? "none" : "lax") as "none" | "lax",
   path: "/",
   secure: isSecure,
   maxAge: 900, // 15 min — matches Auth.js default
