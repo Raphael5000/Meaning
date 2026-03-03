@@ -83,6 +83,10 @@ body {
 }
 
 /* Markdown content styling */
+.message-content {
+  overflow: hidden;
+}
+
 .message-content h1,
 .message-content h2,
 .message-content h3 {

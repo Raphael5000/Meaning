@@ -145,7 +145,7 @@ export default function ChatMessage({
                   <Button
                     key={q}
                     variant="outline"
-                    className="rounded-full text-left"
+                    className="rounded-full text-left whitespace-normal h-auto"
                     onClick={() => onSuggestedQuestionClick(q)}
                     style={{ color: "var(--text-secondary)" }}
                   >
