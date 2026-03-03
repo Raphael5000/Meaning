@@ -14,7 +14,7 @@ export async function GET() {
 
   const googleAccount = await prisma.account.findFirst({
     where: { userId, provider: "google" },
-    select: { id: true, providerAccountId: true },
+    select: { id: true, providerAccountId: true, refresh_token: true },
   });
 
   // Try to get the Google email from the id_token or from the user record
@@ -31,7 +31,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    hasGoogleAccount: !!googleAccount,
+    hasGoogleAccount: !!googleAccount?.refresh_token,
     googleEmail,
   });
 }

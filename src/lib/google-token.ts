@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Get the Google access token for a user.
- * Tries the session JWT first, falls back to a DB lookup
- * (needed for credentials users who linked Google separately).
+ * Tries the session JWT first (populated from the Account table by
+ * the JWT callback), then falls back to a direct DB lookup.
  */
 export async function getGoogleAccessToken(
   session: { accessToken?: string; userId?: string } | null

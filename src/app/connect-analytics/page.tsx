@@ -12,7 +12,7 @@ interface Property {
 }
 
 function ConnectAnalyticsContent() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const searchParams = useSearchParams();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -45,15 +45,10 @@ function ConnectAnalyticsContent() {
       .finally(() => setCheckingConnection(false));
   }, [status]);
 
-  // Also check whether the session JWT has a Google access token
-  // (fast path for users who signed up with Google OAuth)
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    const token = (session as { accessToken?: string })?.accessToken;
-    if (token) {
-      setHasToken(true);
-    }
-  }, [session, status]);
+  // Note: we no longer check the JWT for an access token here because
+  // Google login no longer requests the analytics scope.  The DB-backed
+  // check via /api/user/onboarding-status (above) is the single source
+  // of truth for whether analytics has been connected.
 
   // Once we know Google is linked, fetch GA properties
   useEffect(() => {

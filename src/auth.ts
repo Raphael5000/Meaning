@@ -101,10 +101,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       [customFetch]: fetchWithTimeout,
       authorization: {
         params: {
-          scope:
-            "openid email profile https://www.googleapis.com/auth/analytics.readonly",
-          access_type: "offline",
-          prompt: "consent",
+          scope: "openid email profile",
+          prompt: "select_account",
         },
       },
     }),
@@ -131,27 +129,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, user }) {
-      // On initial sign-in, persist user id and OAuth tokens
+      // On initial sign-in, persist user id
       if (user) {
         token.userId = user.id;
       }
 
       if (account) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.expiresAt = account.expires_at;
         token.provider = account.provider;
+        // Don't store Google OAuth login tokens in the JWT — login no
+        // longer requests the analytics scope.  Analytics tokens are
+        // loaded from the Account table below so that login and
+        // analytics connection are fully decoupled.
       }
 
-      // For credential users who linked a Google account, load tokens from DB
+      // Load Google Analytics tokens from the Account table.
+      // Only load when a refresh_token is present — that indicates the
+      // user completed the analytics connection flow (not just login).
       if (!token.accessToken && token.userId) {
         try {
           const googleAccount = await prisma.account.findFirst({
             where: { userId: token.userId as string, provider: "google" },
+            select: { access_token: true, refresh_token: true, expires_at: true },
           });
-          if (googleAccount?.access_token) {
+          if (googleAccount?.access_token && googleAccount.refresh_token) {
             token.accessToken = googleAccount.access_token;
-            token.refreshToken = googleAccount.refresh_token ?? undefined;
+            token.refreshToken = googleAccount.refresh_token;
             token.expiresAt = googleAccount.expires_at ?? undefined;
           }
         } catch (err) {

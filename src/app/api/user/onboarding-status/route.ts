@@ -20,14 +20,14 @@ export async function GET() {
     }),
     prisma.account.findFirst({
       where: { userId, provider: "google" },
-      select: { id: true },
+      select: { id: true, refresh_token: true },
     }),
     hasActiveSubscription(userId),
   ]);
 
   return NextResponse.json({
     gaConnected: user?.gaConnected ?? false,
-    hasGoogleAccount: !!googleAccount,
+    hasGoogleAccount: !!googleAccount?.refresh_token,
     hasSubscription,
   });
 }
