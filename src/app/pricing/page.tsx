@@ -106,7 +106,7 @@ export default function PricingPage() {
               color: "var(--accent)",
             }}
           >
-            Simple pricing
+            Launch Offer
           </div>
 
           <h1
@@ -146,7 +146,7 @@ export default function PricingPage() {
                   className="text-4xl font-bold"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  R299
+                  R99
                 </span>
                 <span
                   className="text-sm"
@@ -159,10 +159,9 @@ export default function PricingPage() {
               <ul className="mb-8 flex flex-col gap-3">
                 {[
                   "Unlimited AI-powered queries",
-                  "All GA4 properties",
-                  "Real-time analytics",
+                  "Unlimited GA4 properties",
                   "AI recommendations",
-                  "Chat history",
+                  "Custom email alerts",
                   "Priority support",
                 ].map((feature) => (
                   <li key={feature} className="flex items-center gap-3">
@@ -219,6 +218,13 @@ export default function PricingPage() {
               </p>
             </div>
           </div>
+
+          <p
+            className="mt-6 text-sm"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Offer valid until 30 April 2026.
+          </p>
         </div>
       </section>
     </div>
