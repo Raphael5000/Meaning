@@ -23,7 +23,10 @@ Important rules:
 - Return ONLY clean HTML with inline styles. No markdown, no code fences, no explanation outside the HTML.
 - Format large numbers with commas.
 - Keep the report concise and scannable — this goes in an email body.
-- Use the tools to fetch real data before writing the report.`;
+- Use the tools to fetch real data before writing the report.
+- Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
+- Use <h3> for section headings. Do NOT use <h1> or <h2>.
+- Follow the detailed styling rules in the user prompt exactly.`;
 
 /**
  * Generate alert email content by running the prompt against the user's GA4 property.

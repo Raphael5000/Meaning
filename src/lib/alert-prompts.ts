@@ -13,6 +13,36 @@ export interface AlertTypeDefinition {
   prompt: string;
 }
 
+/**
+ * Shared HTML email styling rules — single source of truth for every
+ * report type (system and custom). These rules are appended to every
+ * prompt so the generated email always has a consistent look and feel.
+ */
+const EMAIL_STYLE_RULES = `Format your response as clean HTML suitable for an email body. Follow these styling rules exactly:
+
+Structure:
+- Start with a short 1-2 sentence overview paragraph summarising the key takeaway from the data.
+- Use <h3> tags for section headings (e.g. "Traffic Overview", "Observations", "Recommendations"). Do NOT use <h1> or <h2> — those are reserved for the email wrapper.
+- Present data in tables where appropriate.
+- After the data, include an "Observations" section with bullet points (<ul>) highlighting notable patterns, changes, or anomalies.
+- End with a "Recommendations" section with bullet points (<ul>) of actionable next steps based on the data.
+
+Styling (inline styles only, no CSS classes):
+- Font: font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+- Text color: #1a1a1a for body text, #666 for secondary/muted text.
+- Section headings (<h3>): color: #1a1a1a; font-size: 16px; font-weight: 600; margin: 24px 0 8px 0;
+- Paragraphs: font-size: 15px; line-height: 1.6; color: #333;
+- Tables: width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;
+- Table header row: background: #f8f9fa;
+- Table header cells (<th>): text-align: left; padding: 10px 12px; border: 1px solid #e5e7eb; font-weight: 600; color: #1a1a1a;
+- Table body cells (<td>): padding: 10px 12px; border: 1px solid #e5e7eb;
+- Right-align numeric columns with text-align: right on both <th> and <td>.
+- Percentage changes: green (#16a34a) for positive, red (#dc2626) for negative.
+- Bullet lists (<ul>): padding-left: 20px; margin: 8px 0; and <li>: font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 6px;
+- Format large numbers with commas (e.g. 1,234).
+
+Do NOT include any markdown formatting, code fences, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`;
+
 export const ALERT_TYPES: Record<string, AlertTypeDefinition> = {
   weekly_snapshot: {
     key: "weekly_snapshot",
@@ -26,18 +56,9 @@ Include:
 - Top 5 pages by page views for this week
 - Sources of traffic (channels breakdown) for this week
 
-Then provide 2-3 actionable recommendations based on the data.
-
 Use the run_report tool to fetch the data. For "this week" use the last 7 days, and for "last week" use the 7 days before that.
 
-Format your response as clean HTML suitable for an email body. Use inline styles only (no classes). Use a clean, professional style with:
-- A readable font stack (system fonts)
-- Subtle colors (#1a1a1a for text, #666 for secondary text, #f8f9fa for table header backgrounds)
-- Simple bordered tables for data
-- Percentage changes shown in green (#16a34a) for positive and red (#dc2626) for negative
-- Recommendations as a numbered list
-
-Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`,
+${EMAIL_STYLE_RULES}`,
   },
 
   traffic_report: {
@@ -53,18 +74,9 @@ Include:
 - Top 5 traffic sources (source/medium) by sessions
 - Day-over-day trend for the period (a brief note on which days performed best)
 
-Then provide 2-3 recommendations on how to improve traffic.
-
 Use the run_report tool to fetch the data. Use the last 7 days for a weekly report, last 1 day for daily, or last 30 days for monthly.
 
-Format your response as clean HTML suitable for an email body. Use inline styles only (no classes). Use a clean, professional style with:
-- A readable font stack (system fonts)
-- Subtle colors (#1a1a1a for text, #666 for secondary text, #f8f9fa for table header backgrounds)
-- Simple bordered tables for data
-- Percentage changes shown in green (#16a34a) for positive and red (#dc2626) for negative
-- Recommendations as a numbered list
-
-Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`,
+${EMAIL_STYLE_RULES}`,
   },
 
   top_pages: {
@@ -79,18 +91,9 @@ Include:
 - A brief summary of which content is performing best and any notable changes
 - Any pages that saw significant increases or decreases compared to the previous period
 
-Then provide 2-3 content recommendations based on the data.
-
 Use the run_report tool to fetch the data. Use the last 7 days for a weekly report, last 1 day for daily, or last 30 days for monthly. Run a second report for the previous period for comparison.
 
-Format your response as clean HTML suitable for an email body. Use inline styles only (no classes). Use a clean, professional style with:
-- A readable font stack (system fonts)
-- Subtle colors (#1a1a1a for text, #666 for secondary text, #f8f9fa for table header backgrounds)
-- Simple bordered tables for data
-- Percentage changes shown in green (#16a34a) for positive and red (#dc2626) for negative
-- Recommendations as a numbered list
-
-Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`,
+${EMAIL_STYLE_RULES}`,
   },
 
   custom: {
@@ -124,13 +127,7 @@ ${userPrompt}
 
 Use the run_report tool (and run_realtime_report or get_metadata if useful) to fetch the relevant data from Google Analytics, then write a clear, professional report that answers the user's request.
 
-Format your response as clean HTML suitable for an email body. Use inline styles only (no classes). Use a clean, professional style with:
-- A readable font stack (system fonts)
-- Subtle colors (#1a1a1a for text, #666 for secondary text, #f8f9fa for table header backgrounds)
-- Simple bordered tables for data where appropriate
-- Percentage changes shown in green (#16a34a) for positive and red (#dc2626) for negative
-- Recommendations or insights as a numbered list when applicable
-- Use clear section headings, short paragraphs, and good spacing for scannability
+Follow the user's request for what data and insights to include, but always use the structure and styling below.
 
-Do NOT include any markdown formatting, scorecard blocks, suggested questions, or [[rec]] blocks. Return ONLY clean HTML.`;
+${EMAIL_STYLE_RULES}`;
 }
