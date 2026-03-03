@@ -335,7 +335,7 @@ export default async function ArticlePage({
             <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
               Terms
             </Link>
-            <span>Copyright &copy; 2026 - All rights reserved | A product by Hivory</span>
+            <span>Copyright &copy; 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
           </div>
         </div>
       </footer>

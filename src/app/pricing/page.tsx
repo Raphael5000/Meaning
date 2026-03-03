@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 
 export default function PricingPage() {
@@ -123,99 +124,188 @@ export default function PricingPage() {
             get AI-powered insights, and make data-driven decisions.
           </p>
 
-          {/* Pricing card */}
-          <div
-            className="relative mx-auto max-w-sm overflow-hidden rounded-2xl p-8 text-left"
-            style={{
-              background:
-                "var(--card-bg)",
-              border: "1px solid rgba(16, 163, 127, 0.4)",
-              boxShadow: "var(--shadow-card)",
-            }}
-          >
-            <div className="card-noise" aria-hidden />
-            <div className="relative z-10">
-              <p
-                className="mb-1 text-sm font-medium"
-                style={{ color: "var(--accent)" }}
-              >
-                Monthly
-              </p>
-              <div className="mb-6 flex items-baseline gap-1">
-                <span
-                  className="text-4xl font-bold"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  R99
-                </span>
-                <span
-                  className="text-sm"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  /month
-                </span>
-              </div>
-
-              <ul className="mb-8 flex flex-col gap-3">
-                {[
-                  "Unlimited AI-powered queries",
-                  "Unlimited GA4 properties",
-                  "AI recommendations",
-                  "Custom email alerts",
-                  "Priority support",
-                ].map((feature) => (
-                  <li key={feature} className="flex items-center gap-3">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ color: "var(--accent)", flexShrink: 0 }}
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <span
-                      className="text-sm"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              {error && (
+          {/* Pricing cards */}
+          <div className="mx-auto flex max-w-3xl flex-col items-stretch gap-6 md:flex-row">
+            {/* Individual card */}
+            <div
+              className="relative flex-1 overflow-hidden rounded-2xl p-8 text-left md:min-h-[520px]"
+              style={{
+                background: "var(--card-bg)",
+                border: "1px solid var(--border-color)",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10 flex h-full flex-col">
                 <p
-                  className="mb-4 text-sm"
-                  style={{ color: "var(--error)" }}
+                  className="mb-1 text-sm font-medium"
+                  style={{ color: "var(--accent)" }}
                 >
-                  {error}
+                  Individual
                 </p>
-              )}
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span
+                    className="text-4xl font-bold"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    R99
+                  </span>
+                  <span
+                    className="text-sm"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    /month
+                  </span>
+                </div>
 
-              <button
-                onClick={handleSubscribe}
-                disabled={loading}
-                className="btn-primary-gradient w-full font-semibold"
-                style={{ boxShadow: "var(--shadow-button)" }}
-              >
-                {loading
-                  ? "Opening checkout..."
-                  : session
-                    ? "Subscribe now"
-                    : "Get started"}
-              </button>
+                <ul className="mb-8 flex flex-col gap-3">
+                  {[
+                    "Unlimited AI-powered queries",
+                    "Unlimited GA4 properties",
+                    "AI recommendations",
+                    "Custom email alerts",
+                    "Priority support",
+                  ].map((feature) => (
+                    <li key={feature} className="flex items-center gap-3">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ color: "var(--accent)", flexShrink: 0 }}
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span
+                        className="text-sm"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
 
-              <p
-                className="mt-3 text-center text-xs"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Cancel anytime. Powered by Paystack.
-              </p>
+                {error && (
+                  <p
+                    className="mb-4 text-sm"
+                    style={{ color: "var(--error)" }}
+                  >
+                    {error}
+                  </p>
+                )}
+
+                <div className="mt-auto">
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={loading}
+                    className="btn-primary-gradient w-full font-semibold"
+                    style={{ boxShadow: "var(--shadow-button)" }}
+                  >
+                    {loading
+                      ? "Opening checkout..."
+                      : session
+                        ? "Subscribe now"
+                        : "Get started"}
+                  </button>
+
+                  <p
+                    className="mt-3 text-center text-xs"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Cancel anytime. Powered by Paystack.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Teams card */}
+            <div
+              className="relative flex-1 overflow-hidden rounded-2xl p-8 text-left md:min-h-[520px]"
+              style={{
+                background: "var(--card-bg)",
+                border: "1px solid var(--border-color)",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              <div className="card-noise" aria-hidden />
+              <div className="relative z-10 flex h-full flex-col">
+                <p
+                  className="mb-1 text-sm font-medium"
+                  style={{ color: "var(--accent)" }}
+                >
+                  Teams
+                </p>
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span
+                    className="text-4xl font-bold"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    R1,000
+                  </span>
+                  <span
+                    className="text-sm"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    /month
+                  </span>
+                </div>
+
+                <ul className="mb-8 flex flex-col gap-3">
+                  {[
+                    "Up to 5 users",
+                    "Unlimited AI-powered queries",
+                    "Unlimited GA4 properties",
+                    "AI recommendations",
+                    "Custom email alerts",
+                    "Priority support",
+                    "User management",
+                    "Teams & Slack integration",
+                  ].map((feature) => (
+                    <li key={feature} className="flex items-center gap-3">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ color: "var(--accent)", flexShrink: 0 }}
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span
+                        className="text-sm"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-auto">
+                  <Link
+                    href="/contact"
+                    className="btn-primary-gradient block w-full text-center font-semibold"
+                    style={{ boxShadow: "var(--shadow-button)" }}
+                  >
+                    Contact us
+                  </Link>
+                  <p
+                    className="mt-3 text-center text-xs"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Limited time offer.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

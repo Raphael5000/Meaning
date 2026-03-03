@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Docs" },
+  { href: "/contact", label: "Contact" },
 ];
 
 function isActive(pathname: string | null, href: string) {
