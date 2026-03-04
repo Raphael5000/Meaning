@@ -24,7 +24,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Paystack
-  paystackCustomerCode String?
+  paystackCustomerCode        String?
+  paystackAuthorizationCode   String?
 
   // Relations
   accounts     Account[]

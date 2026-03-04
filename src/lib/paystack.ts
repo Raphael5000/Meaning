@@ -129,19 +129,35 @@ export async function fetchSubscription(
   );
 }
 
-export async function updateSubscriptionQuantity(
-  subscriptionCode: string,
-  quantity: number
-): Promise<void> {
-  // Paystack uses amount on the subscription to handle seat-based billing.
-  // We update the subscription amount = quantity × plan unit price (19900 kobo = R199).
-  const SEAT_PRICE_KOBO = 19900;
-  const newAmount = quantity * SEAT_PRICE_KOBO;
+interface PaystackChargeResponse {
+  status: boolean;
+  message: string;
+  data: {
+    id: number;
+    reference: string;
+    amount: number;
+    currency: string;
+    status: string;
+  };
+}
 
-  await paystackRequest(`/subscription/${encodeURIComponent(subscriptionCode)}`, {
-    method: "PUT",
-    body: JSON.stringify({ amount: newAmount, quantity }),
-  });
+export async function chargeAuthorization(params: {
+  authorization_code: string;
+  email: string;
+  amount: number; // in kobo
+  reference?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<PaystackChargeResponse> {
+  return paystackRequest<PaystackChargeResponse>(
+    "/transaction/charge_authorization",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...params,
+        currency: "ZAR",
+      }),
+    }
+  );
 }
 
 export function verifyWebhookSignature(

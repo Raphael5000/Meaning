@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhookSignature } from "@/lib/paystack";
+import { verifyWebhookSignature, chargeAuthorization } from "@/lib/paystack";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,15 @@ async function handleChargeSuccess(data: any) {
   }
   if (!user) return;
 
+  // Keep authorization_code fresh (card may change)
+  const authCode = data.authorization?.authorization_code;
+  if (authCode) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { paystackAuthorizationCode: authCode },
+    });
+  }
+
   // Record the payment
   const existing = await prisma.payment.findUnique({
     where: { paystackReference: data.reference },
@@ -104,7 +114,7 @@ async function handleChargeSuccess(data: any) {
   const periodEnd = new Date(now);
   periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-  await prisma.subscription.upsert({
+  const subscription = await prisma.subscription.upsert({
     where: { userId: user.id },
     create: {
       userId: user.id,
@@ -119,6 +129,44 @@ async function handleChargeSuccess(data: any) {
       currentPeriodEnd: periodEnd,
     },
   });
+
+  // Charge extra seats (seat 1 is covered by the Paystack plan subscription)
+  if (
+    subscription.seatCount > 1 &&
+    authCode &&
+    !data.metadata?.type // skip if this charge is itself a seat charge
+  ) {
+    const SEAT_PRICE_KOBO = 19900;
+    const extraAmount = (subscription.seatCount - 1) * SEAT_PRICE_KOBO;
+    const seatRef = `seat_${data.reference}_${crypto.randomUUID().slice(0, 8)}`;
+
+    try {
+      await chargeAuthorization({
+        authorization_code: authCode,
+        email: user.email,
+        amount: extraAmount,
+        reference: seatRef,
+        metadata: {
+          type: "seat_charge",
+          seatCount: subscription.seatCount,
+          baseReference: data.reference,
+        },
+      });
+
+      await prisma.payment.create({
+        data: {
+          userId: user.id,
+          amount: extraAmount,
+          currency: "ZAR",
+          status: "success",
+          paystackReference: seatRef,
+          description: `Extra seats (${subscription.seatCount - 1})`,
+        },
+      });
+    } catch (err) {
+      console.error("[webhook] Extra seat charge failed:", err);
+    }
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

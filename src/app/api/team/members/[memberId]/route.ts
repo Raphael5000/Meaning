@@ -60,5 +60,15 @@ export async function DELETE(
 
   await prisma.teamMembership.delete({ where: { id: memberId } });
 
+  // Decrement seat count so next renewal charges fewer seats
+  try {
+    await prisma.subscription.updateMany({
+      where: { userId: membership.team.ownerId, seatCount: { gt: 1 } },
+      data: { seatCount: { decrement: 1 } },
+    });
+  } catch (err) {
+    console.error("[members] Failed to decrement seat count:", err);
+  }
+
   return NextResponse.json({ success: true });
 }

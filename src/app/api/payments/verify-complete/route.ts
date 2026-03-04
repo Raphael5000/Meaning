@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         where: { id: payment.userId },
         data: {
           paystackCustomerCode: txData.customer.customer_code,
+          paystackAuthorizationCode: txData.authorization.authorization_code,
         },
       });
 
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
           userId: payment.userId,
           status: "active",
           plan: "monthly",
+          seatCount: 1,
           currentPeriodStart: now,
           currentPeriodEnd: periodEnd,
         },

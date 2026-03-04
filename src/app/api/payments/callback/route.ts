@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
         where: { id: payment.userId },
         data: {
           paystackCustomerCode: txData.customer.customer_code,
+          paystackAuthorizationCode: txData.authorization.authorization_code,
         },
       });
 
