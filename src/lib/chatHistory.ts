@@ -8,6 +8,8 @@ export interface Message {
   scorecardRevealed?: boolean;
   /** Suggested follow-up questions (assistant messages only) */
   suggestedQuestions?: string[];
+  /** ECharts option JSON for inline charts (assistant messages only) */
+  chart?: Record<string, unknown>;
 }
 
 export interface StoredChat {
@@ -47,6 +49,7 @@ interface DbChat {
     scorecard: { value: string; label: string; change?: string } | null;
     scorecardRevealed: boolean;
     suggestedQuestions: string[] | null;
+    chart: Record<string, unknown> | null;
     sortOrder: number;
   }[];
 }
@@ -66,6 +69,7 @@ function toStoredChat(db: DbChat): StoredChat {
       scorecard: m.scorecard ?? undefined,
       scorecardRevealed: m.scorecardRevealed || undefined,
       suggestedQuestions: m.suggestedQuestions ?? undefined,
+      chart: m.chart ?? undefined,
     })),
   };
 }
@@ -79,6 +83,7 @@ function messagesToPayload(messages: Message[]) {
     scorecard: m.scorecard ?? null,
     scorecardRevealed: m.scorecardRevealed ?? false,
     suggestedQuestions: m.suggestedQuestions,
+    chart: m.chart ?? null,
   }));
 }
 

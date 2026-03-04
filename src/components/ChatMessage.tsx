@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import ChartRenderer from "./ChartRenderer";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -13,6 +14,8 @@ interface ChatMessageProps {
   onSuggestedQuestionClick?: (question: string) => void;
   /** Called once when the typewriter finishes (so parent can persist and avoid re-streaming) */
   onTypewriterComplete?: () => void;
+  /** ECharts option JSON for inline charts */
+  chart?: Record<string, unknown>;
 }
 
 const TYPEWRITER_WORD_DELAY_MS = 25;
@@ -26,6 +29,7 @@ export default function ChatMessage({
   suggestedQuestions,
   onSuggestedQuestionClick,
   onTypewriterComplete,
+  chart,
 }: ChatMessageProps) {
   const isUser = role === "user";
   const shouldStream =
@@ -120,6 +124,17 @@ export default function ChatMessage({
                   {scorecard.label}
                 </span>
               </div>
+            </div>
+          )}
+          {role === "assistant" && chart && (
+            <div
+              className="mb-3 overflow-hidden rounded-2xl border p-4"
+              style={{
+                borderColor: "var(--border-color)",
+                background: "var(--bg-secondary)",
+              }}
+            >
+              <ChartRenderer option={chart} />
             </div>
           )}
           <div

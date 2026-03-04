@@ -18,6 +18,9 @@ const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
 const SCORECARD_REGEX =
   /\[\[scorecard\]\]([^|[\]]+)\|([^|]*?)(?:\|([+-][^|[\]]*))?\[\[\/scorecard\]\]\s*\n?/i;
 
+/** Regex to match chart block: [[chart]]{ ... }[[/chart]] */
+const CHART_REGEX = /\[\[chart\]\]([\s\S]*?)\[\[\/chart\]\]/i;
+
 function parseScorecard(text: string): {
   value: string;
   label: string;
@@ -52,6 +55,20 @@ function parseSuggestedQuestions(text: string): string[] | null {
 
 function stripSuggestedQuestionsBlock(text: string): string {
   return text.replace(SUGGESTED_QUESTIONS_REGEX, "").trim();
+}
+
+function parseChart(text: string): Record<string, unknown> | null {
+  const match = text.match(CHART_REGEX);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1].trim()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function stripChartBlock(text: string): string {
+  return text.replace(CHART_REGEX, "").trim();
 }
 
 interface ChatMessage {
@@ -90,6 +107,17 @@ Tips:
 - When the user asks for a comparison (e.g. week-over-week, month-over-month, vs previous period), include an optional CHANGE in the scorecard: [[scorecard]]VALUE|LABEL|+CHANGE[[/scorecard]] for a positive change (e.g. +1,234 or +12%) or [[scorecard]]VALUE|LABEL|-CHANGE[[/scorecard]] for negative (e.g. -500 or -5%). The CHANGE will appear below the main number with a green up arrow (positive) or red down arrow (negative). Example: [[scorecard]]12,847|Users this week|+1,234[[/scorecard]]
 
 Then your full answer with context and interpretation.
+
+When the user asks for a chart, graph, or visualisation (e.g. "show me a line chart of daily users", "chart my top pages"):
+1. Fetch the data using the GA4 tools.
+2. Build an Apache ECharts option JSON that visualises the data.
+3. Output it in a [[chart]]...[[/chart]] block. The JSON must be valid — no JS, no comments, no trailing commas.
+4. Do NOT set "backgroundColor" or text colours — the app themes them automatically.
+5. Include "title.text" with a short descriptive title.
+6. Prefer clean chart types: line for trends, bar for comparisons, pie for proportions.
+7. Use "tooltip.trigger" appropriate to the chart type ("axis" for line/bar, "item" for pie).
+8. Format dates as readable labels (e.g. "Mar 1").
+9. After the [[chart]] block, add a brief 1-2 sentence explanation.
 
 At the end of every response, append a JSON block with 3-4 suggested follow-up questions the user might ask next. Format it exactly as:
 \`\`\`json
@@ -279,6 +307,12 @@ export async function POST(request: NextRequest) {
       rawMessage = stripScorecardBlock(rawMessage);
     }
 
+    // Parse chart block
+    const chart = parseChart(rawMessage);
+    if (chart) {
+      rawMessage = stripChartBlock(rawMessage);
+    }
+
     // Parse suggested follow-up questions from JSON block at end
     const suggestedQuestions = parseSuggestedQuestions(rawMessage);
     if (suggestedQuestions) {
@@ -288,6 +322,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: rawMessage.trim(),
       scorecard: scorecard ?? undefined,
+      chart: chart ?? undefined,
       suggestedQuestions: suggestedQuestions ?? undefined,
     });
   } catch (error: unknown) {

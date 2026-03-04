@@ -264,6 +264,7 @@ export default function Chat() {
         role: "assistant",
         content: data.message,
         scorecard: data.scorecard,
+        chart: data.chart,
         suggestedQuestions: data.suggestedQuestions,
       };
 
@@ -580,6 +581,7 @@ export default function Chat() {
                       content={msg.content}
                       scorecard={msg.scorecard}
                       scorecardRevealed={msg.scorecardRevealed}
+                      chart={msg.chart}
                       suggestedQuestions={
                         messages[messages.length - 1]?.id === msg.id
                           ? msg.suggestedQuestions

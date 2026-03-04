@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
       scorecard?: { value: string; label: string; change?: string } | null;
       scorecardRevealed?: boolean;
       suggestedQuestions?: string[];
+      chart?: Record<string, unknown> | null;
     }[];
   };
 
@@ -67,6 +69,7 @@ export async function POST(request: NextRequest) {
             scorecard: m.scorecard ?? undefined,
             scorecardRevealed: m.scorecardRevealed ?? false,
             suggestedQuestions: m.suggestedQuestions ?? undefined,
+            chart: (m.chart ?? undefined) as Prisma.InputJsonValue | undefined,
             sortOrder: i,
           })),
         },
