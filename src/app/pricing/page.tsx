@@ -5,6 +5,12 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Navbar } from "@/components/Navbar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function PricingPage() {
   const { data: session } = useSession();
@@ -136,6 +142,36 @@ export default function PricingPage() {
               }}
             >
               <div className="card-noise" aria-hidden />
+              {/* Why R? pill — top-right corner */}
+              <div className="absolute top-4 right-4 z-20">
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex cursor-default items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-none"
+                        style={{
+                          background: "rgba(16, 163, 127, 0.1)",
+                          border: "1px solid rgba(16, 163, 127, 0.25)",
+                          color: "var(--accent)",
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                        Why R?
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-[220px] text-center text-xs leading-relaxed"
+                    >
+                      R is South African Rand (ZAR). R199 is roughly $11 USD.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <div className="relative z-10 flex flex-col">
                 <p
                   className="mb-1 text-sm font-medium"
@@ -224,7 +260,7 @@ export default function PricingPage() {
                     className="mt-3 text-center text-xs"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Cancel anytime. Powered by Paystack.
+                    Cancel anytime. Powered by Paystack, a Stripe company.
                   </p>
                 </div>
               </div>
