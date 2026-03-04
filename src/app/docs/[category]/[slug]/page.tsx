@@ -7,10 +7,8 @@ import { ArticlePageNav } from "./ArticlePageNav";
 import { TableOfContents } from "@/components/TableOfContents";
 import { getArticleData } from "@/lib/mdx";
 
-/** Pre-render every known doc page at build time so visitors get instant loads. */
-export function generateStaticParams() {
-  return articles.map((a) => ({ category: a.category, slug: a.slug }));
-}
+// Render docs on demand (CC's npm environment breaks React during static prerendering)
+export const dynamic = "force-dynamic";
 
 function TypeBadge({ type }: { type: Article["type"] }) {
   const config = {
