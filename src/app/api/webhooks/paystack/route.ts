@@ -136,7 +136,7 @@ async function handleChargeSuccess(data: any) {
     authCode &&
     !data.metadata?.type // skip if this charge is itself a seat charge
   ) {
-    const SEAT_PRICE_KOBO = 19900;
+    const SEAT_PRICE_KOBO = 9900;
     const extraAmount = (subscription.seatCount - 1) * SEAT_PRICE_KOBO;
     const seatRef = `seat_${data.reference}_${crypto.randomUUID().slice(0, 8)}`;
 

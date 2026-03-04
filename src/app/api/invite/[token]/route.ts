@@ -143,7 +143,7 @@ export async function POST(
       const now = Date.now();
       const periodEnd = subscription.currentPeriodEnd.getTime();
       const remainingDays = Math.max(0, Math.ceil((periodEnd - now) / 86_400_000));
-      const SEAT_PRICE_KOBO = 19900;
+      const SEAT_PRICE_KOBO = 9900;
       const proratedAmount = Math.ceil((remainingDays / 30) * SEAT_PRICE_KOBO);
 
       if (proratedAmount > 0 && admin?.paystackAuthorizationCode) {

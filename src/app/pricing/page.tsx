@@ -167,7 +167,7 @@ export default function PricingPage() {
                       side="top"
                       className="max-w-[220px] text-center text-xs leading-relaxed"
                     >
-                      R is South African Rand (ZAR). R199 is roughly $11 USD.
+                      R is South African Rand (ZAR). R99 is roughly $5.50 USD.
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -184,7 +184,7 @@ export default function PricingPage() {
                     className="text-4xl font-bold"
                     style={{ color: "var(--text-primary)" }}
                   >
-                    R199
+                    R99
                   </span>
                   <span
                     className="text-sm"
@@ -197,7 +197,7 @@ export default function PricingPage() {
                   className="mb-6 text-sm"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  per seat &middot; add team members at R199/seat
+                  per seat &middot; add team members at R99/seat
                 </p>
 
                 <ul className="mb-8 flex flex-col gap-3">
@@ -206,7 +206,7 @@ export default function PricingPage() {
                     "Unlimited GA4 properties",
                     "AI recommendations",
                     "Custom email alerts",
-                    "Add team members at R199 per seat",
+                    "Add team members at R99 per seat",
                     "Priority support",
                   ].map((feature) => (
                     <li key={feature} className="flex items-center gap-3">
