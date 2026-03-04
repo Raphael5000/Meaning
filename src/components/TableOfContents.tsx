@@ -32,9 +32,15 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
     };
 
     updateActiveId();
+    // Listen on document with capture to catch scroll events from any
+    // scrolling container (body, html, or nested elements).
     window.addEventListener("scroll", updateActiveId, { passive: true });
+    document.addEventListener("scroll", updateActiveId, { passive: true, capture: true });
 
-    return () => window.removeEventListener("scroll", updateActiveId);
+    return () => {
+      window.removeEventListener("scroll", updateActiveId);
+      document.removeEventListener("scroll", updateActiveId, { capture: true });
+    };
   }, [headings]);
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
