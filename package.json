@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack -p 3001",
     "build": "echo 'Build starting...' && prisma generate && prisma db push --accept-data-loss && next build --webpack && echo 'Build finished OK'",
-    "postinstall": "prisma generate",
+    "postinstall": "npm run build",
     "start": "node server.js",
     "lint": "next lint"
   },
