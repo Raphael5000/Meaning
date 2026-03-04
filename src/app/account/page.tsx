@@ -20,6 +20,11 @@ interface UserProfile {
     currentPeriodEnd: string;
     cancelAtPeriodEnd: boolean;
   } | null;
+  teamMembership: {
+    role: string;
+    teamName: string;
+    adminName: string;
+  } | null;
 }
 
 interface PaymentRecord {
@@ -572,7 +577,25 @@ function AccountContent() {
                   Subscription
                 </h2>
 
-                {profile.subscription ? (
+                {profile.teamMembership ? (
+                  <div className="py-8 text-center">
+                    <p
+                      className="text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Your account is managed by{" "}
+                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                        {profile.teamMembership.adminName}
+                      </span>
+                    </p>
+                    <p
+                      className="mt-1 text-xs"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Team: {profile.teamMembership.teamName}
+                    </p>
+                  </div>
+                ) : profile.subscription ? (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-3">
                       <span
@@ -772,10 +795,28 @@ function AccountContent() {
                   className="mb-6 text-lg font-semibold"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Invoices
+                  {profile.teamMembership ? "Billing" : "Invoices"}
                 </h2>
 
-                {payments.length > 0 ? (
+                {profile.teamMembership ? (
+                  <div className="py-8 text-center">
+                    <p
+                      className="text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Your account is managed by{" "}
+                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                        {profile.teamMembership.adminName}
+                      </span>
+                    </p>
+                    <p
+                      className="mt-1 text-xs"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Contact your team admin for billing inquiries.
+                    </p>
+                  </div>
+                ) : payments.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>

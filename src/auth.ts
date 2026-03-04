@@ -142,13 +142,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // analytics connection are fully decoupled.
       }
 
+      // Detect team membership for this user
+      if (token.userId && !token.teamId) {
+        try {
+          const membership = await prisma.teamMembership.findFirst({
+            where: { userId: token.userId as string },
+            select: { teamId: true, role: true, team: { select: { ownerId: true } } },
+          });
+          if (membership) {
+            token.teamId = membership.teamId;
+            token.teamRole = membership.role;
+            token.teamAdminId = membership.team.ownerId;
+          }
+        } catch (err) {
+          console.error("[auth] Team membership lookup failed:", err);
+        }
+      }
+
       // Load Google Analytics tokens from the Account table.
+      // For team members, load the admin's Google tokens instead.
       // Only load when a refresh_token is present — that indicates the
       // user completed the analytics connection flow (not just login).
-      if (!token.accessToken && token.userId) {
+      const tokenOwnerId = token.teamAdminId || (token.userId as string);
+      if (!token.accessToken && tokenOwnerId) {
         try {
           const googleAccount = await prisma.account.findFirst({
-            where: { userId: token.userId as string, provider: "google" },
+            where: { userId: tokenOwnerId, provider: "google" },
             select: { access_token: true, refresh_token: true, expires_at: true },
           });
           if (googleAccount?.access_token && googleAccount.refresh_token) {
@@ -226,6 +245,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       (session as any).userId = token.userId;
       (session as any).accessToken = token.accessToken;
       (session as any).error = token.error;
+      (session as any).teamId = token.teamId;
+      (session as any).teamRole = token.teamRole;
+      (session as any).teamAdminId = token.teamAdminId;
       return session;
     },
   },

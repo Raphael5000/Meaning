@@ -6,6 +6,9 @@ declare module "next-auth" {
     userId?: string;
     accessToken?: string;
     error?: string;
+    teamId?: string;
+    teamRole?: string;
+    teamAdminId?: string;
   }
 }
 
@@ -17,5 +20,8 @@ declare module "next-auth/jwt" {
     expiresAt?: number;
     provider?: string;
     error?: string;
+    teamId?: string;
+    teamRole?: string;
+    teamAdminId?: string;
   }
 }

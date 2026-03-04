@@ -13,6 +13,24 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Check if user is a team member — they skip subscription/GA onboarding
+  const membership = await prisma.teamMembership.findFirst({
+    where: { userId },
+    select: { team: { select: { ownerId: true } } },
+  });
+
+  if (membership) {
+    // Team members use the admin's subscription and GA connection
+    const adminId = membership.team.ownerId;
+    const adminSubscription = await hasActiveSubscription(adminId);
+
+    return NextResponse.json({
+      gaConnected: true, // team members use admin's GA token
+      hasGoogleAccount: true,
+      hasSubscription: adminSubscription,
+    });
+  }
+
   const [user, googleAccount, hasSubscription] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },

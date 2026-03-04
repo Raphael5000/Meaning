@@ -33,6 +33,8 @@ model User {
   payments     Payment[]
   chats        Chat[]
   emailAlerts  EmailAlert[]
+  teamOwned    Team?            @relation("TeamOwner")
+  memberships  TeamMembership[]
 }
 
 model Account {
@@ -79,8 +81,9 @@ model Subscription {
   id     String @id @default(cuid())
   userId String @unique
 
-  status String @default("active") // active | cancelled | past_due | trialing
-  plan   String @default("monthly") // monthly
+  status    String @default("active") // active | cancelled | past_due | trialing
+  plan      String @default("monthly") // monthly
+  seatCount Int    @default(1)
 
   paystackSubscriptionCode String?
   paystackEmailToken       String?
@@ -179,4 +182,47 @@ model Payment {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ──────────────────────────────────────────────
+// Team Management
+// ──────────────────────────────────────────────
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String   @unique
+  owner     User     @relation("TeamOwner", fields: [ownerId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships TeamMembership[]
+  invites     TeamInvite[]
+}
+
+model TeamMembership {
+  id         String   @id @default(cuid())
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String   @default("member") // "admin" | "member"
+  properties String[] // GA4 property IDs this member can access
+  createdAt  DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model TeamInvite {
+  id         String    @id @default(cuid())
+  teamId     String
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email      String
+  properties String[]
+  token      String    @unique @default(cuid())
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([teamId, email])
 }

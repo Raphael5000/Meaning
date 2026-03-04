@@ -14,6 +14,7 @@ import {
   SquarePen,
   Trash2,
   User,
+  Users,
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import TypingIndicator from "./TypingIndicator";
 import AlertsModal from "./AlertsModal";
 import BugReportModal from "./BugReportModal";
 import ConnectionsModal from "./ConnectionsModal";
+import TeamModal from "./TeamModal";
 import {
   fetchChats,
   createChat,
@@ -73,6 +75,7 @@ export default function Chat() {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -102,7 +105,9 @@ export default function Chat() {
     fetch("/api/user/profile")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        if (data?.subscription?.status === "active" && data?.subscription?.plan) {
+        if (data?.teamMembership) {
+          setUserPlan("Team");
+        } else if (data?.subscription?.status === "active" && data?.subscription?.plan) {
           const plan = data.subscription.plan;
           setUserPlan(plan.charAt(0).toUpperCase() + plan.slice(1));
         }
@@ -448,6 +453,19 @@ export default function Chat() {
                   <Link2 className="h-4 w-4" />
                   Connections
                 </button>
+                {userPlan !== "Free" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      setTeamOpen(true);
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    <Users className="h-4 w-4" />
+                    Team
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -607,6 +625,7 @@ export default function Chat() {
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
       <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
       <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
+      <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />
     </div>
   );
 }

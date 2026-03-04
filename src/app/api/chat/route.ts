@@ -5,6 +5,7 @@ import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { GA4_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
+import { getAllowedPropertyIds } from "@/lib/team-access";
 
 export const dynamic = "force-dynamic";
 
@@ -99,17 +100,19 @@ Do not include this block in your main answer. Your main answer should end befor
 export async function POST(request: NextRequest) {
   const session = await auth();
   const accessToken = await getGoogleAccessToken(
-    session as { accessToken?: string; userId?: string } | null
+    session as { accessToken?: string; userId?: string; teamAdminId?: string } | null
   );
 
   if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Check subscription
+  // Check subscription — team members use the admin's subscription
   const userId = (session as { userId?: string })?.userId;
-  if (userId) {
-    const active = await hasActiveSubscription(userId);
+  const teamAdminId = (session as { teamAdminId?: string })?.teamAdminId;
+  const subscriptionOwnerId = teamAdminId || userId;
+  if (subscriptionOwnerId) {
+    const active = await hasActiveSubscription(subscriptionOwnerId);
     if (!active) {
       return NextResponse.json(
         { error: "Active subscription required", code: "SUBSCRIPTION_REQUIRED" },
@@ -128,6 +131,17 @@ export async function POST(request: NextRequest) {
       { error: "No GA4 property selected" },
       { status: 400 }
     );
+  }
+
+  // Validate property access for team members
+  if (userId) {
+    const allowed = await getAllowedPropertyIds(userId);
+    if (allowed !== "all" && !allowed.includes(propertyId)) {
+      return NextResponse.json(
+        { error: "You don't have access to this property" },
+        { status: 403 }
+      );
+    }
   }
 
   if (!messages || messages.length === 0) {

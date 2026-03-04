@@ -4,20 +4,31 @@ import { prisma } from "@/lib/prisma";
  * Get the Google access token for a user.
  * Tries the session JWT first (populated from the Account table by
  * the JWT callback), then falls back to a direct DB lookup.
+ * For team members, the JWT already contains the admin's token (set in auth.ts).
  */
 export async function getGoogleAccessToken(
-  session: { accessToken?: string; userId?: string } | null
+  session: { accessToken?: string; userId?: string; teamAdminId?: string } | null
 ): Promise<string | null> {
-  // Fast path: token already in JWT (Google OAuth sign-in users)
+  // Fast path: token already in JWT (Google OAuth sign-in users or team members)
   if (session?.accessToken) {
     return session.accessToken;
   }
 
-  // Fallback: look up from Account table (credentials users who linked Google)
-  const userId = session?.userId;
-  if (!userId) return null;
+  // For team members, use the admin's Google token
+  const tokenOwnerId = session?.teamAdminId || session?.userId;
+  if (!tokenOwnerId) return null;
 
-  return getValidGoogleTokenForUser(userId);
+  return getValidGoogleTokenForUser(tokenOwnerId);
+}
+
+/**
+ * Get the Google access token for a team admin by their userId.
+ * Used when a team member needs to make API calls using the admin's credentials.
+ */
+export async function getGoogleAccessTokenForTeam(
+  adminUserId: string
+): Promise<string | null> {
+  return getValidGoogleTokenForUser(adminUserId);
 }
 
 /**

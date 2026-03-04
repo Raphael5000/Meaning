@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { VALID_DAYS } from "@/lib/schedule";
+import { getAllowedPropertyIds } from "@/lib/team-access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +17,18 @@ export async function GET() {
   }
 
   try {
-    const alerts = await prisma.emailAlert.findMany({
+    let alerts = await prisma.emailAlert.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
+
+    // Filter alerts by allowed properties for team members
+    const allowed = await getAllowedPropertyIds(userId);
+    if (allowed !== "all") {
+      alerts = alerts.filter(
+        (a) => !a.propertyId || allowed.includes(a.propertyId)
+      );
+    }
 
     return NextResponse.json(alerts);
   } catch (err) {
@@ -121,6 +130,17 @@ export async function POST(request: NextRequest) {
       { error: "intervalWeeks must be an integer between 1 and 52" },
       { status: 400 }
     );
+  }
+
+  // Validate property access for team members
+  if (body.propertyId) {
+    const allowed = await getAllowedPropertyIds(userId);
+    if (allowed !== "all" && !allowed.includes(body.propertyId)) {
+      return NextResponse.json(
+        { error: "You don't have access to this property" },
+        { status: 403 }
+      );
+    }
   }
 
   try {

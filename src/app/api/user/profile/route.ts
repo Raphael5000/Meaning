@@ -35,7 +35,30 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json(user);
+  // Check if user is a team member (not an admin)
+  const membership = await prisma.teamMembership.findFirst({
+    where: { userId: session.userId },
+    select: {
+      role: true,
+      team: {
+        select: {
+          name: true,
+          owner: { select: { name: true, email: true } },
+        },
+      },
+    },
+  });
+
+  return NextResponse.json({
+    ...user,
+    teamMembership: membership
+      ? {
+          role: membership.role,
+          teamName: membership.team.name,
+          adminName: membership.team.owner.name || membership.team.owner.email,
+        }
+      : null,
+  });
 }
 
 export async function PUT(req: NextRequest) {

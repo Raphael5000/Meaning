@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
           userId: payment.userId,
           status: "active",
           plan: "monthly",
+          seatCount: 1,
           currentPeriodStart: now,
           currentPeriodEnd: periodEnd,
         },
