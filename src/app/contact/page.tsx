@@ -80,7 +80,7 @@ export default function ContactPage() {
             className="mx-auto mb-12 max-w-md text-lg"
             style={{ color: "var(--text-secondary)" }}
           >
-            Interested in Meaning for teams? Drop us a message and
+            Interested in Meaning for your company? Drop us a message and
             we&apos;ll get back to you.
           </p>
 
