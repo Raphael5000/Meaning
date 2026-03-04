@@ -6,6 +6,8 @@ const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pg'],
   experimental: {
     optimizePackageImports: ['googleapis', '@anthropic-ai/sdk'],
+    // Prevent prerender errors from breaking the build on Code Capsules
+    prerenderEarlyExit: false,
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
