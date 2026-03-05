@@ -4,12 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BarChart3,
+  Bell,
   ChevronsDown,
+  Globe,
   LayoutGrid,
+  LineChart,
   Lock,
+  Mail,
   MessageSquare,
   PieChart,
   Search,
+  Users,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,8 +124,8 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             style={{ color: "var(--text-secondary)", lineHeight: "1.7" }}
           >
             Meaning turns your Google Analytics properties into a conversational
-            interface. Ask questions in plain English and get instant,
-            AI-powered insights.
+            interface. Ask questions in plain English, visualize trends, set up
+            automated alerts, and collaborate with your team.
           </p>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -297,34 +303,433 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
 
             <FadeInSection delay={160}>
               <FeatureCard
-                icon={<PieChart className="h-6 w-6" />}
-                title="Instant Insights"
-                description="AI-powered analysis that surfaces the metrics that matter. Get summaries, trends, and recommendations."
+                icon={<BarChart3 className="h-6 w-6" />}
+                title="Rich Visualizations"
+                description="Get AI-generated charts and graphs. Bar, line, pie, scatter, funnel, treemaps, geographic maps, and more."
               />
             </FadeInSection>
 
             <FadeInSection delay={240}>
               <FeatureCard
-                icon={<LayoutGrid className="h-6 w-6" />}
-                title="GA4 Integration"
-                description="Connects directly to your Google Analytics 4 properties. Switch between multiple properties seamlessly."
+                icon={<Bell className="h-6 w-6" />}
+                title="Automated Email Alerts"
+                description="Schedule weekly snapshots, traffic reports, and custom reports delivered straight to your inbox."
               />
             </FadeInSection>
 
             <FadeInSection delay={320}>
+              <FeatureCard
+                icon={<Users className="h-6 w-6" />}
+                title="Team Collaboration"
+                description="Invite team members, assign roles, and control access to specific analytics properties."
+              />
+            </FadeInSection>
+
+            <FadeInSection delay={400}>
               <FeatureCard
                 icon={<Lock className="h-6 w-6" />}
                 title="Privacy First"
                 description="We only request read-only access to your analytics. Your data is never stored or used for training."
               />
             </FadeInSection>
+          </div>
+        </div>
+      </section>
 
-            <FadeInSection delay={400}>
-              <FeatureCard
-                icon={<MessageSquare className="h-6 w-6" />}
-                title="Conversational Interface"
-                description="Have a natural conversation with your data. Ask follow-ups, dive deeper, and explore your metrics intuitively."
-              />
+      {/* Visualizations Section */}
+      <section className="px-6 py-24 md:px-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <FadeInSection>
+              <div>
+                <div
+                  className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+                  style={{
+                    background: "rgba(16, 163, 127, 0.1)",
+                    border: "1px solid rgba(16, 163, 127, 0.3)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  Visualizations
+                </div>
+                <h2
+                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  See your data,{" "}
+                  <span style={{ color: "var(--accent)" }}>not just read it</span>
+                </h2>
+                <p
+                  className="mb-6 text-lg leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Meaning automatically generates the right chart for your question.
+                  From simple bar charts to geographic heatmaps, every visualization
+                  is tailored to your data.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Bar Charts",
+                    "Line Charts",
+                    "Pie Charts",
+                    "Scatter Plots",
+                    "Funnels",
+                    "Treemaps",
+                    "Heatmaps",
+                    "Geographic Maps",
+                    "Radar Charts",
+                    "Sankey Diagrams",
+                  ].map((type) => (
+                    <span
+                      key={type}
+                      className="rounded-full px-3 py-1 text-xs font-medium"
+                      style={{
+                        background: "var(--bg-tertiary)",
+                        color: "var(--text-secondary)",
+                        border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      {type}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={120}>
+              <div
+                className="overflow-hidden rounded-2xl p-6"
+                style={{
+                  background: "var(--card-bg)",
+                  border: "1px solid var(--border-color)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div className="card-noise" aria-hidden />
+                {/* Mock bar chart visualization */}
+                <div className="relative z-10">
+                  <p
+                    className="mb-4 text-sm font-medium"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Sessions by Channel (Last 30 days)
+                  </p>
+                  <div className="flex items-end gap-3" style={{ height: "180px" }}>
+                    {[
+                      { label: "Organic", h: 180, value: "4.2k" },
+                      { label: "Direct", h: 130, value: "3.0k" },
+                      { label: "Referral", h: 86, value: "2.0k" },
+                      { label: "Social", h: 65, value: "1.5k" },
+                      { label: "Email", h: 43, value: "1.0k" },
+                      { label: "Paid", h: 32, value: "756" },
+                    ].map((bar) => (
+                      <div key={bar.label} className="flex flex-1 flex-col items-center justify-end" style={{ height: "100%" }}>
+                        <span
+                          className="mb-1 text-xs font-medium"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {bar.value}
+                        </span>
+                        <div
+                          className="w-full rounded-t-md"
+                          style={{
+                            height: `${bar.h}px`,
+                            background: "linear-gradient(180deg, var(--accent) 0%, rgba(16, 163, 127, 0.6) 100%)",
+                          }}
+                        />
+                        <span
+                          className="mt-1 text-[10px]"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {bar.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </FadeInSection>
+          </div>
+        </div>
+      </section>
+
+      {/* Alerts Section */}
+      <section className="px-6 py-24 md:px-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <FadeInSection delay={120} className="order-2 md:order-1">
+              <div
+                className="overflow-hidden rounded-2xl p-6"
+                style={{
+                  background: "var(--card-bg)",
+                  border: "1px solid var(--border-color)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div className="card-noise" aria-hidden />
+                {/* Mock alert cards */}
+                <div className="relative z-10 flex flex-col gap-3">
+                  {[
+                    {
+                      type: "Weekly Snapshot",
+                      desc: "Traffic summary vs last week with recommendations",
+                      icon: <PieChart className="h-4 w-4" />,
+                      color: "var(--accent)",
+                    },
+                    {
+                      type: "Traffic Report",
+                      desc: "Breakdown by source, medium, and channel",
+                      icon: <LineChart className="h-4 w-4" />,
+                      color: "var(--accent)",
+                    },
+                    {
+                      type: "Top Pages",
+                      desc: "Best performers ranked by views and engagement",
+                      icon: <BarChart3 className="h-4 w-4" />,
+                      color: "var(--accent)",
+                    },
+                    {
+                      type: "Custom Report",
+                      desc: "Define your own prompt for personalized insights",
+                      icon: <Mail className="h-4 w-4" />,
+                      color: "var(--accent)",
+                    },
+                  ].map((alert) => (
+                    <div
+                      key={alert.type}
+                      className="flex items-start gap-3 rounded-xl p-3"
+                      style={{
+                        background: "var(--bg-tertiary)",
+                        border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      <div
+                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                        style={{
+                          background: `${alert.color}15`,
+                          color: alert.color,
+                        }}
+                      >
+                        {alert.icon}
+                      </div>
+                      <div>
+                        <p
+                          className="text-sm font-medium"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {alert.type}
+                        </p>
+                        <p
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {alert.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection className="order-1 md:order-2">
+              <div>
+                <div
+                  className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+                  style={{
+                    background: "rgba(16, 163, 127, 0.1)",
+                    border: "1px solid rgba(16, 163, 127, 0.3)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  Email Alerts
+                </div>
+                <h2
+                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Insights delivered{" "}
+                  <span style={{ color: "var(--accent)" }}>on your schedule</span>
+                </h2>
+                <p
+                  className="mb-6 text-lg leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Set up automated email reports and never miss a trend. Choose from
+                  pre-built report types or create custom reports with your own prompts.
+                  Schedule them weekly, bi-weekly, or monthly.
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {[
+                    "Pick specific days and times for delivery",
+                    "Send to multiple recipients",
+                    "AI-generated summaries with recommendations",
+                    "Test any alert before scheduling",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: "var(--accent)" }}
+                      />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </FadeInSection>
+          </div>
+        </div>
+      </section>
+
+      {/* Team Management Section */}
+      <section className="px-6 py-24 md:px-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <FadeInSection>
+              <div>
+                <div
+                  className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+                  style={{
+                    background: "rgba(16, 163, 127, 0.1)",
+                    border: "1px solid rgba(16, 163, 127, 0.3)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  Teams
+                </div>
+                <h2
+                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Built for{" "}
+                  <span style={{ color: "var(--accent)" }}>teams</span>
+                </h2>
+                <p
+                  className="mb-6 text-lg leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Invite your team and give everyone access to the analytics they
+                  need. Assign roles, control which properties each member can see,
+                  and manage seats from one place.
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {[
+                    "Invite members with email-based invitations",
+                    "Admin and member roles",
+                    "Property-level access control",
+                    "Seat-based billing with flexible management",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: "var(--accent)" }}
+                      />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </FadeInSection>
+
+            <FadeInSection delay={120}>
+              <div
+                className="overflow-hidden rounded-2xl p-6"
+                style={{
+                  background: "var(--card-bg)",
+                  border: "1px solid var(--border-color)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div className="card-noise" aria-hidden />
+                {/* Mock team UI */}
+                <div className="relative z-10">
+                  <div
+                    className="mb-4 flex items-center justify-between"
+                  >
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Team Members
+                    </p>
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs"
+                      style={{
+                        background: "rgba(16, 163, 127, 0.1)",
+                        color: "var(--accent)",
+                      }}
+                    >
+                      3 / 5 seats
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { name: "Sarah Chen", role: "Admin", email: "sarah@company.com", properties: "All properties" },
+                      { name: "James Wilson", role: "Member", email: "james@company.com", properties: "2 properties" },
+                      { name: "Ana Rivera", role: "Member", email: "ana@company.com", properties: "1 property" },
+                    ].map((member) => (
+                      <div
+                        key={member.name}
+                        className="flex items-center gap-3 rounded-xl p-3"
+                        style={{
+                          background: "var(--bg-tertiary)",
+                          border: "1px solid var(--border-color)",
+                        }}
+                      >
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                          style={{
+                            background: "rgba(16, 163, 127, 0.1)",
+                            color: "var(--accent)",
+                          }}
+                        >
+                          {member.name.split(" ").map((n) => n[0]).join("")}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p
+                              className="truncate text-sm font-medium"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {member.name}
+                            </p>
+                            <span
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                              style={{
+                                background:
+                                  member.role === "Admin"
+                                    ? "rgba(16, 163, 127, 0.1)"
+                                    : "var(--bg-secondary)",
+                                color:
+                                  member.role === "Admin"
+                                    ? "var(--accent)"
+                                    : "var(--text-muted)",
+                                border: "1px solid var(--border-color)",
+                              }}
+                            >
+                              {member.role}
+                            </span>
+                          </div>
+                          <p
+                            className="truncate text-xs"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {member.properties}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </FadeInSection>
           </div>
         </div>
@@ -369,7 +774,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               <StepCard
                 number="3"
                 title="Start asking questions"
-                description="Type your question in plain English and get instant answers."
+                description="Type your question in plain English and get instant answers with charts and insights."
               />
             </FadeInSection>
           </div>
@@ -437,7 +842,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <FadeInSection delay={0}>
               <FaqItem
                 question="How does Meaning work?"
-                answer="Meaning connects to your Google Analytics 4 properties using read-only access. You ask questions in plain English, and our AI translates them into the right analytics queries, then presents the results in a clear, conversational format."
+                answer="Meaning connects to your Google Analytics 4 properties using read-only access. You ask questions in plain English, and our AI translates them into the right analytics queries, then presents the results in a clear, conversational format with charts and visualizations."
               />
             </FadeInSection>
             <FadeInSection delay={80}>
@@ -448,11 +853,23 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             </FadeInSection>
             <FadeInSection delay={160}>
               <FaqItem
-                question="Does my personal data get accessed by Meaning or any third parties?"
-                answer="We only access the Google Analytics data you explicitly grant us permission to read. We do not access personal files, emails, or any other Google account data. The AI processes your queries securely and does not retain conversation history between sessions."
+                question="What types of visualizations can Meaning generate?"
+                answer="Meaning can generate over 12 chart types including bar charts, line charts, pie charts, scatter plots, radar charts, funnels, treemaps, sunbursts, heatmaps, geographic maps, gauge charts, and sankey diagrams. The AI automatically picks the best visualization for your question."
               />
             </FadeInSection>
             <FadeInSection delay={240}>
+              <FaqItem
+                question="How do email alerts work?"
+                answer="You can set up automated email reports that get delivered on a schedule you choose. Pick from weekly snapshots, traffic reports, top pages, or create a custom report with your own prompt. Schedule them weekly, bi-weekly, or monthly and send them to multiple recipients."
+              />
+            </FadeInSection>
+            <FadeInSection delay={320}>
+              <FaqItem
+                question="Can I invite my team?"
+                answer="Yes. You can create a team, invite members via email, and assign them specific GA4 properties. Team members have their own login and can query the properties you grant them access to. Billing is seat-based so you only pay for what you use."
+              />
+            </FadeInSection>
+            <FadeInSection delay={400}>
               <FaqItem
                 question="What LLM does Meaning use?"
                 answer="Meaning is powered by Anthropic's Claude, one of the most capable and safety-focused large language models available. This allows us to provide accurate, nuanced interpretations of your analytics data while maintaining the highest standards of data privacy and security."
@@ -499,7 +916,13 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
               Terms
             </Link>
-            <span>Copyright © 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
+            <Link href="/docs" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Docs
+            </Link>
+            <Link href="/contact" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
+              Contact
+            </Link>
+            <span>Copyright &copy; 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
           </div>
         </div>
       </footer>
