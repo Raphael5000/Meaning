@@ -22,6 +22,7 @@ import PropertySelector from "./PropertySelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
+import ChartLoadingIndicator from "./ChartLoadingIndicator";
 import AlertsModal from "./AlertsModal";
 import BugReportModal from "./BugReportModal";
 import ConnectionsModal from "./ConnectionsModal";
@@ -35,6 +36,8 @@ import {
   type Message,
   type StoredChat,
 } from "@/lib/chatHistory";
+
+const CHART_KEYWORDS = /\b(chart|graph|plot|visuali[sz]e|map|pie|bar chart|line chart|sankey|treemap|heatmap|funnel|radar|gauge)\b/i;
 
 const EXAMPLE_QUESTIONS = [
   "How many users visited my site this week?",
@@ -601,7 +604,13 @@ export default function Chat() {
                   </div>
                 );
               })}
-              {loading && <TypingIndicator />}
+              {loading &&
+                (messages.length > 0 &&
+                CHART_KEYWORDS.test(messages[messages.length - 1].content) ? (
+                  <ChartLoadingIndicator />
+                ) : (
+                  <TypingIndicator />
+                ))}
               <div ref={messagesEndRef} />
             </div>
           )}

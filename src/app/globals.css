@@ -337,6 +337,30 @@ body {
   animation-delay: 0.4s;
 }
 
+/* Chart loading animation */
+@keyframes chartBar {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(3); }
+}
+
+.chart-loading-bar {
+  height: 12px;
+  transform-origin: center;
+  animation: chartBar 1.2s ease-in-out infinite;
+}
+
+@keyframes ellipsis {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+.loading-ellipsis::after {
+  content: "";
+  animation: ellipsis 1.6s steps(1) infinite;
+}
+
 /* Landing page animations */
 @keyframes fadeUp {
   from {
