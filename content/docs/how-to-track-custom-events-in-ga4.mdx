@@ -11,11 +11,14 @@ keywords: ["GA4 custom events", "track events GA4", "GTM custom events GA4", "GA
 ---
 
 > ⚡ TL;DR: GA4's Enhanced Measurement covers basic interactions automatically, but custom events capture what actually matters for your business — button clicks, form submissions, scroll milestones, and video plays. Set them up in Google Tag Manager using GA4 Event tags and specific triggers. No code changes to your website required.
+
 GA4's out-of-the-box tracking collects page views, a 90% scroll event, outbound clicks, and site search — useful baseline data, but insufficient for understanding how users interact with your specific content and CTAs. Custom event tracking bridges that gap. This guide covers how to configure GA4 custom events in Google Tag Manager for the four most valuable interaction types: button clicks, scroll depth milestones, form submissions, and video plays — all without touching a single line of your website's source code.
+
 ## What are GA4 Custom Events?
 GA4 custom events are user-defined events that you send to Google Analytics 4 to track specific interactions not captured by GA4's automatic or Enhanced Measurement tracking. Unlike Universal Analytics, which used a rigid Category/Action/Label taxonomy, GA4 custom events use a flexible name-plus-parameters structure that you define based on your measurement requirements.
 According to Google's official GA4 documentation, events in GA4 fall into four categories: automatically collected events (fired by the GA4 tag by default), enhanced measurement events (optional, enabled in Data Stream settings), recommended events (predefined names Google specifies for common use cases), and custom events (any event you define yourself). Custom events that do not follow Google's recommended naming conventions will not appear in standard reports and must be accessed via Explorations.
 Research by Simo Ahava (2023) found that over 60% of meaningful user interactions on a typical website are not captured by Enhanced Measurement alone. GA4 event tracking setup for custom interactions is therefore not an optional extra — it is a requirement for any implementation that aims to measure business outcomes, not just traffic volume.
+
 ## GA4 Event Types Compared
 | Event Type | Setup Required | Examples | Appears in Standard Reports? |
 | --- | --- | --- | --- |
@@ -23,18 +26,22 @@ Research by Simo Ahava (2023) found that over 60% of meaningful user interaction
 | Enhanced Measurement | Enable in Data Stream settings | scroll (90%), click, file_download, video_start | Yes |
 | Recommended Events | GTM or code implementation | purchase, sign_up, generate_lead | Yes (with correct naming) |
 | Custom Events | GTM or code implementation | cta_click, quote_requested, tool_interaction | Explorations only |
+
 ## How to Track Button Clicks as GA4 Custom Events
 Button click tracking in GA4 via GTM uses the Click – All Elements trigger, which fires when any element on the page is clicked. You filter it to fire only for specific buttons using click variables such as Click Classes, Click ID, or Click Text.
+
 ### Enable Click Variables in GTM
 1. In GTM, go to Variables > Configure (the gear icon in the Variables panel).
 1. Under the Clicks section, enable: Click Element, Click Classes, Click ID, Click Target, Click Text, and Click URL.
 1. These variables are now available as conditions in all trigger configurations.
+
 ### Create the Button Click Trigger
 1. Go to Triggers > New.
 1. Select Click – All Elements as the trigger type.
 1. Select Some Clicks (not All Clicks).
 1. Set a condition to target your specific button: Click Text equals [your button label], or Click Classes contains [your button's CSS class], or Click ID equals [your button's HTML id].
 1. Name the trigger (e.g., 'Click – Primary CTA') and save.
+
 ### Create the GA4 Event Tag for Button Clicks
 1. Go to Tags > New and select Google Analytics: GA4 Event as the tag type.
 1. Set the Configuration Tag to your existing GA4 Configuration tag.
@@ -42,6 +49,7 @@ Button click tracking in GA4 via GTM uses the Click – All Elements trigger, wh
 1. Add Event Parameters: click_text with value {{Click Text}}, and click_url with value {{Click URL}}.
 1. Under Triggering, assign the button click trigger you just created.
 1. Save and test in GTM's Preview mode before publishing.
+
 ## How to Track Scroll Depth Milestones
 GA4's Enhanced Measurement fires a single scroll event when a user reaches 90% of page height. For content marketing and long-form editorial pages, tracking multiple scroll milestones (25%, 50%, 75%, 90%) provides a complete picture of content engagement and identifies exactly where readers disengage.
 1. In GTM, go to Triggers > New and select Scroll Depth as the trigger type.
@@ -52,6 +60,7 @@ GA4's Enhanced Measurement fires a single scroll event when a user reaches 90% o
 1. Add an Event Parameter: scroll_depth_threshold with the value {{Scroll Depth Threshold}}.
 1. Assign your Scroll Depth trigger to the tag, save, and test by scrolling through a page in Preview mode.
 This replaces the single 90% Enhanced Measurement scroll event with four distinct events, giving you a full scroll engagement funnel. A page where 70% of users reach the 25% mark but only 10% reach 75% has a fundamentally different content problem than a page showing steady scroll engagement throughout.
+
 ## How to Track Form Submissions
 Form submission tracking captures one of the highest-value conversions on most websites. GTM's Form Submission trigger detects standard HTML form submissions automatically — no changes to your form HTML or backend are required.
 1. In GTM, go to Triggers > New and select Form Submission as the trigger type.
@@ -62,6 +71,7 @@ Form submission tracking captures one of the highest-value conversions on most w
 1. Add Event Parameters: form_id (value: {{Form ID}}) and form_destination (value: {{Form Target}}).
 1. Assign the trigger, save, then test by submitting your form in GTM Preview mode and verifying the event fires.
 Note: GTM's Form Submission trigger works reliably with standard HTML forms. AJAX forms (forms that submit without a page reload) and forms on single-page applications built with React, Vue, or Angular require additional configuration using custom JavaScript or the dataLayer.push() method.
+
 ## How to Track Video Plays
 GTM's YouTube Video trigger automatically detects YouTube embeds on your page and fires events at configurable video milestones. This works without any changes to your YouTube embed code and requires only that the video player is loaded on the page.
 1. In GTM, go to Triggers > New and select YouTube Video as the trigger type.
@@ -73,14 +83,19 @@ GTM's YouTube Video trigger automatically detects YouTube embeds on your page an
 1. Save, then test by playing a YouTube video on your site while in GTM Preview mode.
 ---
 ## Frequently Asked Questions
+
 ### What is the difference between GA4 custom events and recommended events?
 GA4 recommended events are predefined event names that Google specifies for common use cases — such as 'purchase', 'sign_up', or 'generate_lead'. When you use these exact names, GA4 automatically populates them in standard reports and pre-built funnels. Custom events use names you define yourself and only appear in GA4 Explorations. Where a recommended event name matches your use case, use it for better native reporting integration.
+
 ### Do GA4 custom events require a developer?
 No. GA4 custom events can be configured entirely through Google Tag Manager without modifying your website's source code. GTM provides native triggers for clicks, form submissions, scroll depth, YouTube videos, and element visibility. The only cases requiring developer involvement are AJAX form tracking, custom data layer pushes, and events on single-page applications built with React or similar frameworks.
+
 ### How many custom events can GA4 track?
 According to Google's official GA4 documentation, GA4 supports up to 500 distinct event names per property. Each event can have up to 25 custom parameters, and each parameter value can be up to 100 characters long. For most websites, the 500-event limit is not a practical constraint — but it is a reason to keep your event naming taxonomy structured and avoid creating redundant duplicates.
+
 ### Why aren't my GA4 custom events appearing in standard reports?
 GA4 custom events (events that do not use Google's predefined recommended event names) do not appear in standard reports by default. To view them, go to GA4 Explorations > Blank Exploration and add 'Event name' as a dimension and 'Event count' as a metric. To surface a custom event in standard reports, register it as a custom dimension in GA4 under Admin > Custom Definitions > Custom Dimensions.
+
 ### How do I test GA4 custom events before publishing?
 Use GTM's Preview mode alongside GA4's DebugView. Enable Preview mode in GTM, navigate to your site, perform the interaction you've tagged (click a button, submit a form, scroll down), and verify the tag fires in the Tag Assistant panel. Then open GA4 > Admin > DebugView and confirm the custom event appears in the event stream. Only publish the GTM container once both tools confirm the event fires correctly with the correct parameter values.
 ---

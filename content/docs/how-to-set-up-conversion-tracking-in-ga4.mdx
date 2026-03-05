@@ -11,12 +11,16 @@ keywords: ["GA4 conversion tracking", "GA4 key events", "google analytics conver
 ---
 
 > ⚡ TL;DR: Set up GA4 conversion tracking by identifying the events that represent meaningful business outcomes, then marking those events as Key Events in GA4 under Admin → Events → toggle Mark as key event. GA4 tracks every user interaction as an event — only the events you explicitly mark become conversions (now called Key Events). Verify tracking is firing with GA4 DebugView before relying on any conversion data.
+
 Goals are gone. When Google migrated the analytics world to GA4, it replaced the Universal Analytics Goals model with a new system where every user interaction is recorded as an event, and conversions are specifically designated Key Events. According to Google's GA4 migration documentation, businesses that migrated from Universal Analytics without re-mapping their conversion tracking lost their historical conversion data and, in many cases, stopped tracking conversions entirely. A 2024 report by CXL Institute found that 42% of GA4 properties have no Key Events configured — meaning nearly half of all GA4 users have no conversion tracking active whatsoever. This guide covers the complete process: understanding what Key Events are, identifying which events to mark, creating custom conversion events, and verifying that tracking is firing correctly.
+
 ## What Are Key Events (Conversions) in GA4?
 Key Events in GA4 are events that you have specifically designated as representing important business outcomes — form submissions, purchases, sign-ups, demo requests, or any other action that indicates meaningful user intent. Google rebranded 'Conversions' to 'Key Events' in GA4 in March 2024, but the concept remains the same: a Key Event is a GA4 event that you want to count, report on, and (when linked to Google Ads) optimise toward.
 GA4 automatically collects a core set of events for every website: page_view, session_start, first_visit, and user_engagement. Enhanced Measurement adds scroll, click, file_download, video_start, and others. None of these are Key Events by default. You must explicitly mark the events that represent conversions for your specific business. A purchase event is a Key Event for an e-commerce site; a form_submit event is a Key Event for a lead generation site; a sign_up event is a Key Event for a SaaS product.
+
 ## The Difference Between Events and Key Events in GA4
 Every user interaction in GA4 is an event. A Key Event is a subset of events that you have marked as representing a conversion. GA4 records hundreds of events for every user session — the distinction between events and Key Events is entirely determined by your configuration, not by any inherent property of the event itself.
+
 | **Concept** | **Definition** | **Example** | **Tracked Automatically?** |
 | --- | --- | --- | --- |
 | Event | Any user interaction recorded by GA4 as a data point with a name and optional parameters | page_view, scroll, click, session_start | Yes (core + Enhanced Measurement) |
@@ -24,6 +28,7 @@ Every user interaction in GA4 is an event. A Key Event is a subset of events tha
 | Automatically Collected Event | Events GA4 records for every property without any configuration | first_visit, session_start, user_engagement | Yes — always on |
 | Enhanced Measurement Event | Events GA4 records when Enhanced Measurement is enabled in Data Stream settings | scroll, outbound_click, file_download, video_start | Yes — when Enhanced Measurement is on |
 | Custom Event | Events you define and send using gtag.js or Google Tag Manager | demo_request, quote_form_submit, trial_started | No — requires implementation |
+
 ## How to Mark an Existing Event as a Key Event in GA4
 Mark an existing GA4 event as a Key Event by going to Admin → Events and toggling the Mark as key event switch next to the event name. This method works for any event that GA4 has already recorded at least once in your property — the event name must appear in the Events list before you can mark it.
 1. In GA4, navigate to Admin → Events (under the Property column)
@@ -32,8 +37,10 @@ Mark an existing GA4 event as a Key Event by going to Admin → Events and toggl
 1. Confirm the change — GA4 shows the event with a Key event badge
 1. Navigate to Reports → Engagement → Key events to verify the event appears in your Key Events report
 Key Event marking applies retroactively to all historical data for that event — unlike many other GA4 settings, this change updates your reports for past data. However, if the event has not fired since you set up GA4, it will not appear in the Events list and cannot be marked until it fires at least once.
+
 ## How to Create Custom Events for GA4 Conversion Tracking
 Custom events in GA4 are events that you define and send specifically to track user actions that are not captured by GA4's automatic or Enhanced Measurement collection. Examples include demo request form submissions, newsletter sign-ups, specific button clicks, and video completion events. Custom events require implementation via Google Tag Manager (GTM) or gtag.js.
+
 ### Method A — Create a Custom Event via Google Tag Manager
 1. In GTM, click Tags → New → Google Analytics: GA4 Event
 1. Select your GA4 Configuration tag (linked to your Measurement ID)
@@ -42,6 +49,7 @@ Custom events in GA4 are events that you define and send specifically to track u
 1. Set the Trigger to fire on the specific user action — for example, a form submission trigger on your contact form
 1. Save and publish the GTM container
 1. Test using GTM Preview mode and GA4 DebugView before marking as a Key Event
+
 ### Method B — Create an Event Using GA4's Built-In Event Builder
 GA4 includes a basic event creation tool that creates new events by modifying existing ones — useful when you want to count a specific page_view (e.g. a thank-you page view) as a conversion without writing any code.
 1. In GA4, go to Admin → Events → Create event
@@ -50,6 +58,7 @@ GA4 includes a basic event creation tool that creates new events by modifying ex
 1. Add a parameter condition: page_location contains /thank-you
 1. Click Save — GA4 will now fire your custom event whenever the matching page_view triggers
 1. Once the event fires, return to Events and mark it as a Key Event
+
 ## Recommended Key Events by Business Type
 | **Business Type** | **Recommended Key Event** | **Event Name in GA4** | **Implementation Method** |
 | --- | --- | --- | --- |
@@ -60,22 +69,27 @@ GA4 includes a basic event creation tool that creates new events by modifying ex
 | Content / Publishing | Newsletter subscription | newsletter_signup | GTM or platform integration |
 | Any | Phone number click | click (with phone link filter) | GTM link click trigger |
 | Any | Key page view (e.g. /thank-you) | Custom event via GA4 event builder | GA4 built-in event creation |
+
 ## How to Verify Your GA4 Conversion Tracking Is Firing Correctly
 Verify GA4 conversion tracking is working by using GA4 DebugView and GTM Preview mode together. Never mark an event as a Key Event until you have confirmed it fires correctly — Key Events feed conversion reports and, if linked, Google Ads conversion data, meaning incorrect events will distort your most critical performance metrics.
+
 ### Using GA4 DebugView
 1. In GA4, navigate to Admin → DebugView
 1. Activate debug mode on your device — in Chrome, enable the Google Analytics Debugger extension, or append ?_ga_debug=true to your URL
 1. Complete the action you want to track (e.g. submit your contact form)
 1. In DebugView, confirm the event name appears (e.g. generate_lead or form_submit)
 1. Click the event to inspect its parameters and confirm they contain the expected values
+
 ### Using GTM Preview Mode
 1. In GTM, click Preview → enter your website URL → click Start
 1. Complete the conversion action on your website
 1. In the GTM debug panel, confirm the GA4 Event tag fires for the correct trigger
 1. Inspect the Variables tab to verify event parameters are populated correctly
 1. If the tag does not fire, check the trigger conditions — the most common cause is a form submission trigger configured for the wrong form ID or class
+
 ## GA4 Key Events vs Universal Analytics Goals: What Changed
 Universal Analytics Goals and GA4 Key Events serve the same purpose — designating specific user actions as conversions — but the underlying systems are different. Understanding these differences is important if you are migrating from UA or supporting a mixed analytics environment.
+
 | **Feature** | **Universal Analytics Goals** | **GA4 Key Events** |
 | --- | --- | --- |
 | Maximum number | 20 goals per view | No documented limit |
@@ -87,14 +101,19 @@ Universal Analytics Goals and GA4 Key Events serve the same purpose — designat
 | Custom funnels | Funnel visualisation in Views | Funnel exploration in Explorations |
 ---
 ## Frequently Asked Questions
+
 ### What is a Key Event in GA4?
 A Key Event in GA4 is any event that has been designated as a conversion — an action that represents a meaningful business outcome such as a purchase, form submission, or sign-up. Google renamed 'Conversions' to 'Key Events' in GA4 in March 2024. Key Events are tracked in GA4's Key Events report (Reports → Engagement → Key events) and can be imported into Google Ads as conversion actions. No events are automatically marked as Key Events; you must designate them manually.
+
 ### How do I set up GA4 conversion tracking without a developer?
 Set up GA4 conversion tracking without a developer using GA4's built-in event creation tool (Admin → Events → Create event). This tool creates new events based on existing ones — for example, you can create a conversion event that fires when a page_view event occurs on your /thank-you page. Once the event appears in your Events list, toggle Mark as key event. This approach requires no code and works for destination-based conversions such as form submission thank-you pages.
+
 ### How many Key Events can I have in GA4?
 GA4 does not publish a specific limit on the number of Key Events per property. This is a significant improvement over Universal Analytics, which was limited to 20 Goals per View. In practice, most businesses track between 3 and 10 Key Events — focusing on high-value actions such as purchases, lead form submissions, and sign-ups. Tracking too many low-value events as Key Events dilutes your conversion data and complicates reporting.
+
 ### Why are my GA4 conversions not showing in reports?
 GA4 conversions (Key Events) do not appear in reports for four common reasons: the event has not been marked as a Key Event (the toggle in Admin → Events is off), the event is not firing due to a tag or trigger misconfiguration, the reporting data has not refreshed yet (GA4 standard reports update every 24-48 hours, though DebugView is real time), or the date range in your report does not include dates when the event fired. Use DebugView to confirm events are firing before investigating report configuration.
+
 ### Do GA4 Key Events import automatically into Google Ads?
 GA4 Key Events do not import automatically into Google Ads. After linking your GA4 property to Google Ads (Admin → Product Links → Google Ads Links), you must manually import the Key Events you want to use as Google Ads conversion actions. Go to Google Ads → Tools → Conversions → New conversion action → Import → Google Analytics 4 properties, then select the Key Events to import. Once imported, the conversion actions appear in Google Ads and feed Smart Bidding algorithms.
 ---
