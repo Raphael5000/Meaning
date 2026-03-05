@@ -46,7 +46,7 @@ Button click tracking in GA4 via GTM uses the Click – All Elements trigger, wh
 1. Go to Tags > New and select Google Analytics: GA4 Event as the tag type.
 1. Set the Configuration Tag to your existing GA4 Configuration tag.
 1. Enter an Event Name (e.g., 'cta_click'). Use lowercase with underscores — this is GA4's required naming convention.
-1. Add Event Parameters: click_text with value {{Click Text}}, and click_url with value {{Click URL}}.
+1. Add Event Parameters: click_text with value `{{Click Text}}`, and click_url with value `{{Click URL}}`.
 1. Under Triggering, assign the button click trigger you just created.
 1. Save and test in GTM's Preview mode before publishing.
 
@@ -57,7 +57,7 @@ GA4's Enhanced Measurement fires a single scroll event when a user reaches 90% o
 1. Set the trigger to fire on All Pages, or restrict it to specific URLs using Page URL conditions.
 1. Save the trigger.
 1. Create a new GA4 Event tag with the event name 'scroll_milestone'.
-1. Add an Event Parameter: scroll_depth_threshold with the value {{Scroll Depth Threshold}}.
+1. Add an Event Parameter: scroll_depth_threshold with the value `{{Scroll Depth Threshold}}`.
 1. Assign your Scroll Depth trigger to the tag, save, and test by scrolling through a page in Preview mode.
 This replaces the single 90% Enhanced Measurement scroll event with four distinct events, giving you a full scroll engagement funnel. A page where 70% of users reach the 25% mark but only 10% reach 75% has a fundamentally different content problem than a page showing steady scroll engagement throughout.
 
@@ -68,7 +68,7 @@ Form submission tracking captures one of the highest-value conversions on most w
 1. Select Some Forms and add a condition targeting your specific form: Page URL contains /contact, or Form ID equals 'contact-form'.
 1. Save the trigger.
 1. Create a new GA4 Event tag with the event name 'form_submit'.
-1. Add Event Parameters: form_id (value: {{Form ID}}) and form_destination (value: {{Form Target}}).
+1. Add Event Parameters: form_id (value: `{{Form ID}}`) and form_destination (value: `{{Form Target}}`).
 1. Assign the trigger, save, then test by submitting your form in GTM Preview mode and verifying the event fires.
 Note: GTM's Form Submission trigger works reliably with standard HTML forms. AJAX forms (forms that submit without a page reload) and forms on single-page applications built with React, Vue, or Angular require additional configuration using custom JavaScript or the dataLayer.push() method.
 
@@ -79,7 +79,7 @@ GTM's YouTube Video trigger automatically detects YouTube embeds on your page an
 1. For milestone tracking, enable Progress and set percentage thresholds (25, 50, 75).
 1. Set the trigger to fire on All Pages, or restrict it to pages that contain video content.
 1. Create a GA4 Event tag with the event name 'video_engagement'.
-1. Add Event Parameters: video_title (value: {{Video Title}}), video_percent (value: {{Video Percent}}), and video_status (value: {{Video Status}}).
+1. Add Event Parameters: video_title (value: `{{Video Title}}`), video_percent (value: `{{Video Percent}}`), and video_status (value: `{{Video Status}}`).
 1. Save, then test by playing a YouTube video on your site while in GTM Preview mode.
 
 ---

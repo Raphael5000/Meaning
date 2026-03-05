@@ -65,7 +65,7 @@ export const categories: Category[] = [
 const CONTENT_DIR = path.join(process.cwd(), "content", "docs");
 const categorySlugs = new Set(categories.map((c) => c.slug));
 
-function getAllArticles(): Article[] {
+export function getAllArticles(): Article[] {
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith(".mdx"));
 
   return files.map((file) => {
@@ -103,8 +103,8 @@ export function getArticlesByCategory(categorySlug: string): Article[] {
   return articles.filter((a) => a.category === categorySlug);
 }
 
-export function getFeaturedArticle(): Article | undefined {
-  return articles.find((a) => a.featured === true);
+export function getFeaturedArticle(articleList?: Article[]): Article | undefined {
+  return (articleList ?? articles).find((a) => a.featured === true);
 }
 
 export function getArticle(
