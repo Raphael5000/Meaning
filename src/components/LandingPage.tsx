@@ -112,20 +112,20 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             className="mb-6 text-5xl leading-tight font-bold tracking-tight md:text-7xl md:leading-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            Chat with your
+            Your GA4
             <br />
-            <span style={{ color: "var(--accent)" }}>Google Analytics</span>
+            <span style={{ color: "var(--accent)" }}>AI chatbot</span>
             <br />
-            data
+            for Google Analytics
           </h1>
 
           <p
             className="mx-auto mb-10 max-w-2xl text-lg md:text-xl"
             style={{ color: "var(--text-secondary)", lineHeight: "1.7" }}
           >
-            Meaning turns your Google Analytics properties into a conversational
-            interface. Ask questions in plain English, visualize trends, set up
-            automated alerts, and collaborate with your team.
+            The natural language analytics platform for GA4. Ask questions in
+            plain English, visualize trends, set up automated alerts, and
+            collaborate with your team — no dashboards, no coding needed.
           </p>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -842,7 +842,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <FadeInSection delay={0}>
               <FaqItem
                 question="How does Meaning work?"
-                answer="Meaning connects to your Google Analytics 4 properties using read-only access. You ask questions in plain English, and our AI translates them into the right analytics queries, then presents the results in a clear, conversational format with charts and visualizations."
+                answer="Meaning is a GA4 AI chatbot that connects to your Google Analytics 4 properties using read-only access. You ask questions in plain English, and our AI translates them into the right analytics queries, then presents the results in a clear, conversational format with charts and visualizations."
               />
             </FadeInSection>
             <FadeInSection delay={80}>
@@ -872,7 +872,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <FadeInSection delay={400}>
               <FaqItem
                 question="What LLM does Meaning use?"
-                answer="Meaning is powered by Anthropic's Claude, one of the most capable and safety-focused large language models available. This allows us to provide accurate, nuanced interpretations of your analytics data while maintaining the highest standards of data privacy and security."
+                answer="Meaning is powered by Anthropic's Claude, one of the most capable and safety-focused large language models available. This powers our natural language analytics interface — delivering accurate, nuanced interpretations of your GA4 data while maintaining the highest standards of data privacy and security."
               />
             </FadeInSection>
           </div>

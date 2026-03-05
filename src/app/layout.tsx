@@ -4,9 +4,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Meaning | Chat with Your Google Analytics Data – AI-Powered Insights",
+  title: "Meaning – GA4 AI Chatbot | Chat with Your Google Analytics Data",
   description:
-    "Ask questions in plain English and get instant answers from your GA4 data. Meaning turns Google Analytics into a conversational interface—no dashboards, no setup. Try the beta free.",
+    "Meaning is the AI Google Analytics assistant that lets you chat with your GA4 data in plain English. Get instant insights, reports, and answers — no dashboards, no coding needed.",
 };
 
 export default function RootLayout({
