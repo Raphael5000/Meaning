@@ -84,6 +84,7 @@ The Traffic Acquisition report in GA4 shows sessions broken down by channel, sou
 1. Drag dimensions to the Rows section and metrics to the Values section.
 1. This creates a full UTM attribution breakdown across all five parameters in a single custom report.
 According to Google's official GA4 documentation, UTM parameters are attributed at the session level in GA4. If a user visits your site via a UTM-tagged URL and then returns 31 minutes later via a direct link, the second visit is attributed to Direct as a new session — the original UTM attribution does not carry forward beyond the session boundary.
+
 ---
 ## Frequently Asked Questions
 
@@ -106,6 +107,7 @@ Yes. GA4 uses utm_source and utm_medium values to assign sessions to its Default
 ### Should I add UTM parameters to links on my own website?
 
 No. Adding UTM parameters to internal links — links between pages on your own website — resets the session source on every click. This means a user who arrived via a paid ad and then clicks an internal link tagged with utm_source=internal will have subsequent pages attributed to your internal tag rather than the original ad. UTM parameters belong only on external links: ads, email campaigns, social posts, and partner website placements.
+
 ---
 ## Conclusion
 

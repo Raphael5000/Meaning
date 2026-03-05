@@ -67,6 +67,7 @@ GTM Preview mode lets you verify that tags are firing correctly before pushing c
 1. Verify that page_view events appear in the DebugView event stream. If they do, your GA4 Google Tag Manager setup is working correctly.
 1. Return to GTM, click Submit, add a version description (e.g., 'Initial GA4 setup'), and click Publish.
 According to Google's official Tag Manager Help documentation, changes made to GTM containers only take effect after publishing. Saving a tag without publishing means it will not fire on your live website.
+
 ---
 ## Frequently Asked Questions
 
@@ -89,6 +90,7 @@ Page view events appear in GA4's Realtime report within seconds of the first tag
 ### What is the difference between a Google Tag and a GA4 Event tag in GTM?
 
 A Google Tag (formerly the GA4 Configuration tag) loads the GA4 tracking library and sets your Measurement ID. It fires on all pages and is the foundation of your implementation. A GA4 Event tag fires a specific named event — such as 'button_click' or 'form_submit' — when a defined trigger activates. Event tags require the Google Tag to have loaded first on the same page.
+
 ---
 ## Conclusion
 

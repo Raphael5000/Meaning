@@ -98,6 +98,7 @@ In Google Tag Manager, you can create a blocking trigger that prevents the GA4 t
 | GTM Cookie / localStorage Block | Company-owned devices | High | High — requires GTM development |
 | Data Filter (Testing Mode) | Validation only | Does not exclude data | None |
 | Data Filter (Active Mode) | All configurations | High — when rules are correct | Low |
+
 ---
 ## Frequently Asked Questions
 
@@ -120,6 +121,7 @@ GA4 internal traffic filtering based on IP address does not automatically distin
 ### How many IP addresses can I add to GA4 internal traffic rules?
 
 GA4 allows up to 10 internal traffic rules per data stream, and each rule can contain multiple IP address conditions. There is no documented limit on the number of individual IP addresses within a single rule. For organisations with many IP addresses — such as those with multiple offices or large remote teams — use CIDR notation to define IP ranges (e.g. 203.0.113.0/24) rather than listing each address individually. CIDR range notation is supported natively in GA4's IP address condition matching.
+
 ---
 ## Conclusion
 
