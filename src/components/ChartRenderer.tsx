@@ -1,15 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import ReactEChartsCore from "echarts-for-react/lib/core";
 import * as echarts from "echarts/core";
-import { BarChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
+import {
+  BarChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+  RadarChart,
+  FunnelChart,
+  GaugeChart,
+  TreemapChart,
+  SunburstChart,
+  HeatmapChart,
+  MapChart,
+  SankeyChart,
+} from "echarts/charts";
 import {
   GridComponent,
   TooltipComponent,
   LegendComponent,
   TitleComponent,
   DatasetComponent,
+  VisualMapComponent,
+  ToolboxComponent,
+  GeoComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { useTheme } from "./ThemeProvider";
@@ -19,11 +35,22 @@ echarts.use([
   LineChart,
   PieChart,
   ScatterChart,
+  RadarChart,
+  FunnelChart,
+  GaugeChart,
+  TreemapChart,
+  SunburstChart,
+  HeatmapChart,
+  MapChart,
+  SankeyChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   TitleComponent,
   DatasetComponent,
+  VisualMapComponent,
+  ToolboxComponent,
+  GeoComponent,
   CanvasRenderer,
 ]);
 
@@ -35,6 +62,42 @@ const ACCENT_PALETTE = [
   "#8b5cf6",
   "#ec4899",
 ];
+
+/** Check whether the ECharts option uses a map series or geo component */
+function needsWorldMap(option: Record<string, unknown>): boolean {
+  const series = option.series;
+  if (Array.isArray(series)) {
+    if (series.some((s) => (s as Record<string, unknown>).type === "map")) return true;
+  } else if (series && (series as Record<string, unknown>).type === "map") {
+    return true;
+  }
+  if (option.geo) return true;
+  return false;
+}
+
+/** Lazy-load and register the world GeoJSON with ECharts (fetched once, cached) */
+let worldMapPromise: Promise<void> | null = null;
+let worldMapLoaded = false;
+
+function ensureWorldMap(): Promise<void> {
+  if (worldMapLoaded) return Promise.resolve();
+  if (worldMapPromise) return worldMapPromise;
+  worldMapPromise = fetch("/maps/world.json")
+    .then((res) => {
+      if (!res.ok) throw new Error(`Failed to load world map (${res.status})`);
+      return res.json();
+    })
+    .then((geoJson) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      echarts.registerMap("world", geoJson as any);
+      worldMapLoaded = true;
+    })
+    .catch((err) => {
+      worldMapPromise = null; // allow retry
+      throw err;
+    });
+  return worldMapPromise;
+}
 
 function applyTheme(
   option: Record<string, unknown>,
@@ -132,8 +195,46 @@ interface ChartRendererProps {
 export default function ChartRenderer({ option }: ChartRendererProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [error, setError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(!needsWorldMap(option));
+
+  useEffect(() => {
+    if (!needsWorldMap(option)) {
+      setMapReady(true);
+      return;
+    }
+    ensureWorldMap()
+      .then(() => setMapReady(true))
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load map"));
+  }, [option]);
 
   const themedOption = useMemo(() => applyTheme(option, isDark), [option, isDark]);
+
+  if (error) {
+    return (
+      <div
+        className="flex items-center justify-center rounded-xl border px-4 py-8 text-sm"
+        style={{
+          borderColor: "var(--border-color)",
+          color: "var(--text-secondary)",
+          background: "var(--bg-tertiary)",
+        }}
+      >
+        Chart could not be rendered: {error}
+      </div>
+    );
+  }
+
+  if (!mapReady) {
+    return (
+      <div
+        className="flex items-center justify-center px-4 py-8 text-sm"
+        style={{ color: "var(--text-secondary)" }}
+      >
+        Loading map...
+      </div>
+    );
+  }
 
   return (
     <ReactEChartsCore

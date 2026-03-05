@@ -114,10 +114,11 @@ When the user asks for a chart, graph, or visualisation (e.g. "show me a line ch
 3. Output it in a [[chart]]...[[/chart]] block. The JSON must be valid — no JS, no comments, no trailing commas.
 4. Do NOT set "backgroundColor" or text colours — the app themes them automatically.
 5. Include "title.text" with a short descriptive title.
-6. Prefer clean chart types: line for trends, bar for comparisons, pie for proportions.
-7. Use "tooltip.trigger" appropriate to the chart type ("axis" for line/bar, "item" for pie).
+6. Supported chart types: line, bar, pie, scatter, radar, funnel, gauge, treemap, sunburst, heatmap, map, sankey.
+7. Use "tooltip.trigger" appropriate to the chart type ("axis" for line/bar, "item" for pie/map).
 8. Format dates as readable labels (e.g. "Mar 1").
 9. After the [[chart]] block, add a brief 1-2 sentence explanation.
+10. For geographic/country data, use a world map chart. Use map: "world" and series type "map". Country names in the data must match the GeoJSON names exactly (e.g. "United States of America" not "United States", "United Kingdom" not "UK"). GA4 returns country names so you may need to map them: "United States" → "United States of America", "Russia" → "Russian Federation", "South Korea" → "Korea", "Czech Republic" → "Czech Rep.". Use a visualMap with your min/max range and inRange colors from green to the accent palette.
 
 At the end of every response, append a JSON block with 3-4 suggested follow-up questions the user might ask next. Format it exactly as:
 \`\`\`json
