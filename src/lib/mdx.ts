@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 import { cache } from "react";
 import GithubSlugger from "github-slugger";
 import rehypeSlug from "rehype-slug";
+import remarkGfm from "remark-gfm";
 import { CodeBlockContainer } from "@/components/CodeBlockContainer";
 
 const CONTENT_DIR = path.join(process.cwd(), "content", "docs");
@@ -66,7 +67,10 @@ export const getArticleData = cache(async (slug: string) => {
         source: raw,
         options: {
           parseFrontmatter: true,
-          mdxOptions: { rehypePlugins: [rehypeSlug] },
+          mdxOptions: {
+            remarkPlugins: [remarkGfm],
+            rehypePlugins: [rehypeSlug],
+          },
         },
         components: mdxComponents,
       }),
