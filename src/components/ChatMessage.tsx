@@ -208,12 +208,17 @@ function formatContent(text: string): string {
   // Tables
   html = formatTables(html);
 
-  // Lists
-  html = html.replace(/^- (.+)$/gm, "<li>$1</li>");
+  // Lists (support indented bullets like "  - item")
+  html = html.replace(/^[ \t]*- (.+)$/gm, "<li>$1</li>");
   html = html.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
 
   // Numbered lists
-  html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/^[ \t]*\d+\. (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+    // Only wrap if not already inside a <ul>
+    if (match.startsWith("<ul>")) return match;
+    return `<ol>${match}</ol>`;
+  });
 
   // Blockquotes
   html = html.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
@@ -221,6 +226,9 @@ function formatContent(text: string): string {
   // Paragraphs (double newlines)
   html = html.replace(/\n\n/g, "</p><p>");
   html = `<p>${html}</p>`;
+
+  // Remove newlines inside lists (prevents <br> between <li> tags)
+  html = html.replace(/<\/li>\n<li>/g, "</li><li>");
 
   // Single newlines within paragraphs
   html = html.replace(/\n/g, "<br>");
@@ -231,6 +239,8 @@ function formatContent(text: string): string {
   html = html.replace(/(<\/h[1-3]>)<\/p>/g, "$1");
   html = html.replace(/<p>(<ul>)/g, "$1");
   html = html.replace(/(<\/ul>)<\/p>/g, "$1");
+  html = html.replace(/<p>(<ol>)/g, "$1");
+  html = html.replace(/(<\/ol>)<\/p>/g, "$1");
   html = html.replace(/<p>(<pre>)/g, "$1");
   html = html.replace(/(<\/pre>)<\/p>/g, "$1");
   html = html.replace(/<p>(<table>)/g, "$1");

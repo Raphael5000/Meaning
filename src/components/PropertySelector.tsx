@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BarChart3, Loader2 } from "lucide-react";
-import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useEffect, useState, useRef } from "react";
+import { BarChart3, Check, ChevronDown, Loader2, Search, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Property {
@@ -21,15 +13,21 @@ interface Property {
 interface PropertySelectorProps {
   selectedPropertyId: string | null;
   onSelect: (propertyId: string, displayName: string) => void;
+  disabled?: boolean;
 }
 
 export default function PropertySelector({
   selectedPropertyId,
   onSelect,
+  disabled,
 }: PropertySelectorProps) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchProperties() {
@@ -54,6 +52,26 @@ export default function PropertySelector({
 
     fetchProperties();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }, [open]);
 
   if (loading) {
     return (
@@ -80,44 +98,96 @@ export default function PropertySelector({
     );
   }
 
+  const selectedProp = properties.find((p) => p.propertyId === selectedPropertyId);
+
+  const filtered = search
+    ? properties.filter(
+        (p) =>
+          p.displayName.toLowerCase().includes(search.toLowerCase()) ||
+          p.account.toLowerCase().includes(search.toLowerCase()) ||
+          p.propertyId.includes(search)
+      )
+    : properties;
+
   return (
-    <Select
-      value={selectedPropertyId || undefined}
-      onValueChange={(value) => {
-        const prop = properties.find((p) => p.propertyId === value);
-        if (prop) onSelect(prop.propertyId, prop.displayName);
-      }}
-    >
-      <SelectTrigger className="rounded-[100px] bg-muted">
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) setOpen((o) => !o);
+        }}
+        className={cn(
+          "flex h-9 w-full items-center justify-between gap-2 rounded-[100px] border border-input bg-muted px-3 py-2 text-sm text-foreground shadow-sm",
+          disabled ? "cursor-default opacity-70" : "cursor-pointer"
+        )}
+      >
         <div className="flex items-center gap-2 truncate">
-          <BarChart3 className="h-4 w-4 shrink-0" />
-          <SelectValue placeholder="Select a property" />
+          {disabled ? (
+            <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" />
+          ) : (
+            <BarChart3 className="h-4 w-4 shrink-0" />
+          )}
+          <span className="truncate">
+            {selectedProp ? selectedProp.displayName : "Select a property"}
+          </span>
         </div>
-      </SelectTrigger>
-      <SelectContent>
-        {properties.map((prop) => (
-          <SelectPrimitive.Item
-            key={prop.propertyId}
-            value={prop.propertyId}
-            textValue={prop.displayName}
-            className={cn(
-              "relative flex w-full cursor-pointer select-none flex-col rounded-md py-2 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+        {!disabled && <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />}
+      </button>
+
+      {open && !disabled && (
+        <div
+          className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-lg border border-border bg-popover shadow-md"
+        >
+          {/* Search input */}
+          <div className="border-b border-border p-2">
+            <div className="flex items-center gap-2 rounded-md bg-secondary px-2 py-1.5">
+              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search properties..."
+                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+
+          {/* Property list */}
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <p className="px-2 py-3 text-center text-sm text-muted-foreground">
+                No properties found
+              </p>
+            ) : (
+              filtered.map((prop) => (
+                <button
+                  key={prop.propertyId}
+                  type="button"
+                  onClick={() => {
+                    onSelect(prop.propertyId, prop.displayName);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={cn(
+                    "relative flex w-full cursor-pointer select-none flex-col items-start rounded-md py-2 pl-2 pr-8 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <span className="absolute right-2 top-2.5 flex h-3.5 w-3.5 items-center justify-center">
+                    {prop.propertyId === selectedPropertyId && (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </span>
+                  <span className="truncate font-medium">{prop.displayName}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {prop.account} &middot; {prop.propertyId}
+                  </span>
+                </button>
+              ))
             )}
-          >
-            <span className="absolute right-2 top-2.5 flex h-3.5 w-3.5 items-center justify-center">
-              <SelectPrimitive.ItemIndicator>
-                <Check className="h-4 w-4" />
-              </SelectPrimitive.ItemIndicator>
-            </span>
-            <SelectPrimitive.ItemText>
-              {prop.displayName}
-            </SelectPrimitive.ItemText>
-            <span className="text-xs text-muted-foreground">
-              {prop.account} &middot; {prop.propertyId}
-            </span>
-          </SelectPrimitive.Item>
-        ))}
-      </SelectContent>
-    </Select>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

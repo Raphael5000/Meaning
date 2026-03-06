@@ -518,22 +518,10 @@ export default function Chat() {
             <div className="w-48 md:w-64">
               <PropertySelector
                 selectedPropertyId={propertyId}
+                disabled={messages.length > 0}
                 onSelect={(id, name) => {
                   setPropertyId(id);
                   setPropertyName(name);
-                  if (currentChatId) {
-                    const chatId = currentChatId;
-                    setChats((prev) => {
-                      const updated = prev.map((c) =>
-                        c.id === chatId
-                          ? { ...c, propertyId: id, propertyName: name }
-                          : c
-                      );
-                      const chatToSave = updated.find((c) => c.id === chatId);
-                      if (chatToSave) persistChat(chatToSave);
-                      return updated;
-                    });
-                  }
                 }}
               />
             </div>
