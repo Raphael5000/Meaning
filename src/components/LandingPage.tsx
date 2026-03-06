@@ -60,7 +60,7 @@ function FadeInSection({
 export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
   return (
     <div
-      className="relative min-h-screen overflow-x-hidden"
+      className="relative min-h-screen overflow-x-clip"
       style={{
         background:
           "var(--page-bg)",
@@ -109,14 +109,14 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </div>
 
           <h1
-            className="mb-6 text-5xl leading-tight font-bold tracking-tight md:text-7xl md:leading-tight"
+            className="mb-6 text-5xl tracking-tight md:text-7xl"
             style={{ color: "var(--text-primary)" }}
           >
-            Your GA4
+            Chat with your
             <br />
-            <span style={{ color: "var(--accent)" }}>AI chatbot</span>
+            <span style={{ color: "var(--accent)" }}>Google Analytics</span>
             <br />
-            for Google Analytics
+            Data
           </h1>
 
           <p
@@ -265,7 +265,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           <FadeInSection>
             <div className="mb-16 text-center">
               <h2
-                className="mb-4 text-3xl font-bold md:text-5xl"
+                className="mb-4 text-3xl md:text-5xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 Everything you need to
@@ -353,7 +353,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                   Visualizations
                 </div>
                 <h2
-                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  className="mb-4 text-3xl md:text-4xl"
                   style={{ color: "var(--text-primary)" }}
                 >
                   See your data,{" "}
@@ -545,7 +545,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                   Email Alerts
                 </div>
                 <h2
-                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  className="mb-4 text-3xl md:text-4xl"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Insights delivered{" "}
@@ -602,7 +602,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                   Teams
                 </div>
                 <h2
-                  className="mb-4 text-3xl font-bold md:text-4xl"
+                  className="mb-4 text-3xl md:text-4xl"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Built for{" "}
@@ -741,7 +741,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           <FadeInSection>
             <div className="mb-16 text-center">
               <h2
-                className="mb-4 text-3xl font-bold md:text-5xl"
+                className="mb-4 text-3xl md:text-5xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 How it works
@@ -794,7 +794,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             }}
           >
             <h2
-              className="mb-4 text-3xl font-bold md:text-4xl"
+              className="mb-4 text-3xl md:text-4xl"
               style={{ color: "var(--text-primary)" }}
             >
               Ready to talk to your data?
@@ -830,7 +830,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
                 FAQ
               </div>
               <h2
-                className="text-3xl font-bold md:text-5xl"
+                className="text-3xl md:text-5xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 Frequently Asked Questions

@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { Martel } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
+
+const martel = Martel({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-martel",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Meaning – GA4 AI Chatbot | Chat with Your Google Analytics Data",
@@ -15,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={martel.variable}>
       <head>
         {/* Prevent flash of wrong theme */}
         <script
