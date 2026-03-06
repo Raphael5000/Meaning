@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import ReactEChartsCore from "echarts-for-react/lib/core";
 import * as echarts from "echarts/core";
 import {
@@ -188,61 +188,83 @@ function mergeAxisStyle(
   };
 }
 
+export interface ChartRendererHandle {
+  getDataURL: () => string | null;
+}
+
 interface ChartRendererProps {
   option: Record<string, unknown>;
 }
 
-export default function ChartRenderer({ option }: ChartRendererProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  const [error, setError] = useState<string | null>(null);
-  const [mapReady, setMapReady] = useState(!needsWorldMap(option));
+const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
+  function ChartRenderer({ option }, ref) {
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === "dark";
+    const [error, setError] = useState<string | null>(null);
+    const [mapReady, setMapReady] = useState(!needsWorldMap(option));
+    const chartRef = useRef<ReactEChartsCore>(null);
 
-  useEffect(() => {
-    if (!needsWorldMap(option)) {
-      setMapReady(true);
-      return;
+    useImperativeHandle(ref, () => ({
+      getDataURL() {
+        const instance = chartRef.current?.getEchartsInstance();
+        if (!instance) return null;
+        return instance.getDataURL({
+          type: "png",
+          pixelRatio: 2,
+          backgroundColor: "transparent",
+        });
+      },
+    }));
+
+    useEffect(() => {
+      if (!needsWorldMap(option)) {
+        setMapReady(true);
+        return;
+      }
+      ensureWorldMap()
+        .then(() => setMapReady(true))
+        .catch((err) => setError(err instanceof Error ? err.message : "Failed to load map"));
+    }, [option]);
+
+    const themedOption = useMemo(() => applyTheme(option, isDark), [option, isDark]);
+
+    if (error) {
+      return (
+        <div
+          className="flex items-center justify-center rounded-xl border px-4 py-8 text-sm"
+          style={{
+            borderColor: "var(--border-color)",
+            color: "var(--text-secondary)",
+            background: "var(--bg-tertiary)",
+          }}
+        >
+          Chart could not be rendered: {error}
+        </div>
+      );
     }
-    ensureWorldMap()
-      .then(() => setMapReady(true))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load map"));
-  }, [option]);
 
-  const themedOption = useMemo(() => applyTheme(option, isDark), [option, isDark]);
+    if (!mapReady) {
+      return (
+        <div
+          className="flex items-center justify-center px-4 py-8 text-sm"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Loading map...
+        </div>
+      );
+    }
 
-  if (error) {
     return (
-      <div
-        className="flex items-center justify-center rounded-xl border px-4 py-8 text-sm"
-        style={{
-          borderColor: "var(--border-color)",
-          color: "var(--text-secondary)",
-          background: "var(--bg-tertiary)",
-        }}
-      >
-        Chart could not be rendered: {error}
-      </div>
+      <ReactEChartsCore
+        ref={chartRef}
+        echarts={echarts}
+        option={themedOption}
+        style={{ width: "100%", height: "400px" }}
+        notMerge
+        lazyUpdate
+      />
     );
   }
+);
 
-  if (!mapReady) {
-    return (
-      <div
-        className="flex items-center justify-center px-4 py-8 text-sm"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        Loading map...
-      </div>
-    );
-  }
-
-  return (
-    <ReactEChartsCore
-      echarts={echarts}
-      option={themedOption}
-      style={{ width: "100%", height: "400px" }}
-      notMerge
-      lazyUpdate
-    />
-  );
-}
+export default ChartRenderer;

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import ChartRenderer from "./ChartRenderer";
+import ChartRenderer, { type ChartRendererHandle } from "./ChartRenderer";
+import ChartShareMenu from "./ChartShareMenu";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -31,6 +32,7 @@ export default function ChatMessage({
   onTypewriterComplete,
   chart,
 }: ChatMessageProps) {
+  const chartRef = useRef<ChartRendererHandle>(null);
   const isUser = role === "user";
   const shouldStream =
     role === "assistant" &&
@@ -128,13 +130,18 @@ export default function ChatMessage({
           )}
           {role === "assistant" && chart && (
             <div
-              className="mb-3 overflow-hidden rounded-2xl border p-4"
+              className="relative mb-3 overflow-hidden rounded-2xl border p-4"
               style={{
                 borderColor: "var(--border-color)",
                 background: "var(--bg-secondary)",
               }}
             >
-              <ChartRenderer option={chart} />
+              <div className="absolute right-3 top-3 z-10">
+                <ChartShareMenu
+                  getDataURL={() => chartRef.current?.getDataURL() ?? null}
+                />
+              </div>
+              <ChartRenderer ref={chartRef} option={chart} />
             </div>
           )}
           <div
@@ -227,8 +234,10 @@ function formatContent(text: string): string {
   html = html.replace(/\n\n/g, "</p><p>");
   html = `<p>${html}</p>`;
 
-  // Remove newlines inside lists (prevents <br> between <li> tags)
+  // Remove newlines inside and around lists (prevents <br> between items and after lists)
   html = html.replace(/<\/li>\n<li>/g, "</li><li>");
+  html = html.replace(/<\/ul>\n/g, "</ul>");
+  html = html.replace(/<\/ol>\n/g, "</ol>");
 
   // Single newlines within paragraphs
   html = html.replace(/\n/g, "<br>");
