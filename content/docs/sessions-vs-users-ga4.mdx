@@ -24,6 +24,8 @@ A **user** in GA4 represents a unique individual who interacts with your website
 
 ### Active users (the default)
 
+> **Key Takeaway:** The "Users" number in every standard GA4 report is **Active Users** — not all visitors. Anyone who bounces in under 10 seconds without a key event is excluded. Your true total audience is always larger than what GA4 shows by default.
+
 When you see "Users" in any standard GA4 report, you're actually looking at **Active Users** — not total users. This is a crucial distinction that catches many people off guard.
 
 An Active User is someone who has had an **engaged session** or triggered specific events. GA4 considers a session "engaged" if it meets any of these criteria:
@@ -73,6 +75,8 @@ Key differences from Universal Analytics:
 These changes mean that **GA4 will generally report fewer sessions than UA would for the same traffic**, which can be alarming if you're comparing historical data.
 
 ### Engaged sessions
+
+**Engaged Sessions** are sessions that lasted longer than 10 seconds, included a key event, or involved 2 or more page views. GA4's Engagement Rate (engaged sessions ÷ total sessions) is the platform's modern replacement for the old bounce rate — a more meaningful signal of whether visitors found value in your content.
 
 GA4 introduces the concept of **Engaged Sessions** — sessions that lasted longer than 10 seconds, had a key event, or involved 2+ page views. This metric feeds directly into the Engagement Rate (engaged sessions ÷ total sessions) and is GA4's replacement for the old bounce rate logic.
 
