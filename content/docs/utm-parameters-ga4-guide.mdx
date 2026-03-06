@@ -12,7 +12,7 @@ keywords: ["utm parameters", "utm parameters ga4", "google analytics utm", "utm 
 
 # UTM parameters in Google Analytics 4: The complete guide
 
-> ⚡ **TL;DR:** UTM parameters are tags you add to URLs so Google Analytics 4 can tell you exactly where your traffic comes from. There are five main ones — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` — and using them consistently is the difference between guessing which campaigns work and actually knowing. This guide covers what each parameter does, how to build tagged URLs, naming conventions, and the mistakes that wreck your data.
+> **TL;DR:** UTM parameters are tags you add to URLs so Google Analytics 4 can tell you exactly where your traffic comes from. There are five main ones — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` — and using them consistently is the difference between guessing which campaigns work and actually knowing. This guide covers what each parameter does, how to build tagged URLs, naming conventions, and the mistakes that wreck your data.
 
 ## What are UTM parameters?
 
@@ -132,6 +132,8 @@ Your future self needs to understand what `utm_campaign=q1_email_03` means. But 
 A good format: `[initiative]_[channel]_[date/number]`
 
 ### Rule 4: match GA4's default channel grouping
+
+> **Key Takeaway:** If your `utm_medium` value doesn't match GA4's expected list (e.g. `email`, `cpc`, `social`, `display`), your traffic lands in "Unassigned" and becomes nearly impossible to analyse by channel.
 
 GA4 automatically sorts traffic into channels based on the `utm_medium` value. If you use non-standard medium values, your traffic lands in the "Unassigned" channel — which helps nobody.
 
@@ -255,6 +257,8 @@ This lets you measure exactly how many people scanned your flyer and what they d
 ## Common UTM mistakes (and how to fix them)
 
 ### Mistake 1: tagging internal links
+
+> **Key Takeaway:** Adding UTM parameters to internal links is one of the most damaging analytics mistakes possible. Each click resets the user's session source, destroying your attribution data for that visit entirely.
 
 **The problem:** You add UTM parameters to links on your own website — like navigation menus, banners, or cross-page CTAs.
 
