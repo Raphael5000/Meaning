@@ -30,6 +30,8 @@ This was always a bit unfair. A visitor who reads your entire 3,000-word article
 
 ## How bounce rate changed in GA4
 
+> **Key Takeaway:** GA4 bounce rate = 100% minus engagement rate. A session only bounces if it lasts under 10 seconds, has no key event, and only one page view. This makes GA4 bounce rates significantly lower than Universal Analytics bounce rates for the same traffic — they are not directly comparable.
+
 Google agreed that the old definition was flawed. When they built GA4, they reworked the metric entirely.
 
 In GA4, bounce rate is the inverse of engagement rate. A session counts as "engaged" if it meets any of these conditions:
@@ -151,6 +153,8 @@ If you want a quicker way to keep tabs on bounce rate, tools like Meaning let yo
 For more advanced tracking, consider setting up custom explorations in GA4 that combine bounce rate with landing page, session source/medium, and device category. This gives you a much clearer picture than a single site-wide number.
 
 ## Bounce rate vs. exit rate
+
+> **Key Takeaway:** Bounce rate = sessions that started AND ended on a page with no engagement. Exit rate = sessions that ended on a page, regardless of how many pages came before it. A high exit rate on your checkout page is more alarming than a high bounce rate on a blog post.
 
 People mix these up constantly, so let's clear it up.
 
