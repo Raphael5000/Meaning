@@ -12,24 +12,26 @@ keywords: ["generative engine optimisation", "GEO", "AI search visibility", "AI 
 
 # 9 Proven Techniques That Boost AI Search Visibility by 40%
 
-> ⚡ **TL;DR:** Researchers from Princeton, Georgia Tech, and the Allen Institute tested 9 content optimisation methods across 10,000 queries. Three techniques — citing sources, adding quotations, and embedding statistics — each boosted AI search visibility by 30–40%. Keyword stuffing *decreased* visibility by 10%. The best combination (fluency optimisation + statistics) outperformed single strategies by 5.5%. This article breaks down every technique with practical before/after examples you can implement today.
+> ⚡ **TL;DR:** Researchers from Princeton, Georgia Tech, and the Allen Institute tested 9 content optimisation methods across 10,000 queries. Three techniques (citing sources, adding quotations, and embedding statistics) each boosted AI search visibility by 30–40%. Keyword stuffing *decreased* visibility by 10%. The best combination (fluency optimisation + statistics) outperformed single strategies by 5.5%. Use an AI Google Analytics assistant like [Meaning](https://usemeaning.io) as your GA4 AI chatbot to chat with Google Analytics and track which techniques move the needle.
 
-*This is part 2 of our [7-part series on generative search](/resources/what-is-geo-generative-engine-optimisation). In part 1, we covered what GEO is and why it matters. Now we get tactical.* As you implement these techniques, use Meaning's GA4 AI chatbot to track changes in organic traffic and engagement — ask your analytics questions in plain English and see what's moving the needle.
+*This is part 2 of our [7-part series on generative search](/resources/what-is-geo-generative-engine-optimisation). In part 1, we covered what GEO is and why it matters. Now we get tactical.*
+
+**Generative Engine Optimisation (GEO)** is the practice of structuring your content so AI search engines (Google AI Overviews, ChatGPT, Perplexity) cite and surface it in their responses. **Google Analytics 4 (GA4)** is Google's current analytics platform for measuring how users interact with your website or app. As you implement these GEO techniques, natural language analytics tools make Google Analytics 4 easy to navigate. [Meaning](https://usemeaning.io) works as a ChatGPT for Google Analytics, letting you ask questions in plain English instead of wrestling with complex report interfaces.
 
 ---
 
 ## The Study Behind the Numbers
 
-Before we dive into techniques, let's establish why you should trust these findings.
+The paper "GEO: Generative Engine Optimization" provides the most rigorous experimental evidence for what actually works in AI search optimisation.
 
-The paper "GEO: Generative Engine Optimization" was published at KDD 2024 (one of the top data science conferences) by researchers from Princeton University, Georgia Tech, and the Allen Institute for AI (arXiv:2311.09735). They built GEO-BENCH, a benchmark of 10,000 real user queries spanning multiple content domains — from factual lookups to opinion-based questions.
+Published at KDD 2024 (one of the top data science conferences) by researchers from Princeton University, Georgia Tech, and the Allen Institute for AI (arXiv:2311.09735), the study built GEO-BENCH, a benchmark of 10,000 real user queries spanning multiple content domains, from factual lookups to opinion-based questions.
 
 They measured results using two metrics:
 
 - **Position-Adjusted Word Count**: How much of your content the AI engine includes in its response, weighted by where it appears (earlier = better).
 - **Subjective Impression Score**: How favourably your content is presented to users within the AI-generated answer.
 
-These aren't vanity metrics. They measure whether AI engines actually surface your content when users ask questions — which is rapidly becoming the primary way people find information.
+These aren't vanity metrics. They measure whether AI engines actually surface your content when users ask questions, which is rapidly becoming the primary way people find information.
 
 **Why this matters commercially:** The Webflow SEO team reported that ChatGPT traffic converts at 6x the rate of traditional Google organic search, and their AI-attributed signups grew from 2% to 10% of total signups. AI search isn't a future concern. It's a present-day revenue channel.
 
@@ -41,11 +43,11 @@ These three methods each delivered 30–40% improvement in visibility metrics. I
 
 ### 1. Cite Sources (+30–40%)
 
-Adding credible citations from authoritative domains (.edu, .gov, peer-reviewed research) was the single most universally effective technique. It worked across *every* content domain tested — factual, opinion-based, commercial, and informational.
+Adding credible citations from authoritative domains (.edu, .gov, peer-reviewed research) was the single most universally effective technique. It worked across *every* content domain tested: factual, opinion-based, commercial, and informational.
 
 Why? AI engines are designed to reduce hallucination risk. When your content includes verifiable references, the AI can cross-check claims before surfacing them. Content without citations is a liability for an AI trying to be accurate.
 
-Google's patent WO2024064249A1 reveals that their AI systems prioritise "information gain" — content that adds verifiable, novel information rather than duplicating what's already available. Citations are the clearest signal that your claims are grounded.
+Google's patent WO2024064249A1 reveals that their AI systems prioritise "information gain", content that adds verifiable, novel information rather than duplicating what's already available. Citations are the clearest signal that your claims are grounded. For a deeper look at how citations influence AI search rankings, see our guide on [co-citations and brand mentions in AI search](/resources/co-citations-brand-mentions-ai-search).
 
 **Before:**
 > "Remote work increases productivity for most knowledge workers. Companies that adopt flexible policies tend to see better retention rates."
@@ -63,7 +65,7 @@ The difference is stark. The first version is an opinion. The second is a citabl
 
 ### 2. Quotation Addition (+30–40%)
 
-Incorporating direct quotes from recognised experts delivered the same 30–40% improvement as citations. AI engines treat quoted material as a higher-trust signal — it's attributed speech that can be verified.
+Incorporating direct quotes from recognised experts delivered the same 30–40% improvement as citations. AI engines treat quoted material as a higher-trust signal because it's attributed speech that can be verified.
 
 This aligns with what Go Fish Digital discovered about ChatGPT's reranker (internally called ret-rr-skysight-v3): it rewards comprehensive, authoritative passages. Expert quotes are a shortcut to authority because they borrow credibility from the quoted source.
 
@@ -71,7 +73,7 @@ This aligns with what Go Fish Digital discovered about ChatGPT's reranker (inter
 > "Email marketing remains one of the most effective digital channels. The returns are significant and businesses should invest more in their email programmes."
 
 **After:**
-> "Email marketing remains one of the most effective digital channels. As Litmus CEO Erik Harbison noted, 'For every £1 spent on email marketing, the average return is £36 — making it the highest-ROI channel available to most businesses.' Industry analysts consistently rank email ahead of social media and paid search for customer lifetime value."
+> "Email marketing remains one of the most effective digital channels. As Litmus CEO Erik Harbison noted, 'For every £1 spent on email marketing, the average return is £36, making it the highest-ROI channel available to most businesses.' Industry analysts consistently rank email ahead of social media and paid search for customer lifetime value."
 
 **How to implement:**
 - Include 1–2 expert quotes per article section
@@ -101,22 +103,22 @@ Think about it from the AI's perspective: if a user asks "how effective is conte
 
 ## Tier 2: Moderate-Impact Techniques
 
-These techniques showed meaningful but smaller improvements. They're most powerful when combined with Tier 1 methods.
+These techniques showed meaningful but smaller improvements, and they're most powerful when combined with Tier 1 methods.
 
 ### 4. Fluency Optimisation
 
 Improving readability and natural language flow had a moderate positive effect on its own. But here's the key finding: **when combined with statistics addition, fluency optimisation delivered a 5.5% improvement over either strategy alone**. This was the best-performing combination in the entire study.
 
-The logic is sound. Statistics make your content citable. Fluency makes it quotable. AI engines need to weave your content into a coherent response — if your writing is already smooth and well-structured, the AI can extract and present it with minimal reformulation.
+The logic is sound. Statistics make your content citable. Fluency makes it quotable. AI engines need to weave your content into a coherent response. If your writing is already smooth and well-structured, the AI can extract and present it with minimal reformulation.
 
 **Before:**
 > "The utilisation of A/B testing methodologies in the context of email marketing campaign optimisation has been demonstrated to facilitate improvements in key performance indicators including but not limited to open rates and click-through rates."
 
 **After:**
-> "A/B testing your email subject lines improves open rates by 14% on average. The technique is straightforward: send two versions of the same email to small segments, measure which performs better, then send the winner to your full list. Most email platforms — Mailchimp, ConvertKit, ActiveCampaign — have built-in A/B testing that takes under five minutes to set up."
+> "A/B testing your email subject lines improves open rates by 14% on average. The technique is straightforward: send two versions of the same email to small segments, measure which performs better, then send the winner to your full list. Most email platforms (Mailchimp, ConvertKit, ActiveCampaign) have built-in A/B testing that takes under five minutes to set up."
 
 **How to implement:**
-- Read your content aloud — if you stumble, rewrite
+- Read your content aloud. If you stumble, rewrite
 - Keep sentences under 25 words on average
 - Use active voice over passive voice
 - Break complex ideas into sequential steps
@@ -124,7 +126,7 @@ The logic is sound. Statistics make your content citable. Fluency makes it quota
 
 ### 5. Authoritative Tone
 
-Writing with confidence and conviction — avoiding hedging language like "might," "perhaps," and "it seems" — showed moderate improvements. AI engines appear to favour content that presents information decisively.
+Writing with confidence and conviction shows moderate improvements in AI visibility. Avoiding hedging language like "might," "perhaps," and "it seems" signals to AI engines that your content presents information decisively.
 
 This doesn't mean being reckless with claims. It means being confident where the evidence supports confidence.
 
@@ -142,9 +144,9 @@ This doesn't mean being reckless with claims. It means being confident where the
 
 ### 6. Technical Terms
 
-Including domain-specific terminology and jargon helped AI engines categorise and surface content correctly. When an AI processes a query about "conversion rate optimisation," it looks for content that uses the precise language of that field — not simplified paraphrasing.
+Including domain-specific terminology helps AI engines categorise and surface content correctly. When an AI processes a query about "conversion rate optimisation," it looks for content that uses the precise language of that field, not simplified paraphrasing.
 
-This is particularly relevant given Google's patent US11769017B1, which describes how AI uses "query fan-out" to expand a single user query into multiple related searches. Technical terms help your content match these expanded queries.
+This is particularly relevant given Google's patent US11769017B1, which describes how AI uses "query fan-out" to expand a single user query into multiple related searches. Technical terms help your content match these expanded queries. For more on how AI engines parse and match entity information, read our piece on [entity clarity and why AI can't recommend you](/resources/entity-clarity-why-ai-cant-recommend-you).
 
 **Before:**
 > "Making your website work better so more visitors do what you want them to do is really important. You should test different versions of your pages to see which ones perform better."
@@ -162,17 +164,17 @@ This is particularly relevant given Google's patent US11769017B1, which describe
 
 ## Tier 3: Low or Negative Impact
 
-These techniques showed minimal benefit — or actively hurt visibility.
+These techniques showed minimal benefit, or actively hurt visibility.
 
 ### 7. Easy-to-Understand Language (Modest Impact)
 
-Simplifying complex concepts for a general audience showed only modest improvements. This was surprising — conventional SEO wisdom says simpler is better. But AI engines serve a different function than traditional search. Users asking AI engines complex questions often want expert-level answers, not dumbed-down summaries.
+Simplifying complex concepts for a general audience showed only modest improvements. This was surprising, as conventional SEO wisdom says simpler is better. But AI engines serve a different function than traditional search. Users asking AI engines complex questions often want expert-level answers, not dumbed-down summaries.
 
 **Before:**
 > "The enzymatic cascade involved in hepatic gluconeogenesis operates through a series of thermodynamically irreversible reactions catalysed by fructose-1,6-bisphosphatase and glucose-6-phosphatase."
 
 **After:**
-> "Your liver creates new glucose through a process called gluconeogenesis. Think of it like a reverse assembly line — specific enzymes break down non-sugar molecules and rebuild them into glucose your body can use for energy."
+> "Your liver creates new glucose through a process called gluconeogenesis. Think of it like a reverse assembly line: specific enzymes break down non-sugar molecules and rebuild them into glucose your body can use for energy."
 
 **When to use it:** This technique still has value for genuinely complex topics where your audience includes beginners. But don't simplify content that your target audience expects to be technical.
 
@@ -188,16 +190,16 @@ Adding distinctive or unusual vocabulary showed minimal improvement. The theory 
 
 **The verdict:** Don't force unusual vocabulary. Write naturally. If a common word is the right word, use it.
 
-### 9. Keyword Stuffing (−10% — Actively Harmful)
+### 9. Keyword Stuffing (−10%, Actively Harmful)
 
 This is the critical finding: **keyword stuffing decreased AI search visibility by 10%**. The technique that dominated early SEO is now actively penalised by generative engines.
 
-AI engines are language models. They understand semantic meaning, not keyword density. When they detect unnatural keyword repetition, they interpret it as low-quality content — exactly the kind of material they're designed to filter out.
+AI engines are language models. They understand semantic meaning, not keyword density. When they detect unnatural keyword repetition, they interpret it as low-quality content, exactly the kind of material they're designed to filter out.
 
 **Before (natural):**
 > "Email marketing software helps businesses automate their campaigns, segment audiences, and track performance metrics like open rates and click-through rates."
 
-**After (keyword-stuffed — DON'T do this):**
+**After (keyword-stuffed, DON'T do this):**
 > "Email marketing software is the best email marketing tool for email marketing campaigns. Our email marketing platform offers email marketing automation for your email marketing strategy. Choose our email marketing solution for all your email marketing needs."
 
 **The lesson:** If you're still optimising for keyword density, you're actively sabotaging your AI search visibility.
@@ -206,7 +208,7 @@ AI engines are language models. They understand semantic meaning, not keyword de
 
 ## The Winning Combination
 
-The study's most actionable finding wasn't about individual techniques — it was about combining them.
+The study's most actionable finding wasn't about individual techniques. It was about combining them.
 
 **Fluency Optimisation + Statistics Addition** outperformed every single-technique approach by 5.5%. Here's why this combination works:
 
@@ -222,7 +224,7 @@ Layer in citations and expert quotes from Tier 1, and you're producing content t
 > "Social media is really important for businesses today. Companies should definitely have a social media presence because it helps with brand awareness and customer engagement. There are many platforms to choose from and each one has its own benefits."
 
 **After (optimised for generative engines):**
-> "Social media drives measurable business outcomes across brand awareness, lead generation, and customer retention. According to Sprout Social's 2024 Index, 68% of consumers follow brands on social platforms to stay informed about new products, and social commerce revenue reached £571 billion globally in 2023 (Statista). As marketing strategist Ann Handley notes, 'The brands winning on social aren't the loudest — they're the most consistently useful.' For B2B companies, LinkedIn generates 80% of social media leads (LinkedIn Marketing Solutions, 2024), making platform selection a strategic decision rather than a presence-based one."
+> "Social media drives measurable business outcomes across brand awareness, lead generation, and customer retention. According to Sprout Social's 2024 Index, 68% of consumers follow brands on social platforms to stay informed about new products, and social commerce revenue reached £571 billion globally in 2023 (Statista). As marketing strategist Ann Handley notes, 'The brands winning on social aren't the loudest; they're the most consistently useful.' For B2B companies, LinkedIn generates 80% of social media leads (LinkedIn Marketing Solutions, 2024), making platform selection a strategic decision rather than a presence-based one."
 
 The optimised version uses citations (Sprout Social, Statista, LinkedIn Marketing Solutions), quotations (Ann Handley), statistics (68%, £571 billion, 80%), authoritative tone, technical terms (social commerce, B2B, lead generation), and fluent prose. That's five of the six effective techniques in a single paragraph.
 
@@ -230,30 +232,30 @@ The optimised version uses citations (Sprout Social, Statista, LinkedIn Marketin
 
 ## Beyond the Study: What Else Drives AI Visibility
 
-The Princeton study provides the strongest experimental evidence, but other research adds important context:
+The Princeton study provides the strongest experimental evidence, but other research adds important context.
 
-**Brand mentions matter enormously.** Research shows that brand web mentions have a 0.664 correlation with AI visibility — the strongest single predictor. This means your off-site reputation (press coverage, reviews, mentions on other websites) directly affects whether AI engines surface your content.
+**Brand mentions matter enormously.** Research shows that brand web mentions have a 0.664 correlation with AI visibility, the strongest single predictor. This means your off-site reputation (press coverage, reviews, mentions on other websites) directly affects whether AI engines surface your content. Learn more in our guide to [co-citations and brand mentions in AI search](/resources/co-citations-brand-mentions-ai-search).
 
 **Community content gets disproportionate visibility.** Reddit appears in 5.5% of AI Overviews with 3.4% higher citation rates than statistically expected. AI engines value authentic community discussion because it represents genuine human experience rather than marketing copy.
 
-**Information gain beats duplication.** Google's patent WO2024064249A1 explicitly describes how AI systems prioritise content that adds novel information over content that repeats what's already available. If your article says exactly what ten other articles say, the AI has no reason to cite yours.
+**Information gain beats duplication.** Google's patent WO2024064249A1 explicitly describes how AI systems prioritise content that adds novel information over content that repeats what's already available. If your article says exactly what ten other articles say, the AI has no reason to cite yours. To strengthen your content's entity signals, explore our article on [structuring content for AI citations](/resources/how-to-structure-content-for-ai-citations).
 
 ---
 
 ## Measuring Your Results
 
-Implementing these techniques is only half the equation. You need to measure whether they're actually working.
+Analytics is the essential feedback loop for any GEO strategy. Without measurement, you're optimising blind.
 
-This is where analytics becomes critical. Track these metrics before and after implementing GEO techniques:
+Track these metrics before and after implementing GEO techniques:
 
 - **Organic traffic changes** from AI-powered search engines
 - **New landing page performance** for optimised content vs. older content
 - **Engagement metrics** (time on page, scroll depth) for restructured articles
 - **Conversion rates** from AI-referred traffic vs. traditional search traffic
 
-If you're using [Meaning](https://usemeaning.io), you can simply ask: *"How has my organic traffic changed in the last 30 days?"* or *"Which pages are getting the most traffic from new sources?"* Instead of digging through GA4 reports, get instant answers about whether your optimisation work is paying off.
+If you're wondering how to track these without wrestling with GA4's complex interface, [Meaning](https://usemeaning.io) works as a ChatGPT for Google Analytics. Simply ask: *"How has my organic traffic changed in the last 30 days?"* or *"Which pages are getting the most traffic from new sources?"* You can chat with Google Analytics in plain English and get instant answers about whether your optimisation work is paying off. For guidance on which numbers to focus on, see [the 5 GA4 metrics every marketer should track in 2026](/resources/the-5-ga4-metrics-every-marketer-should-be-tracking-in-2026).
 
-The Webflow team's finding — that ChatGPT traffic converts at 6x the rate of Google organic — suggests that even modest increases in AI search visibility could significantly impact your revenue. But you won't know unless you're measuring.
+The Webflow team's finding, that ChatGPT traffic converts at 6x the rate of Google organic, suggests that even modest increases in AI search visibility could significantly impact your revenue. But you won't know unless you're measuring.
 
 ---
 
@@ -261,13 +263,13 @@ The Webflow team's finding — that ChatGPT traffic converts at 6x the rate of G
 
 Here's the priority order for implementing these techniques:
 
-1. **Audit existing content** for unsupported claims — add citations and statistics
+1. **Audit existing content** for unsupported claims, then add citations and statistics
 2. **Incorporate expert quotes** into your highest-traffic pages
 3. **Rewrite fluffy paragraphs** with specific data points
 4. **Combine fluency optimisation with statistics** for new content
-5. **Remove any keyword stuffing** — it's actively hurting you
+5. **Remove any keyword stuffing**, as it's actively hurting you
 6. **Add technical terminology** where appropriate for your audience
-7. **Monitor results** using your analytics platform — ask Meaning to compare traffic patterns before and after your changes
+7. **Monitor results** using your analytics platform. Ask [Meaning](https://usemeaning.io) to compare traffic patterns before and after your changes
 
 ---
 
@@ -275,7 +277,7 @@ Here's the priority order for implementing these techniques:
 
 ### How quickly do GEO optimisation changes take effect?
 
-Unlike traditional SEO, which can take 3–6 months to show results, GEO changes can take effect as soon as AI engines re-crawl your content. Most major AI search engines re-index popular pages within days to weeks. Monitor your analytics closely in the first 30 days after making changes — ask Meaning to track your traffic sources week over week.
+Unlike traditional SEO, which can take 3–6 months to show results, GEO changes can take effect as soon as AI engines re-crawl your content. Most major AI search engines re-index popular pages within days to weeks. Monitor your analytics closely in the first 30 days after making changes. Use a GA4 AI chatbot like [Meaning](https://usemeaning.io) to track your traffic sources week over week.
 
 ### Do I need to optimise differently for ChatGPT, Google AI Overviews, and Perplexity?
 
@@ -291,18 +293,20 @@ No. Google's helpful content system already penalises keyword-stuffed content in
 
 ### How does GEO relate to traditional SEO? Do I need to choose one?
 
-GEO and SEO are complementary, not competing. The techniques that boost AI visibility (citations, statistics, authoritative writing) also improve traditional search performance. Think of GEO as an extension of good SEO practice, with specific emphasis on making content AI-extractable. You don't choose between them — you layer GEO techniques on top of your existing SEO foundations.
+GEO and SEO are complementary, not competing. The techniques that boost AI visibility (citations, statistics, authoritative writing) also improve traditional search performance. Think of GEO as an extension of good SEO practice, with specific emphasis on making content AI-extractable. You don't choose between them. You layer GEO techniques on top of your existing SEO foundations.
 
 ### What tools can I use to measure AI search visibility specifically?
 
-Start with your existing analytics. Meaning can help you identify traffic pattern changes that correlate with AI search growth — ask questions like *"What are my fastest-growing traffic sources this month?"* or *"How does engagement from new referral sources compare to Google organic?"* For dedicated GEO tracking, tools like Profound and Otterly.AI monitor brand mentions across AI engines, while manual testing on ChatGPT, Perplexity, and Google AI Overviews gives you qualitative insight into how your content appears.
+Start with your existing analytics. [Meaning](https://usemeaning.io) is an AI Google Analytics assistant that helps you identify traffic pattern changes correlating with AI search growth. Ask questions like *"What are my fastest-growing traffic sources this month?"* or *"How does engagement from new referral sources compare to Google organic?"* For dedicated GEO tracking, tools like Profound and Otterly.AI monitor brand mentions across AI engines. Manual testing on ChatGPT, Perplexity, and Google AI Overviews gives you qualitative insight into how your content appears. For more on what to measure, see our guide on [tracking GEO performance metrics](/resources/tracking-geo-performance-metrics).
+
+{/* FAQPage schema: {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How quickly do GEO optimisation changes take effect?","acceptedAnswer":{"@type":"Answer","text":"Unlike traditional SEO, which can take 3–6 months to show results, GEO changes can take effect as soon as AI engines re-crawl your content. Most major AI search engines re-index popular pages within days to weeks. Monitor your analytics closely in the first 30 days after making changes."}},{"@type":"Question","name":"Do I need to optimise differently for ChatGPT, Google AI Overviews, and Perplexity?","acceptedAnswer":{"@type":"Answer","text":"The Princeton study's techniques improved visibility across multiple generative engines, suggesting the core principles are universal. However, each platform has nuances. Google AI Overviews lean heavily on traditionally high-ranking pages, while ChatGPT's reranker specifically rewards comprehensive, authoritative passages."}},{"@type":"Question","name":"Can I apply these techniques to existing content, or only new articles?","acceptedAnswer":{"@type":"Answer","text":"Both. Updating existing high-performing content is often the fastest path to results. Identify your top 10 pages by traffic, audit them against the Tier 1 techniques, and add citations, quotes, and statistics where they're missing."}},{"@type":"Question","name":"Is keyword stuffing still useful for traditional Google search?","acceptedAnswer":{"@type":"Answer","text":"No. Google's helpful content system already penalises keyword-stuffed content in traditional search. The Princeton study confirms that generative engines penalise it even more aggressively with a negative 10% visibility impact."}},{"@type":"Question","name":"How does GEO relate to traditional SEO? Do I need to choose one?","acceptedAnswer":{"@type":"Answer","text":"GEO and SEO are complementary, not competing. The techniques that boost AI visibility also improve traditional search performance. Think of GEO as an extension of good SEO practice, with specific emphasis on making content AI-extractable."}},{"@type":"Question","name":"What tools can I use to measure AI search visibility specifically?","acceptedAnswer":{"@type":"Answer","text":"Start with your existing analytics. Meaning is an AI Google Analytics assistant that helps you identify traffic pattern changes correlating with AI search growth. For dedicated GEO tracking, tools like Profound and Otterly.AI monitor brand mentions across AI engines."}}]} */}
 
 ---
 
 ## What's Next in This Series
 
-This is part 2 of our 7-part generative search series. In [part 1](/resources/what-is-geo-generative-engine-optimisation), we covered the fundamentals of Generative Engine Optimisation — what it is, why it matters, and how it differs from traditional SEO.
+This is part 2 of our 7-part generative search series. In [part 1](/resources/what-is-geo-generative-engine-optimisation), we covered the fundamentals of Generative Engine Optimisation: what it is, why it matters, and how it differs from traditional SEO.
 
-In part 3, we'll tackle **how to audit your existing content for AI search readiness** — a practical, step-by-step framework for identifying which pages to optimise first and how to prioritise your efforts.
+In part 3, we'll tackle **how to audit your existing content for AI search readiness**, a practical, step-by-step framework for identifying which pages to optimise first and how to prioritise your efforts.
 
 *Want to see how your site is performing right now? [Connect your GA4 property to Meaning](https://usemeaning.io) and ask: "What does my organic traffic look like this month?" It takes 30 seconds to set up.*
