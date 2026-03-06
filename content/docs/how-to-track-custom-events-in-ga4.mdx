@@ -10,11 +10,13 @@ author: "Meaning"
 keywords: ["GA4 custom events", "track events GA4", "GTM custom events GA4", "GA4 event tracking", "google analytics 4 events", "GA4 event setup no code", "GA4 AI chatbot", "no-code analytics for marketers", "GA4 data insights without coding", "AI analytics insights tool"]
 ---
 
-> ⚡ TL;DR: GA4's Enhanced Measurement covers basic interactions automatically, but custom events capture what actually matters for your business — button clicks, form submissions, scroll milestones, and video plays. Set them up in Google Tag Manager using GA4 Event tags and specific triggers. No code changes to your website required.
+> **TL;DR:** GA4's Enhanced Measurement covers basic interactions automatically, but custom events capture what actually matters for your business — button clicks, form submissions, scroll milestones, and video plays. Set them up in Google Tag Manager using GA4 Event tags and specific triggers. No code changes to your website required.
 
 GA4's out-of-the-box tracking collects page views, a 90% scroll event, outbound clicks, and site search — useful baseline data, but insufficient for understanding how users interact with your specific content and CTAs. Custom event tracking bridges that gap. Once your custom events are live, Meaning's GA4 AI chatbot lets you ask questions about user behaviour in plain English — getting instant insights from your event data without building custom Exploration reports. This guide covers how to configure GA4 custom events in Google Tag Manager for the four most valuable interaction types: button clicks, scroll depth milestones, form submissions, and video plays — all without touching a single line of your website's source code.
 
 ## What are GA4 custom events?
+
+**GA4 custom events** are user-defined events that you send to Google Analytics 4 to track specific interactions not captured by GA4's automatic or Enhanced Measurement tracking. Unlike GA4's built-in events, custom events use names and parameters you define — giving you complete control over what data is collected and how it's labelled.
 
 GA4 custom events are user-defined events that you send to Google Analytics 4 to track specific interactions not captured by GA4's automatic or Enhanced Measurement tracking. Unlike Universal Analytics, which used a rigid Category/Action/Label taxonomy, GA4 custom events use a flexible name-plus-parameters structure that you define based on your measurement requirements.
 According to Google's official GA4 documentation, events in GA4 fall into four categories: automatically collected events (fired by the GA4 tag by default), enhanced measurement events (optional, enabled in Data Stream settings), recommended events (predefined names Google specifies for common use cases), and custom events (any event you define yourself). Custom events that do not follow Google's recommended naming conventions will not appear in standard reports and must be accessed via Explorations.
@@ -69,6 +71,8 @@ GA4's Enhanced Measurement fires a single scroll event when a user reaches 90% o
 This replaces the single 90% Enhanced Measurement scroll event with four distinct events, giving you a full scroll engagement funnel. A page where 70% of users reach the 25% mark but only 10% reach 75% has a fundamentally different content problem than a page showing steady scroll engagement throughout.
 
 ## How to track form submissions
+
+> **Key Takeaway:** Form submission events are among the most important custom events on any lead generation site. Use GTM's "Check Validation" option so you only count genuine, successfully submitted forms — not validation errors.
 
 Form submission tracking captures one of the highest-value conversions on most websites. GTM's Form Submission trigger detects standard HTML form submissions automatically — no changes to your form HTML or backend are required.
 1. In GTM, go to Triggers > New and select Form Submission as the trigger type.
