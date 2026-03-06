@@ -28,6 +28,8 @@ Think of it this way: GA4 tracks hundreds of events automatically (page views, s
 
 This is where most people get tripped up, so let's be crystal clear.
 
+> **Key Takeaway:** "Key events" live in GA4 and measure on-site behaviour. "Conversions" live in Google Ads and drive campaign optimisation. They are not interchangeable terms.
+
 ### Before March 2024
 
 In the old setup, GA4 used the word "conversion" for everything. If you marked an event as important in GA4, it was called a conversion. If that same data flowed into Google Ads, it was also called a conversion. Same word, two different contexts, endless confusion.
@@ -139,6 +141,8 @@ When you mark an event as a key event, GA4 lets you choose how to count it:
 - **Once per session** — counts only the first occurrence per session (ideal for form submissions and sign-ups)
 - **Every event occurrence** — counts every time it happens (ideal for purchases, where a user might buy multiple items)
 
+> **Key Takeaway:** Always set form submissions and sign-ups to "Once per session." Set purchases to "Every event occurrence." The wrong setting will silently corrupt your conversion numbers.
+
 Choose wisely. Counting every `form_submission` event will inflate your numbers if users submit the same form multiple times in a session.
 
 ## Viewing key event data in GA4 reports
@@ -204,7 +208,7 @@ Once you're tracking key events, here are the metrics you should pay attention t
 
 ### Key event rate
 
-This is the percentage of sessions (or users) that result in a key event. It's calculated as:
+**Key Event Rate** is the percentage of sessions (or users) that result in a key event. It is the primary measure of how effectively your site turns visitors into leads or customers. It's calculated as:
 
 **Key Event Rate = (Sessions with key event ÷ Total sessions) × 100**
 
