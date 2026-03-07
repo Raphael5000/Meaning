@@ -185,7 +185,7 @@ function ConnectAnalyticsContent() {
               priority
             />
             <h1
-              className="text-xl font-semibold"
+              className="text-xl"
               style={{ color: "var(--text-primary)" }}
             >
               Connect Google Analytics

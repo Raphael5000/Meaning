@@ -1,10 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticle, getCategory, getArticlesByCategory, articles } from "../../data";
 import type { Article } from "../../data";
 import { ArticlePageNav } from "./ArticlePageNav";
 import { TableOfContents } from "@/components/TableOfContents";
+import { Footer } from "@/components/Footer";
 import { getArticleData } from "@/lib/mdx";
 
 // Render docs on demand (CC's npm environment breaks React during static prerendering)
@@ -120,7 +120,7 @@ export default async function ArticlePage({
                 </span>
               </div>
               <h1
-                className="mb-3 text-2xl font-bold leading-tight sm:mb-4 sm:text-3xl md:text-4xl"
+                className="mb-3 text-2xl leading-tight sm:mb-4 sm:text-3xl md:text-4xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 {article.title}
@@ -196,7 +196,7 @@ export default async function ArticlePage({
                 {relatedArticles.length > 0 && (
                   <div>
                     <h2
-                      className="mb-4 text-lg font-semibold sm:mb-6 sm:text-xl"
+                      className="mb-4 text-lg sm:mb-6 sm:text-xl"
                       style={{ color: "var(--text-primary)" }}
                     >
                       More in {category.label}
@@ -311,32 +311,7 @@ export default async function ArticlePage({
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 md:px-12"
-        style={{ borderTop: "1px solid var(--border-color)" }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/Logo.svg"
-              alt="Meaning"
-              width={90}
-              height={32}
-              className="h-6 w-auto invert dark:invert-0"
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Privacy
-            </Link>
-            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Terms
-            </Link>
-            <span>Copyright &copy; 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

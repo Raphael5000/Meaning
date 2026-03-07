@@ -532,7 +532,7 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
-              <h2 className="mb-2 text-xl font-semibold text-foreground">
+              <h2 className="mb-2 text-xl text-foreground">
                 {propertyName
                   ? `Ask about ${propertyName}`
                   : "Chat with your Analytics"}

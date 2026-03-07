@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import type { Article, Category } from "./data";
 
 function TypeBadge({ type }: { type: Article["type"] }) {
@@ -90,7 +91,7 @@ function DocsContent({
             Knowledge Centre
           </div>
           <h1
-            className="mb-3 text-3xl font-bold sm:text-4xl md:text-5xl"
+            className="mb-3 text-3xl sm:text-4xl md:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
             Docs
@@ -253,7 +254,7 @@ function DocsContent({
           <div className="min-w-0 flex-1">
             <div className="mb-4 flex flex-col gap-1 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
               <h2
-                className="text-lg font-semibold sm:text-xl"
+                className="text-lg sm:text-xl"
                 style={{ color: "var(--text-primary)" }}
               >
                 {activeLabel}
@@ -440,32 +441,7 @@ function DocsContent({
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 md:px-12"
-        style={{ borderTop: "1px solid var(--border-color)" }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/Logo.svg"
-              alt="Meaning"
-              width={90}
-              height={32}
-              className="h-6 w-auto invert dark:invert-0"
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Privacy
-            </Link>
-            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Terms
-            </Link>
-            <span>Copyright &copy; 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

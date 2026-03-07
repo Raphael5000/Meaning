@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { Footer } from "@/components/Footer";
 import {
   BarChart3,
   Bell,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
+import { CtaSection } from "@/components/CtaSection";
 
 function FadeInSection({
   children,
@@ -86,12 +86,10 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
       </div>
 
       {/* Navigation */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-[15px] dark:bg-black/50 md:bg-transparent md:backdrop-blur-none md:dark:bg-transparent">
-        <Navbar />
-      </div>
+      <Navbar />
 
       {/* Hero Section */}
-      <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pt-20 text-center">
+      <section className="relative z-10 flex min-h-[calc(100vh-64px)] flex-col items-center justify-center px-6 pt-16 text-center">
         <div className="landing-fade-up relative mx-auto max-w-4xl">
           <div
             className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
@@ -132,13 +130,9 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
             <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
               <a href="/signup">Get started</a>
             </Button>
-            <a
-              href="/pricing"
-              className="text-sm underline-offset-4 hover:underline"
-              style={{ color: "var(--text-muted)" }}
-            >
-              View pricing &rarr;
-            </a>
+            <Button asChild variant="outline" size="lg" className="rounded-full px-8 py-3 text-base font-semibold">
+              <a href="/pricing">View pricing</a>
+            </Button>
           </div>
         </div>
 
@@ -285,7 +279,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </FadeInSection>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <FadeInSection delay={0}>
+            <FadeInSection delay={0} className="h-full">
               <FeatureCard
                 icon={<Search className="h-6 w-6" />}
                 title="Natural Language Queries"
@@ -293,7 +287,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               />
             </FadeInSection>
 
-            <FadeInSection delay={80}>
+            <FadeInSection delay={80} className="h-full">
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
                 title="Real-time Analytics"
@@ -301,7 +295,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               />
             </FadeInSection>
 
-            <FadeInSection delay={160}>
+            <FadeInSection delay={160} className="h-full">
               <FeatureCard
                 icon={<BarChart3 className="h-6 w-6" />}
                 title="Rich Visualizations"
@@ -309,7 +303,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               />
             </FadeInSection>
 
-            <FadeInSection delay={240}>
+            <FadeInSection delay={240} className="h-full">
               <FeatureCard
                 icon={<Bell className="h-6 w-6" />}
                 title="Automated Email Alerts"
@@ -317,7 +311,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               />
             </FadeInSection>
 
-            <FadeInSection delay={320}>
+            <FadeInSection delay={320} className="h-full">
               <FeatureCard
                 icon={<Users className="h-6 w-6" />}
                 title="Team Collaboration"
@@ -325,7 +319,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
               />
             </FadeInSection>
 
-            <FadeInSection delay={400}>
+            <FadeInSection delay={400} className="h-full">
               <FeatureCard
                 icon={<Lock className="h-6 w-6" />}
                 title="Privacy First"
@@ -756,21 +750,21 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
           </FadeInSection>
 
           <div className="grid gap-8 md:grid-cols-3">
-            <FadeInSection delay={0}>
+            <FadeInSection delay={0} className="h-full">
               <StepCard
                 number="1"
                 title="Sign in with Google"
                 description="Connect your Google account with read-only analytics access."
               />
             </FadeInSection>
-            <FadeInSection delay={120}>
+            <FadeInSection delay={120} className="h-full">
               <StepCard
                 number="2"
                 title="Select your property"
                 description="Choose which GA4 property you want to explore."
               />
             </FadeInSection>
-            <FadeInSection delay={240}>
+            <FadeInSection delay={240} className="h-full">
               <StepCard
                 number="3"
                 title="Start asking questions"
@@ -781,38 +775,13 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="px-6 py-24 md:px-12">
-        <FadeInSection>
-        <div className="mx-auto max-w-3xl text-center">
-          <div
-            className="rounded-3xl p-12 md:p-16"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(16, 163, 127, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%)",
-              border: "1px solid rgba(16, 163, 127, 0.2)",
-            }}
-          >
-            <h2
-              className="mb-4 text-3xl md:text-4xl"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Ready to talk to your data?
-            </h2>
-            <p
-              className="mx-auto mb-8 max-w-lg text-lg"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Join the beta and start getting insights from your Google Analytics
-              data in seconds.
-            </p>
-            <Button asChild size="lg" className="rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_30px_rgba(16,163,127,0.3)]">
-              <a href="/signup">Get started</a>
-            </Button>
-          </div>
-        </div>
-        </FadeInSection>
-      </section>
+      <FadeInSection>
+        <CtaSection
+          heading="Ready to talk to your data?"
+          description="Join the beta and start getting insights from your Google Analytics data in seconds."
+          primaryText="Get started"
+        />
+      </FadeInSection>
 
       {/* FAQ Section */}
       <section className="px-6 py-24 md:px-12">
@@ -895,37 +864,7 @@ export default function LandingPage({ onTryBeta }: { onTryBeta: () => void }) {
 
       {/* Footer */}
       <FadeInSection>
-      <footer
-        className="px-6 py-8 md:px-12"
-        style={{ borderTop: "1px solid var(--border-color)" }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/Logo.svg"
-              alt="Meaning"
-              width={90}
-              height={32}
-              className="h-6 w-auto invert dark:invert-0"
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Privacy
-            </Link>
-            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Terms
-            </Link>
-            <Link href="/docs" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Docs
-            </Link>
-            <Link href="/contact" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Contact
-            </Link>
-            <span>Copyright &copy; 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
-          </div>
-        </div>
-      </footer>
+        <Footer />
       </FadeInSection>
     </div>
   );
@@ -942,7 +881,7 @@ function FeatureCard({
 }) {
   return (
     <div
-      className="landing-feature-card relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
+      className="landing-feature-card relative h-full overflow-hidden rounded-2xl p-6 transition-all duration-300"
       style={{
         background:
           "var(--card-bg)",

@@ -184,7 +184,7 @@ function AccountContent() {
 
       <div className="mx-auto max-w-3xl px-6 py-8">
         <h1
-          className="mb-8 text-2xl font-bold"
+          className="mb-8 text-2xl"
           style={{ color: "var(--text-primary)" }}
         >
           Account
@@ -257,7 +257,7 @@ function AccountContent() {
               <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <h2
-                  className="mb-6 text-lg font-semibold"
+                  className="mb-6 text-lg"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Profile Information
@@ -349,7 +349,7 @@ function AccountContent() {
               <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <h2
-                  className="mb-2 text-lg font-semibold"
+                  className="mb-2 text-lg"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Appearance
@@ -446,7 +446,7 @@ function AccountContent() {
               <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <h2
-                  className="mb-2 text-lg font-semibold"
+                  className="mb-2 text-lg"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Legal
@@ -571,7 +571,7 @@ function AccountContent() {
               <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <h2
-                  className="mb-6 text-lg font-semibold"
+                  className="mb-6 text-lg"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Subscription
@@ -735,7 +735,7 @@ function AccountContent() {
                 <div className="card-noise" aria-hidden />
                 <div className="relative z-10">
                   <h2
-                    className="mb-4 text-lg font-semibold"
+                    className="mb-4 text-lg"
                     style={{ color: "var(--text-primary)" }}
                   >
                     Your plan includes
@@ -792,7 +792,7 @@ function AccountContent() {
               <div className="card-noise" aria-hidden />
               <div className="relative z-10">
                 <h2
-                  className="mb-6 text-lg font-semibold"
+                  className="mb-6 text-lg"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {profile.teamMembership ? "Billing" : "Invoices"}

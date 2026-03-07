@@ -46,7 +46,7 @@ function AuthErrorContent() {
           height={43}
         />
         <h1
-          className="mb-2 text-xl font-semibold"
+          className="mb-2 text-xl"
           style={{ color: "var(--text-primary)" }}
         >
           Sign-in problem

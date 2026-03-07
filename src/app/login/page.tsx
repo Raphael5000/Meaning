@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -41,12 +42,19 @@ function LoginForm() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center px-4"
+      className="relative flex min-h-screen items-center justify-center px-4"
       style={{
         background:
           "var(--page-bg)",
       }}
     >
+      <Link
+        href="/"
+        className="absolute left-4 top-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] sm:left-6 sm:top-6"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Home
+      </Link>
       <div
         className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl p-8"
         style={{
@@ -68,7 +76,7 @@ function LoginForm() {
               priority
             />
             <h1
-              className="text-xl font-semibold"
+              className="text-xl"
               style={{ color: "var(--text-primary)" }}
             >
               Welcome back

@@ -105,7 +105,7 @@ export default function InvitePage({
         >
           <div className="card-noise" aria-hidden />
           <div className="relative z-10">
-            <h2 className="mb-2 text-xl font-semibold text-foreground">
+            <h2 className="mb-2 text-xl text-foreground">
               Invalid Invite
             </h2>
             <p className="text-sm text-muted-foreground">{error}</p>
@@ -140,7 +140,7 @@ export default function InvitePage({
             />
           </div>
 
-          <h2 className="mb-1 text-center text-xl font-semibold text-foreground">
+          <h2 className="mb-1 text-center text-xl text-foreground">
             Join {inviteData?.teamName}
           </h2>
           <p className="mb-6 text-center text-sm text-muted-foreground">

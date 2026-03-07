@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -71,7 +70,7 @@ export default function ContactPage() {
       <section className="relative z-10 flex flex-col items-center px-6 pt-16 pb-24 text-center">
         <div className="mx-auto w-full max-w-lg">
           <h1
-            className="mb-4 text-4xl font-bold md:text-5xl"
+            className="mb-4 text-4xl md:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
             Get in touch
@@ -262,31 +261,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <footer
-        className="px-6 py-8 md:px-12"
-        style={{ borderTop: "1px solid var(--border-color)" }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/Logo.svg"
-              alt="Meaning"
-              width={90}
-              height={32}
-              className="h-6 w-auto invert dark:invert-0"
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            <Link href="/privacy" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Privacy
-            </Link>
-            <Link href="/terms" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>
-              Terms
-            </Link>
-            <span>Copyright © 2026 - All rights reserved | A product by <a href="https://www.hivory.io" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: "var(--text-secondary)" }}>Hivory</a></span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
