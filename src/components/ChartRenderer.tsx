@@ -63,6 +63,20 @@ const ACCENT_PALETTE = [
   "#ec4899",
 ];
 
+/** Vibrant palette specifically for sankey diagrams – matches the neon-on-dark design reference */
+const SANKEY_PALETTE = [
+  "#06b6d4", // cyan
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#f43f5e", // rose
+  "#3b82f6", // blue
+  "#a855f7", // purple
+  "#14b8a6", // teal
+  "#f97316", // orange
+  "#6366f1", // indigo
+  "#10b981", // emerald
+];
+
 /** Check whether the ECharts option uses a map series or geo component */
 function needsWorldMap(option: Record<string, unknown>): boolean {
   const series = option.series;
@@ -99,6 +113,163 @@ function ensureWorldMap(): Promise<void> {
   return worldMapPromise;
 }
 
+/** Detect whether the option contains a sankey series */
+function isSankeyChart(option: Record<string, unknown>): boolean {
+  const series = option.series;
+  if (Array.isArray(series)) {
+    return series.some((s) => (s as Record<string, unknown>).type === "sankey");
+  }
+  if (series && (series as Record<string, unknown>).type === "sankey") return true;
+  return false;
+}
+
+/** Apply vibrant styling to sankey series for the neon-gradient look */
+function applySankeyTheme(
+  option: Record<string, unknown>,
+  isDark: boolean
+): Record<string, unknown> {
+  const textColor = isDark ? "#f0f0f0" : "#1a1a1a";
+  const bubbleBg = isDark ? "rgba(22,22,35,0.85)" : "rgba(255,255,255,0.9)";
+  const bubbleBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const series = option.series;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const styleSeries = (s: any) => {
+    if (s.type !== "sankey") return s;
+
+    // Assign colors to nodes if not already set
+    const nodes = Array.isArray(s.data) ? s.data : s.nodes || [];
+    const coloredNodes = nodes.map((node: Record<string, unknown>, i: number) => {
+      const nodeColor = SANKEY_PALETTE[i % SANKEY_PALETTE.length];
+      return {
+        ...node,
+        itemStyle: {
+          color: nodeColor,
+          borderColor: "transparent",
+          borderWidth: 0,
+          ...(node.itemStyle as Record<string, unknown> | undefined),
+        },
+        // Per-node label with colored accent dot
+        label: {
+          backgroundColor: bubbleBg,
+          borderColor: bubbleBorder,
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: [8, 12],
+          shadowColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
+          shadowBlur: 12,
+          rich: {
+            name: {
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: "'Inter', system-ui, sans-serif",
+              color: textColor,
+              padding: [0, 0, 2, 0],
+            },
+            value: {
+              fontSize: 14,
+              fontWeight: 700,
+              fontFamily: "'Inter', system-ui, sans-serif",
+              color: nodeColor,
+              padding: [2, 0, 0, 0],
+            },
+          },
+        },
+      };
+    });
+
+    return {
+      ...s,
+      data: coloredNodes,
+      type: "sankey",
+      layoutIterations: s.layoutIterations ?? 32,
+      nodeWidth: s.nodeWidth ?? 8,
+      nodeGap: s.nodeGap ?? 18,
+      nodeAlign: s.nodeAlign ?? "justify",
+      draggable: s.draggable ?? true,
+      emphasis: {
+        focus: "adjacency",
+        lineStyle: { opacity: 0.65 },
+        ...(s.emphasis as Record<string, unknown> | undefined),
+      },
+      lineStyle: {
+        color: "gradient",
+        opacity: 0.35,
+        curveness: 0.5,
+        ...(s.lineStyle as Record<string, unknown> | undefined),
+      },
+      label: {
+        show: true,
+        position: "right",
+        formatter: (params: { name: string; value: number | string }) => {
+          const val = typeof params.value === "number"
+            ? params.value.toLocaleString()
+            : params.value ?? "";
+          return `{name|${params.name}}\n{value|${val}}`;
+        },
+        backgroundColor: bubbleBg,
+        borderColor: bubbleBorder,
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: [8, 12],
+        shadowColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
+        shadowBlur: 12,
+        rich: {
+          name: {
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: "'Inter', system-ui, sans-serif",
+            color: textColor,
+            padding: [0, 0, 2, 0],
+          },
+          value: {
+            fontSize: 14,
+            fontWeight: 700,
+            fontFamily: "'Inter', system-ui, sans-serif",
+            color: isDark ? "#a78bfa" : "#7c3aed",
+            padding: [2, 0, 0, 0],
+          },
+        },
+        ...(s.label as Record<string, unknown> | undefined),
+      },
+      itemStyle: {
+        borderRadius: 4,
+        borderColor: "transparent",
+        borderWidth: 0,
+        ...(s.itemStyle as Record<string, unknown> | undefined),
+      },
+    };
+  };
+
+  const themedSeries = Array.isArray(series)
+    ? series.map(styleSeries)
+    : series
+    ? styleSeries(series)
+    : series;
+
+  return {
+    ...option,
+    series: themedSeries,
+    color: SANKEY_PALETTE,
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+      backgroundColor: isDark ? "rgba(20,20,30,0.92)" : "rgba(255,255,255,0.95)",
+      borderColor: isDark ? "rgba(139,92,246,0.3)" : "rgba(0,0,0,0.1)",
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: {
+        color: textColor,
+        fontSize: 13,
+        fontFamily: "'Inter', system-ui, sans-serif",
+      },
+      extraCssText: isDark
+        ? "backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.5);border-radius:10px;"
+        : "backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.12);border-radius:10px;",
+      ...(option.tooltip as Record<string, unknown> | undefined),
+    },
+  };
+}
+
 function applyTheme(
   option: Record<string, unknown>,
   isDark: boolean
@@ -108,7 +279,7 @@ function applyTheme(
   const axisLineColor = isDark ? "#3a3a3a" : "#e0e0e0";
   const splitLineColor = isDark ? "#2f2f2f" : "#f0f0f0";
 
-  return {
+  let themed: Record<string, unknown> = {
     ...option,
     backgroundColor: "transparent",
     color: ACCENT_PALETTE,
@@ -144,6 +315,13 @@ function applyTheme(
     xAxis: applyAxisTheme(option.xAxis, textColor, axisLineColor, splitLineColor),
     yAxis: applyAxisTheme(option.yAxis, textColor, axisLineColor, splitLineColor),
   };
+
+  // Apply special sankey styling on top
+  if (isSankeyChart(option)) {
+    themed = applySankeyTheme(themed, isDark);
+  }
+
+  return themed;
 }
 
 function applyAxisTheme(
@@ -227,6 +405,8 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
     }, [option]);
 
     const themedOption = useMemo(() => applyTheme(option, isDark), [option, isDark]);
+    const isSankey = useMemo(() => isSankeyChart(option), [option]);
+    const chartHeight = isSankey ? "520px" : "400px";
 
     if (error) {
       return (
@@ -259,7 +439,7 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
         ref={chartRef}
         echarts={echarts}
         option={themedOption}
-        style={{ width: "100%", height: "400px" }}
+        style={{ width: "100%", height: chartHeight }}
         notMerge
         lazyUpdate
       />
