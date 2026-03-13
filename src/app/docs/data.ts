@@ -12,8 +12,6 @@ export interface Article {
   duration?: string;
   /** When true, shown as the main featured card on the docs landing (All Docs view). */
   featured?: boolean;
-  /** Image URL for the featured card. Used when featured is true. */
-  image?: string;
 }
 
 export interface Category {
@@ -92,7 +90,6 @@ export function getAllArticles(): Article[] {
       readTime: data.readTime,
       duration: data.duration,
       featured: data.featured,
-      image: data.image,
     };
   });
 }

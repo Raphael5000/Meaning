@@ -62,9 +62,12 @@ export const getArticleData = cache(async (slug: string) => {
   try {
     const raw = await readFile(filePath, "utf-8");
 
+    // Strip the first # heading — the page already renders the title from frontmatter
+    const stripped = raw.replace(/^(---[\s\S]*?---\s*)\n# .+\n/, "$1\n");
+
     const [{ content }, headings] = await Promise.all([
       compileMDX({
-        source: raw,
+        source: stripped,
         options: {
           parseFrontmatter: true,
           mdxOptions: {

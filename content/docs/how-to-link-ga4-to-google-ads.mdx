@@ -1,5 +1,5 @@
 ---
-title: "How to Link GA4 to Google Ads and Import Conversions the Right Way"
+title: "How to link GA4 to Google Ads and import conversions the right way"
 slug: "how-to-link-ga4-to-google-ads"
 category: "guides"
 type: "guide"
@@ -14,23 +14,23 @@ keywords: ["link GA4 to Google Ads", "GA4 Google Ads integration", "import conve
 
 Running Google Ads without accurate conversion data is the most expensive mistake in digital advertising. Once you've linked GA4 to Google Ads, Meaning's AI Google Analytics assistant lets you ask plain English questions like "which campaigns drove the most conversions last month?" — giving you instant AI marketing insights from your Google Analytics data without building custom reports. Google Ads Smart Bidding strategies — Target CPA, Target ROAS, Maximise Conversions — rely entirely on conversion signals to make bid decisions. According to Google's Performance Max documentation, Smart Bidding algorithms require a minimum of 30 conversions per month per campaign to exit the learning period and optimise effectively. If those conversions are miscounted, duplicated, or missing entirely because of a broken GA4 to Google Ads connection, every bid decision the algorithm makes is based on faulty data. This guide walks through the complete process: linking your GA4 property to Google Ads, importing Key Events as conversion actions, choosing the right attribution model, and diagnosing common integration issues.
 
-## Why Linking GA4 to Google Ads Matters
+## Why linking GA4 to Google Ads matters
 
 Linking GA4 to Google Ads creates a two-way data flow. Google Ads gains access to GA4's richer conversion data — including cross-session, cross-device conversions and web-plus-app conversion paths that Google Ads' own tag cannot capture alone. GA4 gains access to Google Ads campaign data — including cost, clicks, and impressions — enabling full-funnel analysis in one place without relying solely on auto-tagging assumptions.
 According to a 2023 Google internal study on Performance Max campaign performance, advertisers using GA4-imported conversions as their primary conversion source saw a 14% improvement in conversion accuracy compared to advertisers relying exclusively on the Google Ads conversion tag. The GA4 conversion model's cross-device and cross-session attribution — powered by Google's machine learning and, optionally, Google Signals — captures conversion journeys that the last-click Google Ads tag misses. For businesses with longer consideration cycles (B2B, high-value e-commerce, services), the difference is material.
 
-## Prerequisites Before Linking GA4 to Google Ads
+## Prerequisites before linking GA4 to Google Ads
 
 Complete all three prerequisites before attempting to link GA4 to Google Ads. Missing any one of them causes the link to fail or the imported conversions to be unreliable.
 - GA4 Property Access: You must have Editor or Administrator access to the GA4 property. Viewer access does not allow you to create product links.
 - Google Ads Account Access: You must have Admin access to the Google Ads account you want to link. Standard access does not allow linking.
 - GA4 Key Events Configured: At least one event must be marked as a Key Event in GA4 (Admin → Events) before you can import it into Google Ads. If no Key Events are configured, there is nothing to import.
 
-## How to Link GA4 to Google Ads: Step-by-Step
+## How to link GA4 to Google Ads: step-by-step
 
 Link your GA4 property to Google Ads from within GA4 — the connection is initiated from the GA4 Admin panel, not from Google Ads. You need Admin-level access to both platforms to complete this process.
 
-### Step 1 — Create the Link in GA4
+### Step 1 — create the link in GA4
 
 1. In GA4, navigate to Admin → Product Links (in the Property column)
 1. Click Google Ads Links
@@ -43,13 +43,13 @@ Link your GA4 property to Google Ads from within GA4 — the connection is initi
 1. Click Submit
 1. The link status shows as Active within a few minutes
 
-### Step 2 — Verify the Link Is Active
+### Step 2 — verify the link is active
 
 1. In GA4, go to Admin → Google Ads Links and confirm the link shows as Active
 1. In Google Ads, go to Tools → Linked Accounts → Google Analytics 4 — your GA4 property should appear as linked
 1. Allow 24 hours for data to begin flowing between the two platforms
 
-## How to Import GA4 Conversions into Google Ads
+## How to import GA4 conversions into Google Ads
 
 Importing GA4 Key Events into Google Ads creates conversion actions that Google Ads can track, report on, and optimise toward. This import is not automatic — you must manually select which GA4 Key Events to import as Google Ads conversion actions.
 1. In Google Ads, click Tools → Conversions (under Measurement)
@@ -63,15 +63,15 @@ Importing GA4 Key Events into Google Ads creates conversion actions that Google 
 1. Review the conversion action settings — see the configuration recommendations below
 1. Click Save and continue
 
-## Configuring Imported GA4 Conversions in Google Ads
+## Configuring imported GA4 conversions in Google Ads
 
 After importing GA4 Key Events, configure each conversion action correctly in Google Ads. The default settings are not always appropriate, and incorrect configuration leads to over-counted or incorrectly attributed conversions.
 
-### Conversion Count: One vs Every
+### Conversion count: one vs every
 
 The Conversion count setting controls whether Google Ads counts one conversion per click or every conversion per click. For lead generation forms, set this to One — you want to count one lead per ad click, not multiple form resubmissions. For e-commerce purchases, set this to Every — each purchase from the same ad click is a distinct revenue event that should be counted individually.
 
-### Attribution Model
+### Attribution model
 
 The attribution model determines how conversion credit is distributed across the touchpoints in a user's path to conversion. GA4 uses Data-driven attribution (DDA) by default, which uses machine learning to assign fractional credit to each touchpoint based on its actual contribution to conversions. Google Ads offers the same DDA model for imported GA4 conversions and it is the recommended choice for most advertisers. Avoid Last click attribution for GA4-imported conversions — it artificially concentrates credit on the final ad interaction and undervalues upper-funnel campaign types like Display and YouTube.
 
@@ -83,7 +83,7 @@ The attribution model determines how conversion credit is distributed across the
 | Linear | Equal credit distributed across all touchpoints | Basic multi-touch visibility without DDA volume | When DDA data volume is sufficient |
 | Time decay | More credit to touchpoints closer in time to conversion | Short-cycle purchases | Long consideration cycles (B2B, high-value) |
 
-## GA4 Conversions vs Google Ads Conversion Tag: Which Should You Use?
+## GA4 conversions vs Google Ads conversion tag: which should you use?
 
 Businesses running Google Ads have two options for tracking conversions: the Google Ads conversion tag (a separate tag installed on the conversion page or via GTM) and GA4-imported Key Events (imported from your linked GA4 property). These two sources count conversions differently — understanding the distinction helps you decide which to use as your primary conversion source.
 
@@ -98,9 +98,9 @@ Businesses running Google Ads have two options for tracking conversions: the Goo
 | Recommended for Smart Bidding | Yes — for immediate signal | Yes — preferred for cross-device accuracy |
 The recommended approach for most advertisers is to import GA4 Key Events as the primary conversion source for Smart Bidding, whilst keeping the Google Ads conversion tag as a secondary measurement point for near-real-time data validation. Mark GA4-imported conversions as Primary in Google Ads (used in bidding) and set Google Ads tag conversions to Secondary (for reporting only) to avoid double-counting in your bidding signals.
 
-## Troubleshooting Common GA4 to Google Ads Link Issues
+## Troubleshooting common GA4 to Google Ads link issues
 
-### Conversions show as 0 in Google Ads after importing GA4 Key Events
+### Conversions show as 0 in Google Ads after importing GA4 key events
 
 Zero conversions after importing GA4 Key Events is caused by one of three issues: the GA4 Key Events have not fired since the import date (Google Ads only receives data going forward from the import date, not historical data), the attribution window has not elapsed for recent conversions, or auto-tagging is disabled in Google Ads. Verify auto-tagging is enabled in Google Ads under Settings → Account Settings → Auto-tagging.
 
@@ -112,7 +112,7 @@ GA4 and Google Ads conversion counts differ because the two platforms use differ
 
 If your GA4 property does not appear in the Google Ads link flow, confirm: you are signed in with a Google account that has Editor or Administrator access to the GA4 property, the GA4 property is a GA4 property (not a Universal Analytics property), and the Google account has Admin access to the Google Ads account. Only GA4 properties are eligible for direct linking with Google Ads — Universal Analytics properties use a separate linking process that was deprecated.
 
-## GA4 to Google Ads Integration: Full Setup Checklist
+## GA4 to Google Ads integration: full setup checklist
 
 | **Step** | **Action** | **Location** | **Status Check** |
 | --- | --- | --- | --- |
@@ -128,7 +128,7 @@ If your GA4 property does not appear in the Google Ads link flow, confirm: you a
 | 10 | Verify conversions appear after 48 hours | Google Ads → Campaigns → Conversions column | Conversions count matches expected volume |
 
 ---
-## Frequently Asked Questions
+## Frequently asked questions
 
 ### How do I link GA4 to Google Ads?
 

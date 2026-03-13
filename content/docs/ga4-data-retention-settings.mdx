@@ -1,5 +1,5 @@
 ---
-title: "GA4 Data Retention Settings: The Critical Setting 90% of Users Get Wrong"
+title: "GA4 data retention settings: The critical setting 90% of users get wrong"
 slug: "ga4-data-retention-settings"
 category: "guides"
 type: "guide"
@@ -16,7 +16,7 @@ If you have ever wondered why your GA4 Explorations show no data beyond a few we
 
 **GA4 data retention** is the property-level setting that controls how long Google stores user-level and event-level data on its servers. This data powers Explorations, funnels, the User Explorer, and segment overlaps. When the retention period expires, Google permanently deletes the underlying event data, and no amount of filtering or reporting can bring it back.
 
-## What Is GA4 Data Retention?
+## What is GA4 data retention?
 
 GA4 data retention determines how long Google keeps raw, user-level and event-level data available for custom Exploration reports. By default, GA4 retains this data for just 2 months. The maximum retention period is 14 months.
 
@@ -24,7 +24,7 @@ Google Analytics 4 separates its reporting into two systems. Standard reports, t
 
 According to [Google's official Analytics Help documentation](https://support.google.com/analytics/answer/7667196), data retention settings apply to user-level and event-level data stored for use in Explorations. Standard reports, including Acquisition, Engagement, and Monetisation summaries, are not affected by this setting. For a broader overview of how these report sections work, see our guide to [understanding GA4 reports](/resources/understanding-ga4-reports-a-beginners-guide-to-the-key-sections).
 
-## GA4's Default Data Retention Setting (And Why It's a Problem)
+## GA4's default data retention setting (and why it's a problem)
 
 The default 2-month retention period silently deletes your granular analytics data every 60 days, making long-term custom analysis impossible. This is the out-of-the-box setting for every new GA4 property, and the majority of users never change it.
 
@@ -38,7 +38,7 @@ The consequences are significant:
 
 The 2-month default exists because GA4 is designed with privacy minimisation as a default principle. This is the correct philosophical approach. However, 14 months of retention is still fully compliant with GDPR and most global privacy regulations, provided your privacy policy accurately describes your data practices.
 
-## How to Change Your GA4 Data Retention Setting
+## How to change your GA4 data retention setting
 
 Updating data retention takes less than two minutes and requires Editor permission on your GA4 property. The change takes effect immediately but does not restore data already deleted under the previous retention period.
 
@@ -53,7 +53,7 @@ The 'Reset user data on new activity' toggle is particularly important for e-com
 
 If you are setting up GA4 for the first time, our guide on [how to set up GA4 correctly from scratch](/resources/how-to-set-up-ga4-correctly-from-scratch) covers data retention alongside every other critical configuration step.
 
-## What the Data Retention Setting Does and Does Not Affect
+## What the data retention setting does and does not affect
 
 The retention setting only controls access to raw event-level data used in Explorations, not the aggregated data behind standard reports. Understanding this scope prevents incorrect assumptions about which reports are affected when data expires.
 
@@ -67,7 +67,7 @@ The retention setting only controls access to raw event-level data used in Explo
 | User Explorer | Yes | Individual user journeys rely on event-level data |
 | Segment Overlap | Yes | Requires event-level data for accurate comparison |
 
-## GA4 Data Retention Options Compared
+## GA4 data retention options compared
 
 GA4 offers exactly two data retention periods: 2 months and 14 months, with no intermediate option. For nearly every business that expects to run historical analysis, 14 months is the correct choice.
 
@@ -76,13 +76,13 @@ GA4 offers exactly two data retention periods: 2 months and 14 months, with no i
 | 2 months (default) | 60 days of Exploration data | Sites with strict data minimisation requirements | Cannot analyse seasonal trends, cohorts, or long attribution cycles |
 | 14 months (maximum) | Rolling 13-month Exploration window | Most businesses and websites | Stores more user-level data; must be reflected in your privacy policy |
 
-## Does Changing Data Retention Affect Standard GA4 Reports?
+## Does changing data retention affect standard GA4 reports?
 
 No, standard GA4 reports are completely unaffected by the data retention setting. The pre-built dashboards under Reports > Acquisition, Reports > Engagement, and Reports > Monetisation use aggregated, anonymised data that is not subject to user-level data retention. These reports retain historical data indefinitely.
 
 This distinction matters because many users believe changing the retention setting will unlock historical data in their overview dashboards. It will not. Standard reports already show all collected historical data. The retention setting only controls access to the granular, user-level, event-by-event data used in Explorations and the User Explorer report. If you find GA4's reporting structure confusing, you are not alone: our article on [why you don't understand your Google Analytics data](/resources/why-you-dont-understand-your-google-analytics-data-and-what-to-do-about-it) explains the most common sources of confusion.
 
-## How a GA4 AI Chatbot Helps You Query Retained Data
+## How a GA4 AI chatbot helps you query retained data
 
 Once your data retention is set to 14 months, the next challenge is actually querying that data effectively. GA4's Explorations interface is powerful but complex, requiring users to configure dimensions, metrics, segments, and date ranges manually. This is where a GA4 AI chatbot transforms the experience.
 
@@ -92,7 +92,7 @@ This natural language analytics approach makes Google Analytics 4 made easy for 
 
 ---
 
-## Frequently Asked Questions
+## Frequently asked questions
 
 ### What is GA4 data retention and why does it matter?
 
@@ -102,7 +102,7 @@ GA4 data retention is the setting that controls how long Google stores user-leve
 
 To change GA4 data retention to 14 months: go to GA4 > Admin > Data Settings > Data Retention. Change the 'Event data retention' dropdown from 2 months to 14 months, ensure 'Reset user data on new activity' is enabled, and click Save. You need Editor permission on the GA4 property to make this change.
 
-### Does GA4 data retention affect standard reports like Acquisition and Engagement?
+### Does GA4 data retention affect standard reports like Acquisition and engagement?
 
 No. GA4 data retention settings only affect Explorations, the custom analysis tool. Standard reports (Acquisition, Engagement, Monetisation, etc.) use aggregated data and are not subject to user-level retention limits. These reports display all historical data regardless of your retention setting.
 

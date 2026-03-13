@@ -1,18 +1,17 @@
 ---
-title: "Schema Markup and Structured Data for Generative Search: The Complete Guide"
+title: "Schema markup and structured data for generative search: The complete guide"
 slug: "schema-markup-structured-data-generative-search"
 category: "generative-search"
 type: "guide"
 readTime: "16 min read"
 featured: true
-image: "/docs/featured-placeholder.svg"
 author: "Meaning Team"
 description: "How schema markup helps AI engines cite your content — JSON-LD examples and GEO checklist. Track the GA4 impact with Meaning's AI Google Analytics assistant."
 keywords: "schema markup generative search, structured data AI search, JSON-LD for GEO, schema markup AI Overviews, structured data SEO 2026, GA4 AI chatbot, AI analytics insights tool, natural language analytics"
 date: "2026-02-18"
 ---
 
-# Schema Markup and Structured Data for Generative Search: The Complete Guide
+# Schema markup and structured data for generative search: The complete guide
 
 > **TL;DR:** Schema markup is the machine-readable data layer that tells AI engines *what* your content is, not just what it says. A controlled experiment by Search Engine Land found that only the page with well-implemented schema appeared in Google's AI Overviews — while identical pages without it were invisible. This guide covers the schema types that matter most for generative search, gives you copy-paste JSON-LD for each, and ends with a prioritised implementation checklist. It's the final article in our 7-part GEO series.
 
@@ -22,11 +21,11 @@ If you've followed our [Generative Engine Optimisation series](/blog/what-is-geo
 
 Think of schema markup as your website's metadata passport. When a large language model retrieves your page, it doesn't just read your paragraphs — it looks for structured signals that confirm what your content is about, who created it, and whether the facts can be trusted. Without schema, you're asking AI to guess. With it, you're handing it a cheat sheet.
 
-## Why Structured Data Matters More in the Age of AI Search
+## Why structured data matters more in the age of AI search
 
 Traditional SEO used schema primarily to earn rich results — star ratings, recipe cards, FAQ dropdowns. That's still valuable, but the strategic importance has shifted.
 
-### AI Engines Use Schema for Grounding
+### AI engines use schema for grounding
 
 Google, Microsoft, and OpenAI all confirmed in 2025 that their generative AI systems use structured data to better understand web content. As Search Engine Journal reported, schema markup builds a "content knowledge graph" — a data layer that tells machines what your brand is, what it offers, and how it should be understood.
 
@@ -34,13 +33,13 @@ Go Fish Digital's patent research identified Google's US9449105B1 patent for "co
 
 The key insight from Semrush and Google's own developer documentation: **your page structure, schema markup, and any commerce feeds should all describe the same thing.** Consistency between what's visible on the page and what's in the structured data is critical — discrepancies can actually hurt you.
 
-### The Experiment That Proved It
+### The experiment that proved it
 
 A controlled experiment published by Search Engine Land in late 2025 tested three nearly identical pages: one with well-implemented schema, one with poor schema, and one with none. The result? Only the page with quality schema appeared in an AI Overview and achieved the highest organic ranking (Position 3). The poorly-implemented and absent-schema pages were effectively invisible to generative search.
 
 This wasn't correlation — it was a controlled test. Schema quality, not just presence, matters.
 
-## The Schema Types That Matter for Generative Search
+## The schema types that matter for generative search
 
 Not all schema types carry equal weight for AI visibility. Here are the ones that directly help generative engines understand and cite your content, with JSON-LD examples you can adapt.
 
@@ -73,7 +72,7 @@ FAQ schema is arguably the single highest-impact type for GEO. AI engines love q
 }
 ```
 
-### 2. Article (with Author and Organisation)
+### 2. Article (with author and organisation)
 
 Article schema tells AI engines who wrote the content, when it was published, and which organisation stands behind it. This directly supports E-E-A-T signals that generative engines use for [entity clarity](/blog/entity-clarity-why-ai-cant-recommend-you) and trust assessment.
 
@@ -167,7 +166,7 @@ HowTo schema structures procedural content in a way AI engines can directly pars
 }
 ```
 
-### 5. Other High-Value Types
+### 5. other high-value types
 
 Beyond the four above, several other schema types are worth implementing depending on your content:
 
@@ -176,7 +175,7 @@ Beyond the four above, several other schema types are worth implementing dependi
 - **Dataset** — If you publish original research, data, or statistics, Dataset schema makes your data directly discoverable by AI engines looking for factual grounding.
 - **SpeakableSpecification** — Marks content sections as suitable for text-to-speech playback. As voice-based AI assistants grow, this schema type signals which parts of your content are best suited for spoken answers.
 
-## JSON-LD Best Practices for GEO
+## JSON-LD best practices for GEO
 
 JSON-LD (JavaScript Object Notation for Linked Data) is the format Google recommends for structured data, and it's what AI engines parse most reliably. Here are the practices that matter:
 
@@ -195,7 +194,7 @@ JSON-LD (JavaScript Object Notation for Linked Data) is the format Google recomm
 - **Don't over-schema** — marking every paragraph as a "Thing" adds noise, not signal
 - **Don't forget validation** — a single syntax error can invalidate your entire schema block
 
-## Testing and Validation Tools
+## Testing and validation tools
 
 Before you deploy schema to production, validate it:
 
@@ -206,25 +205,25 @@ Before you deploy schema to production, validate it:
 
 After implementing schema, use [Meaning](https://usemeaning.io) to track whether your structured pages see improved engagement or AI referral traffic. Ask Meaning: *"Compare traffic on pages with schema markup vs pages without it over the last 30 days."*
 
-## Prioritised Implementation Checklist
+## Prioritised implementation checklist
 
 Not sure where to start? Here's the order that delivers the most impact for the least effort:
 
-### Priority 1: Foundation (Week 1)
+### Priority 1: foundation (week 1)
 
 - [ ] Add **Organisation** schema to your homepage
 - [ ] Add **Article** schema to all blog posts and content pages
 - [ ] Validate all existing schema with Google Rich Results Test
 - [ ] Fix any schema errors flagged in Google Search Console
 
-### Priority 2: Quick Wins (Week 2)
+### Priority 2: quick wins (week 2)
 
 - [ ] Add **FAQPage** schema to pages that answer common questions
 - [ ] Add **BreadcrumbList** schema across your site
 - [ ] Ensure all schema matches visible page content exactly
 - [ ] Connect entities using `@id` references
 
-### Priority 3: Advanced (Week 3-4)
+### Priority 3: advanced (week 3-4)
 
 - [ ] Add **HowTo** schema to procedural/tutorial content
 - [ ] Add **Product** schema to product and pricing pages
@@ -232,14 +231,14 @@ Not sure where to start? Here's the order that delivers the most impact for the 
 - [ ] Add **Dataset** schema to any original research or data pages
 - [ ] Build a connected entity graph across your site using nested schema
 
-### Priority 4: Monitor and Iterate (Ongoing)
+### Priority 4: monitor and iterate (ongoing)
 
 - [ ] Set up weekly schema error monitoring in Search Console
 - [ ] Track AI referral traffic to schema-enhanced pages in [Meaning](https://usemeaning.io)
 - [ ] Update `dateModified` whenever content changes
 - [ ] A/B test schema implementations on similar pages to measure impact
 
-## Common Mistakes to Avoid
+## Common mistakes to avoid
 
 **Inconsistency between schema and visible content.** This is the number one mistake. If your schema describes a different product, price, or service than what's on the page, AI engines will distrust both signals.
 
@@ -249,7 +248,7 @@ Not sure where to start? Here's the order that delivers the most impact for the 
 
 **Ignoring the knowledge graph.** Individual schema blocks help, but connected schema — where your Organisation links to your Articles, which link to their Authors, who link back to the Organisation — creates the relationship graph that AI engines use for entity understanding. As we covered in our article on [content structure for AI citation](/blog/how-to-structure-content-ai-engines-cite-you), structure is everything.
 
-## Frequently Asked Questions
+## Frequently asked questions
 
 ### Does schema markup directly improve AI Overview rankings?
 
@@ -277,7 +276,7 @@ Update your schema whenever the underlying content changes. At minimum, update `
 
 ---
 
-## Series Wrap-Up: The Complete GEO Playbook
+## Series wrap-up: the complete GEO playbook
 
 This article completes our 7-part series on Generative Engine Optimisation. Here's what we've covered — and how it all connects:
 
