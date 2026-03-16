@@ -42,7 +42,7 @@ export default function TermsPage() {
           className="mb-12 text-sm"
           style={{ color: "var(--text-muted)" }}
         >
-          Last updated: February 2026
+          Last updated: March 2026
         </p>
 
         <div
@@ -54,7 +54,7 @@ export default function TermsPage() {
               Agreement to Terms
             </h2>
             <p>
-              By accessing or using Meaning (&quot;Service&quot;), a product by Hivory (Pty) Ltd,
+              By accessing or using Meaning (&quot;Service&quot;), a product by Hivory,
               you agree to be bound by these Terms and Conditions. If you
               disagree with any part of these terms, you may not access the
               Service.
@@ -82,7 +82,7 @@ export default function TermsPage() {
                 You must create an account and maintain accurate information
               </li>
               <li>
-                Subscription fees are billed monthly and are non-refundable
+                Subscription fees are billed monthly. You may request a full refund within 30 days of any payment by contacting us at hi@hivory.io
               </li>
               <li>
                 You may cancel your subscription at any time; access continues
@@ -154,7 +154,7 @@ export default function TermsPage() {
             </h2>
             <p>
               The Service, including its design, features, and content (excluding
-              your data), is owned by Hivory (Pty) Ltd and protected by intellectual
+              your data), is owned by Hivory and protected by intellectual
               property laws. You retain ownership of your data; we do not claim
               rights over your Google Analytics data or queries.
             </p>
@@ -194,7 +194,7 @@ export default function TermsPage() {
               Limitation of Liability
             </h2>
             <p>
-              To the maximum extent permitted by law, Hivory (Pty) Ltd shall not be liable
+              To the maximum extent permitted by law, Hivory shall not be liable
               for any indirect, incidental, special, consequential, or punitive
               damages arising from your use of the Service, including but not limited to loss of data, revenue, or business opportunities.
             </p>
@@ -244,7 +244,7 @@ export default function TermsPage() {
               .
             </p>
             <p>
-              Hivory (Pty) Ltd
+              Hivory
               <br />
               South Africa
             </p>
