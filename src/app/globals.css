@@ -555,6 +555,17 @@ body {
   color: var(--text-muted);
 }
 
+.article-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: opacity 0.15s ease;
+}
+
+.article-body a:hover {
+  opacity: 0.8;
+}
+
 .article-body strong {
   font-weight: 600;
   color: var(--text-primary);
