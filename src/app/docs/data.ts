@@ -58,7 +58,20 @@ export const categories: Category[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// In-memory cache for article metadata (refreshes every 60s)
+// ---------------------------------------------------------------------------
+
+const CACHE_TTL = 60_000; // 1 minute
+let _articlesCache: Article[] | null = null;
+let _articlesCacheTime = 0;
+
 export async function getAllArticles(): Promise<Article[]> {
+  const now = Date.now();
+  if (_articlesCache && now - _articlesCacheTime < CACHE_TTL) {
+    return _articlesCache;
+  }
+
   const rows = await prisma.article.findMany({
     select: {
       slug: true,
@@ -73,7 +86,7 @@ export async function getAllArticles(): Promise<Article[]> {
     orderBy: { publishedAt: "desc" },
   });
 
-  return rows.map((r) => ({
+  _articlesCache = rows.map((r) => ({
     slug: r.slug,
     title: r.title,
     description: r.description,
@@ -83,6 +96,15 @@ export async function getAllArticles(): Promise<Article[]> {
     duration: r.duration ?? undefined,
     featured: r.featured || undefined,
   }));
+  _articlesCacheTime = now;
+
+  return _articlesCache;
+}
+
+/** Call after publishing/updating an article to bust the cache immediately. */
+export function invalidateArticlesCache() {
+  _articlesCache = null;
+  _articlesCacheTime = 0;
 }
 
 export async function getArticlesByCategory(categorySlug: string): Promise<Article[]> {

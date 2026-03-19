@@ -5,6 +5,7 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { CodeBlockContainer } from "@/components/CodeBlockContainer";
 import { prisma } from "@/lib/prisma";
+import type { JSX } from "react";
 
 const mdxComponents = {
   pre: CodeBlockContainer,
@@ -14,6 +15,27 @@ export interface TocHeading {
   id: string;
   text: string;
   level: number; // 2 = h2, 3 = h3, etc.
+}
+
+// ---------------------------------------------------------------------------
+// In-memory cache for compiled MDX (avoids recompiling on every request)
+// ---------------------------------------------------------------------------
+
+interface CachedArticle {
+  content: JSX.Element;
+  headings: TocHeading[];
+  updatedAt: number; // timestamp from DB record
+}
+
+const _mdxCache = new Map<string, CachedArticle>();
+
+/** Call after publishing/updating an article to bust its compiled cache. */
+export function invalidateMdxCache(slug?: string) {
+  if (slug) {
+    _mdxCache.delete(slug);
+  } else {
+    _mdxCache.clear();
+  }
 }
 
 /**
@@ -51,18 +73,27 @@ export function extractHeadings(source: string): TocHeading[] {
  * Read and compile an MDX article in a single pass, returning both the
  * rendered content and the table-of-contents headings.
  *
- * Reads from the database. Wrapped with React `cache()` so that multiple
- * calls with the same slug within a single server request are deduplicated.
+ * Uses an in-memory cache keyed by slug + updatedAt so compiled MDX
+ * is only regenerated when the article actually changes.
+ * Also wrapped with React `cache()` for per-request deduplication.
  */
 export const getArticleData = cache(async (slug: string) => {
   try {
     const article = await prisma.article.findUnique({
       where: { slug },
-      select: { content: true },
+      select: { content: true, updatedAt: true },
     });
 
     if (!article) {
       return { content: null, headings: [] as TocHeading[] };
+    }
+
+    const dbUpdatedAt = article.updatedAt.getTime();
+
+    // Check in-memory cache
+    const cached = _mdxCache.get(slug);
+    if (cached && cached.updatedAt === dbUpdatedAt) {
+      return { content: cached.content, headings: cached.headings };
     }
 
     const raw = article.content;
@@ -84,6 +115,9 @@ export const getArticleData = cache(async (slug: string) => {
       }),
       Promise.resolve(extractHeadings(raw)),
     ]);
+
+    // Store in cache
+    _mdxCache.set(slug, { content, headings, updatedAt: dbUpdatedAt });
 
     return { content, headings };
   } catch {

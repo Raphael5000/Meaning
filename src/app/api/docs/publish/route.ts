@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import matter from "gray-matter";
+import { invalidateArticlesCache } from "@/app/docs/data";
+import { invalidateMdxCache } from "@/lib/mdx";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +96,10 @@ export async function POST(request: NextRequest) {
         publishedAt,
       },
     });
+
+    // Bust caches so the article is served fresh
+    invalidateArticlesCache();
+    invalidateMdxCache(slug);
 
     return NextResponse.json({
       ok: true,
