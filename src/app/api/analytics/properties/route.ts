@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { listProperties } from "@/lib/ga4";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const session = await auth();
@@ -26,6 +27,20 @@ export async function GET() {
           allowed.includes(p.propertyId)
         );
       }
+
+      // Enrich with BigQuery status from DataSource records
+      const dataSources = await prisma.dataSource.findMany({
+        where: { userId },
+        select: { propertyId: true, status: true, bigqueryDataset: true },
+      });
+      const dsMap = new Map(dataSources.map((ds) => [ds.propertyId, ds]));
+
+      properties = properties.map((p: { propertyId: string; displayName: string; account: string }) => ({
+        ...p,
+        bigquery: dsMap.has(p.propertyId)
+          ? { status: dsMap.get(p.propertyId)!.status, dataset: dsMap.get(p.propertyId)!.bigqueryDataset }
+          : null,
+      }));
     }
 
     return NextResponse.json({ properties });

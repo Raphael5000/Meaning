@@ -2,6 +2,7 @@ import { google } from "googleapis";
 
 const analyticsData = google.analyticsdata("v1beta");
 const analyticsAdmin = google.analyticsadmin("v1beta");
+const analyticsAdminAlpha = google.analyticsadmin("v1alpha");
 
 function getAuthClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
@@ -181,4 +182,34 @@ export async function getMetadata(accessToken: string, propertyId: string) {
       category: d.category,
     })),
   };
+}
+
+// ---------- Check BigQuery export link status ----------
+
+export interface BigQueryLink {
+  name: string;
+  project: string;
+  dataset: string;
+  dailyExportEnabled: boolean;
+  streamingExportEnabled: boolean;
+}
+
+export async function listBigQueryLinks(
+  accessToken: string,
+  propertyId: string
+): Promise<BigQueryLink[]> {
+  const auth = getAuthClient(accessToken);
+
+  const res = await analyticsAdminAlpha.properties.bigQueryLinks.list({
+    parent: `properties/${propertyId}`,
+    auth,
+  });
+
+  return (res.data.bigqueryLinks || []).map((link) => ({
+    name: link.name || "",
+    project: link.project || "",
+    dataset: link.datasetLocation || "",
+    dailyExportEnabled: link.dailyExportEnabled ?? false,
+    streamingExportEnabled: link.streamingExportEnabled ?? false,
+  }));
 }

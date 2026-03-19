@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
-import { GA4_TOOLS } from "@/lib/tools";
+import { runPropertyQuery, queryRealtimeData, getPropertySchema } from "@/lib/bigquery";
+import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { ALERT_TYPES, buildCustomPrompt } from "@/lib/alert-prompts";
 
 let _anthropic: Anthropic | null = null;
@@ -9,7 +10,7 @@ function getAnthropic(): Anthropic {
   return _anthropic;
 }
 
-const SYSTEM_PROMPT = `You are a Google Analytics expert that generates concise, professional email reports. You query GA4 data using the provided tools and return a well-formatted HTML summary.
+const GA4_ALERT_SYSTEM_PROMPT = `You are a Google Analytics expert that generates concise, professional email reports. You query GA4 data using the provided tools and return a well-formatted HTML summary.
 
 You have access to these tools:
 - run_report: Query historical GA4 data with metrics, dimensions, date ranges, and sorting.
@@ -28,14 +29,208 @@ Important rules:
 - Use <h3> for section headings. Do NOT use <h1> or <h2>.
 - Follow the detailed styling rules in the user prompt exactly.`;
 
+const BIGQUERY_ALERT_SYSTEM_PROMPT = `You are an analytics expert that generates concise, professional email reports. You query analytics data from BigQuery using the provided tools and return a well-formatted HTML summary.
+
+You have access to these tools:
+- query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables:
+  - sessions: session_id, user_pseudo_id, session_start, session_duration, pageviews, is_bounce, landing_page, exit_page, source, medium, channel_group, device_category, country, city
+  - pageviews: event_timestamp, user_pseudo_id, session_id, page_path, page_title, page_referrer, engagement_time_msec
+  - users: user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, country
+  - conversions: event_timestamp, user_pseudo_id, session_id, event_name, conversion_value, source, medium
+  - traffic_sources: date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration
+- get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
+- get_available_fields: Discover available tables and columns in the dataset.
+
+Important rules:
+- Return ONLY clean HTML with inline styles. No markdown, no code fences, no explanation outside the HTML.
+- Format large numbers with commas.
+- Keep the report concise and scannable — this goes in an email body.
+- Use the tools to fetch real data before writing the report.
+- Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
+- Use <h3> for section headings. Do NOT use <h1> or <h2>.
+- Follow the detailed styling rules in the user prompt exactly.`;
+
+// ---------------------------------------------------------------------------
+// BigQuery SQL builder (same as chat route)
+// ---------------------------------------------------------------------------
+
+interface QueryAnalyticsInput {
+  table: string;
+  metrics: string[];
+  dimensions?: string[];
+  startDate?: string;
+  endDate?: string;
+  filters?: { field: string; operator: string; value: unknown }[];
+  orderBy?: { field: string; direction?: string };
+  limit?: number;
+}
+
+function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: Record<string, unknown> } {
+  const { table, metrics, dimensions, startDate, endDate, filters, orderBy, limit } = input;
+
+  const selectParts: string[] = [];
+  if (dimensions) selectParts.push(...dimensions);
+
+  for (const metric of metrics) {
+    switch (metric) {
+      case "sessions": selectParts.push("COUNT(DISTINCT session_id) AS sessions"); break;
+      case "users": selectParts.push("COUNT(DISTINCT user_pseudo_id) AS users"); break;
+      case "pageviews": selectParts.push("SUM(pageviews) AS pageviews"); break;
+      case "bounce_rate": selectParts.push("AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate"); break;
+      case "avg_session_duration": selectParts.push("AVG(session_duration) AS avg_session_duration"); break;
+      case "conversion_value": selectParts.push("SUM(conversion_value) AS conversion_value"); break;
+      case "new_users": selectParts.push("SUM(new_users) AS new_users"); break;
+      case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
+      default:
+        if (table === "traffic_sources") {
+          selectParts.push(`SUM(${metric}) AS ${metric}`);
+        } else {
+          selectParts.push(metric);
+        }
+    }
+  }
+
+  const selectClause = selectParts.join(", ");
+  const whereParts: string[] = [];
+  const params: Record<string, unknown> = {};
+
+  const dateColumn = table === "traffic_sources" ? "date" :
+    table === "sessions" ? "DATE(session_start)" :
+    table === "pageviews" || table === "conversions" || table === "events" ? "DATE(event_timestamp)" :
+    table === "users" ? "DATE(last_seen)" : "date";
+
+  if (startDate) {
+    whereParts.push(`${dateColumn} >= @startDate`);
+    params.startDate = startDate;
+  } else {
+    whereParts.push(`${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)`);
+  }
+  if (endDate) {
+    whereParts.push(`${dateColumn} <= @endDate`);
+    params.endDate = endDate;
+  }
+
+  if (filters) {
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      if (f.operator === "IN" || f.operator === "NOT IN") {
+        whereParts.push(`${f.field} ${f.operator} UNNEST(@filter_${i})`);
+      } else if (f.operator === "LIKE") {
+        whereParts.push(`${f.field} LIKE @filter_${i}`);
+      } else {
+        whereParts.push(`${f.field} ${f.operator} @filter_${i}`);
+      }
+      params[`filter_${i}`] = f.value;
+    }
+  }
+
+  const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+  const groupByClause = dimensions && dimensions.length > 0 ? `GROUP BY ${dimensions.join(", ")}` : "";
+  const orderByClause = orderBy ? `ORDER BY ${orderBy.field} ${orderBy.direction || "DESC"}` : "";
+  const limitClause = `LIMIT ${Math.min(limit || 10, 500)}`;
+
+  const sql = `SELECT ${selectClause} FROM \`{dataset}.${table}\` ${whereClause} ${groupByClause} ${orderByClause} ${limitClause}`;
+  return { sql, params };
+}
+
+// ---------------------------------------------------------------------------
+// Tool execution helpers
+// ---------------------------------------------------------------------------
+
+async function executeGA4Tool(
+  toolUse: { name: string; input: Record<string, unknown> },
+  accessToken: string,
+  propertyId: string
+): Promise<{ result: unknown; isError: boolean }> {
+  try {
+    switch (toolUse.name) {
+      case "run_report": {
+        const input = toolUse.input as {
+          metrics: string[];
+          dimensions?: string[];
+          startDate?: string;
+          endDate?: string;
+          limit?: number;
+          orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
+        };
+        return {
+          result: await runReport(accessToken, {
+            propertyId,
+            metrics: input.metrics,
+            dimensions: input.dimensions,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            limit: Math.min(input.limit || 10, 100),
+            orderBys: input.orderBys,
+          }),
+          isError: false,
+        };
+      }
+      case "run_realtime_report": {
+        const input = toolUse.input as { metrics: string[]; dimensions?: string[]; limit?: number };
+        return {
+          result: await runRealtimeReport(accessToken, {
+            propertyId,
+            metrics: input.metrics,
+            dimensions: input.dimensions,
+            limit: Math.min(input.limit || 10, 100),
+          }),
+          isError: false,
+        };
+      }
+      case "get_metadata": {
+        const input = toolUse.input as { type?: string };
+        const metadata = await getMetadata(accessToken, propertyId);
+        if (input.type === "metrics") return { result: { metrics: metadata.metrics }, isError: false };
+        if (input.type === "dimensions") return { result: { dimensions: metadata.dimensions }, isError: false };
+        return { result: metadata, isError: false };
+      }
+      default:
+        return { result: { error: `Unknown tool: ${toolUse.name}` }, isError: true };
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Tool execution failed";
+    return { result: { error: message }, isError: true };
+  }
+}
+
+async function executeBigQueryTool(
+  toolUse: { name: string; input: Record<string, unknown> },
+  propertyId: string
+): Promise<{ result: unknown; isError: boolean }> {
+  try {
+    switch (toolUse.name) {
+      case "query_analytics": {
+        const input = toolUse.input as unknown as QueryAnalyticsInput;
+        const { sql, params } = buildAnalyticsSQL(input);
+        return { result: await runPropertyQuery(propertyId, sql, params), isError: false };
+      }
+      case "get_realtime_data":
+        return { result: await queryRealtimeData(propertyId), isError: false };
+      case "get_available_fields":
+        return { result: await getPropertySchema(propertyId), isError: false };
+      default:
+        return { result: { error: `Unknown tool: ${toolUse.name}` }, isError: true };
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Tool execution failed";
+    return { result: { error: message }, isError: true };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main export
+// ---------------------------------------------------------------------------
+
 /**
- * Generate alert email content by running the prompt against the user's GA4 property.
+ * Generate alert email content by running the prompt against the user's analytics data.
  *
- * @param accessToken  - Google OAuth access token for the alert owner
- * @param propertyId   - GA4 property ID
- * @param alertType    - Key from ALERT_TYPES (e.g. "weekly_snapshot" or "custom")
- * @param frequency    - "daily" | "weekly" | "monthly" (used for context in the prompt)
- * @param customPrompt - User-defined prompt text (required when alertType is "custom")
+ * @param accessToken   - Google OAuth access token (required for GA4 path, ignored for BigQuery)
+ * @param propertyId    - GA4 property ID
+ * @param alertType     - Key from ALERT_TYPES (e.g. "weekly_snapshot" or "custom")
+ * @param frequency     - e.g. "daily" | "weekly" | "monthly" (used for context in the prompt)
+ * @param customPrompt  - User-defined prompt text (required when alertType is "custom")
+ * @param usesBigQuery  - Whether to use BigQuery path instead of GA4 API
  * @returns The generated HTML string for the email body
  */
 export async function generateAlertContent(
@@ -43,7 +238,8 @@ export async function generateAlertContent(
   propertyId: string,
   alertType: string,
   frequency: string,
-  customPrompt?: string | null
+  customPrompt?: string | null,
+  usesBigQuery: boolean = false
 ): Promise<string> {
   let promptText: string;
 
@@ -62,19 +258,22 @@ export async function generateAlertContent(
 
   const userPrompt = `${promptText}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
 
+  const systemPrompt = usesBigQuery ? BIGQUERY_ALERT_SYSTEM_PROMPT : GA4_ALERT_SYSTEM_PROMPT;
+  const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
+
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },
   ];
 
   const anthropic = getAnthropic();
 
-  console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}`);
+  console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}, bigquery=${usesBigQuery}`);
 
   let response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    tools: GA4_TOOLS,
+    system: systemPrompt,
+    tools,
     messages,
   });
 
@@ -103,71 +302,12 @@ export async function generateAlertContent(
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
     for (const toolUse of toolUseBlocks) {
-      let result: unknown;
-      let isError = false;
+      const { result, isError } = usesBigQuery
+        ? await executeBigQueryTool(toolUse, propertyId)
+        : await executeGA4Tool(toolUse, accessToken, propertyId);
 
-      try {
-        switch (toolUse.name) {
-          case "run_report": {
-            const input = toolUse.input as {
-              metrics: string[];
-              dimensions?: string[];
-              startDate?: string;
-              endDate?: string;
-              limit?: number;
-              orderBys?: {
-                field: string;
-                direction?: "ASCENDING" | "DESCENDING";
-                type?: "metric" | "dimension";
-              }[];
-            };
-            result = await runReport(accessToken, {
-              propertyId,
-              metrics: input.metrics,
-              dimensions: input.dimensions,
-              startDate: input.startDate,
-              endDate: input.endDate,
-              limit: Math.min(input.limit || 10, 100),
-              orderBys: input.orderBys,
-            });
-            break;
-          }
-          case "run_realtime_report": {
-            const input = toolUse.input as {
-              metrics: string[];
-              dimensions?: string[];
-              limit?: number;
-            };
-            result = await runRealtimeReport(accessToken, {
-              propertyId,
-              metrics: input.metrics,
-              dimensions: input.dimensions,
-              limit: Math.min(input.limit || 10, 100),
-            });
-            break;
-          }
-          case "get_metadata": {
-            const input = toolUse.input as { type?: string };
-            const metadata = await getMetadata(accessToken, propertyId);
-            if (input.type === "metrics") {
-              result = { metrics: metadata.metrics };
-            } else if (input.type === "dimensions") {
-              result = { dimensions: metadata.dimensions };
-            } else {
-              result = metadata;
-            }
-            break;
-          }
-          default:
-            result = { error: `Unknown tool: ${toolUse.name}` };
-            isError = true;
-        }
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Tool execution failed";
-        console.error(`[alert-content] Tool ${toolUse.name} failed:`, message);
-        result = { error: message };
-        isError = true;
+      if (isError) {
+        console.error(`[alert-content] Tool ${toolUse.name} failed:`, result);
       }
 
       toolResults.push({
@@ -184,8 +324,8 @@ export async function generateAlertContent(
     response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: GA4_TOOLS,
+      system: systemPrompt,
+      tools,
       messages,
     });
   }

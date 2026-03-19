@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-/** Tool definitions exposed to Claude for GA4 querying. */
+/** Tool definitions exposed to Claude for GA4 querying (legacy). */
 export const GA4_TOOLS: Anthropic.Tool[] = [
   {
     name: "run_report",
@@ -101,6 +101,105 @@ export const GA4_TOOLS: Anthropic.Tool[] = [
             'What to retrieve: "metrics", "dimensions", or "all". Defaults to "all".',
         },
       },
+      required: [],
+    },
+  },
+];
+
+/** Tool definitions for BigQuery-backed analytics querying. */
+export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "query_analytics",
+    description:
+      "Query analytics data from BigQuery. Use this to answer questions about sessions, pageviews, users, traffic sources, conversions, geography, devices, and more. Specify the table to query, columns to select, filters, grouping, ordering, date range, and row limit. The app generates the SQL — you just describe what data you need.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        table: {
+          type: "string",
+          enum: ["sessions", "pageviews", "users", "conversions", "traffic_sources", "events"],
+          description:
+            "Which analytics table to query. 'sessions' for session-level data (traffic sources, bounce rate, duration). 'pageviews' for page-level data. 'users' for user-level aggregates. 'conversions' for conversion events. 'traffic_sources' for pre-aggregated daily source/medium performance. 'events' for raw event data.",
+        },
+        metrics: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Aggregate metrics to compute, e.g. ["sessions", "users", "pageviews", "bounce_rate", "avg_session_duration", "conversion_value"]. Use COUNT, SUM, AVG as needed.',
+        },
+        dimensions: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Columns to group by, e.g. ["source", "medium", "country", "device_category", "page_path", "landing_page", "channel_group"]. Use "date" for time series.',
+        },
+        startDate: {
+          type: "string",
+          description:
+            'Start date in YYYY-MM-DD format. Defaults to 28 days ago.',
+        },
+        endDate: {
+          type: "string",
+          description:
+            'End date in YYYY-MM-DD format. Defaults to today.',
+        },
+        filters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string", description: "Column name to filter on." },
+              operator: {
+                type: "string",
+                enum: ["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN", "NOT IN"],
+                description: "Comparison operator.",
+              },
+              value: {
+                description: "Value to compare against. Use an array for IN/NOT IN operators.",
+              },
+            },
+            required: ["field", "operator", "value"],
+          },
+          description: "Filters to apply to the query.",
+        },
+        orderBy: {
+          type: "object",
+          properties: {
+            field: { type: "string", description: "Column name to sort by." },
+            direction: {
+              type: "string",
+              enum: ["ASC", "DESC"],
+              description: "Sort direction. Defaults to DESC.",
+            },
+          },
+          required: ["field"],
+          description: "How to order the results.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of rows to return (default 10, max 500).",
+        },
+      },
+      required: ["table", "metrics"],
+    },
+  },
+  {
+    name: "get_realtime_data",
+    description:
+      "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "get_available_fields",
+    description:
+      "Get the available tables and columns in the analytics dataset. Use this to discover what data is queryable before running a query, or to verify column names.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
       required: [],
     },
   },

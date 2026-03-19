@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArticle, getCategory, getArticlesByCategory, articles } from "../../data";
+import { getArticle, getCategory, getArticlesByCategory } from "../../data";
 import type { Article } from "../../data";
 import { ArticlePageNav } from "./ArticlePageNav";
 import { TableOfContents } from "@/components/TableOfContents";
@@ -46,14 +46,14 @@ export default async function ArticlePage({
 }) {
   const { category: categorySlug, slug } = await params;
 
-  const article = getArticle(categorySlug, slug);
+  const article = await getArticle(categorySlug, slug);
   const category = getCategory(categorySlug);
 
   if (!article || !category) {
     return notFound();
   }
 
-  const relatedArticles = getArticlesByCategory(categorySlug).filter(
+  const relatedArticles = (await getArticlesByCategory(categorySlug)).filter(
     (a) => a.slug !== slug
   );
 

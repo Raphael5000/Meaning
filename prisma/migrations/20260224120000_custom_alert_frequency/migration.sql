@@ -27,5 +27,5 @@ WHERE "frequency" = 'monthly';
 ALTER TABLE "EmailAlert" DROP COLUMN "frequency";
 
 -- Drop old index and create new one
-DROP INDEX "EmailAlert_enabled_frequency_idx";
+DROP INDEX IF EXISTS "EmailAlert_enabled_frequency_idx";
 CREATE INDEX "EmailAlert_enabled_sendHour_idx" ON "EmailAlert"("enabled", "sendHour");

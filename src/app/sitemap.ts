@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { articles } from "./docs/data";
+import { getAllArticles } from "./docs/data";
 
 const BASE_URL = "https://usemeaning.io";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/features/automated-reports`, changeFrequency: "monthly", priority: 0.7 },
   ];
 
+  const articles = await getAllArticles();
   const docPages: MetadataRoute.Sitemap = articles.map((article) => ({
     url: `${BASE_URL}/docs/${article.category}/${article.slug}`,
     changeFrequency: "monthly",

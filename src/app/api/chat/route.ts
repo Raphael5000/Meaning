@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
-import { GA4_TOOLS } from "@/lib/tools";
+import { runPropertyQuery, queryRealtimeData, getPropertySchema } from "@/lib/bigquery";
+import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -76,39 +78,27 @@ interface ChatMessage {
   content: string;
 }
 
-const SYSTEM_PROMPT = `You are a Google Analytics expert assistant. You help users understand their website analytics data by querying their GA4 property and interpreting the results in clear, actionable language.
+// ---------------------------------------------------------------------------
+// System prompts
+// ---------------------------------------------------------------------------
 
-CRITICAL — DATA ACCURACY RULES (you must follow these at all times):
-1. NEVER fabricate, estimate, or assume any numbers. Every number you present MUST come directly from a GA4 tool response in this conversation.
+const SHARED_PROMPT_RULES = `CRITICAL — DATA ACCURACY RULES (you must follow these at all times):
+1. NEVER fabricate, estimate, or assume any numbers. Every number you present MUST come directly from a tool response in this conversation.
 2. If the data returned by the tools is insufficient to answer the user's question, say so clearly: "I don't have enough data to answer that" or "The data available doesn't cover that". Do NOT fill gaps with assumptions.
 3. NEVER invent relationships, flows, or breakdowns that are not explicitly present in the tool results. For example, do not create a sankey diagram showing how traffic flows from channels to pages unless the data explicitly supports that exact breakdown.
 4. If a chart or visualisation requires data you do not have, tell the user what data is missing and ask if they'd like you to query it — do NOT guess or approximate.
 5. When you are uncertain about any number, date range, or relationship, say so. Accuracy is more important than completeness.
 6. Dates must exactly match what the user asked for and what the tool returned. Do not silently change date ranges.
-7. If the user asks for a breakdown or flow that GA4 cannot provide in a single query (e.g. multi-step user journeys), explain the limitation rather than fabricating a plausible-looking result.
-8. If you need to make ANY assumption to answer the question, you MUST explicitly state the assumption and ask the user for confirmation before proceeding. Never make silent assumptions.
+7. If the user asks for a breakdown or flow that cannot be provided in a single query (e.g. multi-step user journeys), explain the limitation rather than fabricating a plausible-looking result.
+8. If you need to make ANY assumption to answer the question, you MUST explicitly state the assumption and ask the user for confirmation before proceeding. Never make silent assumptions.`;
 
-When the user asks a question about their analytics:
-1. Determine which GA4 tool(s) to call to answer their question.
-2. Call the tool(s) with appropriate parameters.
-3. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
-4. Use tables or lists when presenting data for clarity.
-
-You have access to these tools:
-- run_report: Query historical GA4 data with metrics, dimensions, date ranges, and sorting.
-- run_realtime_report: See real-time data from the last 30 minutes.
-- get_metadata: Discover available metrics and dimensions.
-
-Common metrics: activeUsers, sessions, screenPageViews, bounceRate, averageSessionDuration, totalRevenue, conversions, engagementRate, eventCount, newUsers
-Common dimensions: date, country, city, source, medium, pagePath, deviceCategory, sessionDefaultChannelGroup, eventName, browser, operatingSystem
-
-Tips:
+const SHARED_PROMPT_OUTPUT = `Tips:
 - Default date range is the last 28 days unless the user specifies otherwise.
 - For trend analysis, use the "date" dimension.
-- For traffic source analysis, use "sessionDefaultChannelGroup", "source", or "medium" dimensions.
-- For geographic analysis, use "country" or "city" dimensions.
+- For traffic source analysis, use source, medium, or channel grouping dimensions.
+- For geographic analysis, use country or city dimensions.
 - Always provide context and interpretation, not just raw numbers.
-- When comparing periods, run two reports with different date ranges.
+- When comparing periods, run two queries with different date ranges.
 - Format large numbers with commas for readability.
 - When providing recommendations or actionable advice, wrap them in [[rec]]...[[/rec]] blocks. Each recommendation can be its own block, e.g. [[rec]]Focus on improving your top 3 landing pages — they drive 60% of conversions.[[/rec]] This will render them as green bubbles with a tick icon.
 
@@ -119,7 +109,7 @@ Tips:
 Then your full answer with context and interpretation.
 
 When the user asks for a chart, graph, or visualisation (e.g. "show me a line chart of daily users", "chart my top pages"):
-1. Fetch the data using the GA4 tools FIRST. Never build a chart before you have the data.
+1. Fetch the data using the tools FIRST. Never build a chart before you have the data.
 2. Build an Apache ECharts option JSON that visualises ONLY the data returned by the tools. Every data point in the chart must come from a tool result — no invented values, no placeholder data, no "example" numbers.
 3. Output it in a [[chart]]...[[/chart]] block. The JSON must be valid — no JS, no comments, no trailing commas.
 4. Do NOT set "backgroundColor" or text colours — the app themes them automatically.
@@ -137,6 +127,152 @@ At the end of every response, append a JSON block with 3-4 suggested follow-up q
 {"suggestedQuestions": ["Question 1?", "Question 2?", "Question 3?"]}
 \`\`\`
 Do not include this block in your main answer. Your main answer should end before this block. Use questions relevant to the analytics data you just discussed.`;
+
+const GA4_SYSTEM_PROMPT = `You are a Google Analytics expert assistant. You help users understand their website analytics data by querying their GA4 property and interpreting the results in clear, actionable language.
+
+${SHARED_PROMPT_RULES}
+
+When the user asks a question about their analytics:
+1. Determine which GA4 tool(s) to call to answer their question.
+2. Call the tool(s) with appropriate parameters.
+3. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
+4. Use tables or lists when presenting data for clarity.
+
+You have access to these tools:
+- run_report: Query historical GA4 data with metrics, dimensions, date ranges, and sorting.
+- run_realtime_report: See real-time data from the last 30 minutes.
+- get_metadata: Discover available metrics and dimensions.
+
+Common metrics: activeUsers, sessions, screenPageViews, bounceRate, averageSessionDuration, totalRevenue, conversions, engagementRate, eventCount, newUsers
+Common dimensions: date, country, city, source, medium, pagePath, deviceCategory, sessionDefaultChannelGroup, eventName, browser, operatingSystem
+
+${SHARED_PROMPT_OUTPUT}`;
+
+const BIGQUERY_SYSTEM_PROMPT = `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
+
+${SHARED_PROMPT_RULES}
+
+When the user asks a question about their analytics:
+1. Determine which tool(s) to call to answer their question.
+2. Call the tool(s) with appropriate parameters.
+3. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
+4. Use tables or lists when presenting data for clarity.
+
+You have access to these tools:
+- query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables and their key columns:
+  - sessions: session_id, user_pseudo_id, session_start, session_duration, pageviews, is_bounce, landing_page, exit_page, source, medium, channel_group, device_category, country, city
+  - pageviews: event_timestamp, user_pseudo_id, session_id, page_path, page_title, page_referrer, engagement_time_msec
+  - users: user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, country
+  - conversions: event_timestamp, user_pseudo_id, session_id, event_name, conversion_value, source, medium
+  - traffic_sources: date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration
+  - events: raw event data (event_timestamp, event_name, user_pseudo_id, event_params)
+- get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
+- get_available_fields: Discover available tables and columns in the dataset.
+
+${SHARED_PROMPT_OUTPUT}`;
+
+// ---------------------------------------------------------------------------
+// BigQuery SQL builder from structured tool input
+// ---------------------------------------------------------------------------
+
+interface QueryAnalyticsInput {
+  table: string;
+  metrics: string[];
+  dimensions?: string[];
+  startDate?: string;
+  endDate?: string;
+  filters?: { field: string; operator: string; value: unknown }[];
+  orderBy?: { field: string; direction?: string };
+  limit?: number;
+}
+
+function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: Record<string, unknown> } {
+  const { table, metrics, dimensions, startDate, endDate, filters, orderBy, limit } = input;
+
+  // Build SELECT clause
+  const selectParts: string[] = [];
+  if (dimensions) selectParts.push(...dimensions);
+
+  for (const metric of metrics) {
+    // Map common metric names to SQL aggregations
+    switch (metric) {
+      case "sessions": selectParts.push("COUNT(DISTINCT session_id) AS sessions"); break;
+      case "users": selectParts.push("COUNT(DISTINCT user_pseudo_id) AS users"); break;
+      case "pageviews": selectParts.push("SUM(pageviews) AS pageviews"); break;
+      case "bounce_rate": selectParts.push("AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate"); break;
+      case "avg_session_duration": selectParts.push("AVG(session_duration) AS avg_session_duration"); break;
+      case "conversion_value": selectParts.push("SUM(conversion_value) AS conversion_value"); break;
+      case "new_users": selectParts.push("SUM(new_users) AS new_users"); break;
+      case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
+      default:
+        // For traffic_sources table, metrics are pre-aggregated columns
+        if (table === "traffic_sources") {
+          selectParts.push(`SUM(${metric}) AS ${metric}`);
+        } else {
+          selectParts.push(metric);
+        }
+    }
+  }
+
+  const selectClause = selectParts.join(", ");
+
+  // Build WHERE clause
+  const whereParts: string[] = [];
+  const params: Record<string, unknown> = {};
+
+  // Date filtering
+  const dateColumn = table === "traffic_sources" ? "date" :
+    table === "sessions" ? "DATE(session_start)" :
+    table === "pageviews" || table === "conversions" || table === "events" ? "DATE(event_timestamp)" :
+    table === "users" ? "DATE(last_seen)" : "date";
+
+  if (startDate) {
+    whereParts.push(`${dateColumn} >= @startDate`);
+    params.startDate = startDate;
+  } else {
+    whereParts.push(`${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)`);
+  }
+  if (endDate) {
+    whereParts.push(`${dateColumn} <= @endDate`);
+    params.endDate = endDate;
+  }
+
+  // Custom filters
+  if (filters) {
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      if (f.operator === "IN" || f.operator === "NOT IN") {
+        whereParts.push(`${f.field} ${f.operator} UNNEST(@filter_${i})`);
+      } else if (f.operator === "LIKE") {
+        whereParts.push(`${f.field} LIKE @filter_${i}`);
+      } else {
+        whereParts.push(`${f.field} ${f.operator} @filter_${i}`);
+      }
+      params[`filter_${i}`] = f.value;
+    }
+  }
+
+  const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+  const groupByClause = dimensions && dimensions.length > 0 ? `GROUP BY ${dimensions.join(", ")}` : "";
+  const orderByClause = orderBy ? `ORDER BY ${orderBy.field} ${orderBy.direction || "DESC"}` : "";
+  const limitClause = `LIMIT ${Math.min(limit || 10, 500)}`;
+
+  const sql = `SELECT ${selectClause} FROM \`{dataset}.${table}\` ${whereClause} ${groupByClause} ${orderByClause} ${limitClause}`;
+
+  return { sql, params };
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+async function getUsesBigQuery(propertyId: string, userId: string): Promise<boolean> {
+  const dataSource = await prisma.dataSource.findFirst({
+    where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
+    select: { id: true },
+  });
+  return !!dataSource;
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -192,6 +328,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Determine data path: BigQuery or GA4
+  const usesBigQuery = userId ? await getUsesBigQuery(propertyId, userId) : false;
+  const systemPrompt = usesBigQuery ? BIGQUERY_SYSTEM_PROMPT : GA4_SYSTEM_PROMPT;
+  const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
+
   try {
     // Convert chat messages to Anthropic format
     const anthropicMessages: Anthropic.MessageParam[] = messages.map((m) => ({
@@ -203,8 +344,8 @@ export async function POST(request: NextRequest) {
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: GA4_TOOLS,
+      system: systemPrompt,
+      tools,
       messages: anthropicMessages,
     });
 
@@ -223,59 +364,83 @@ export async function POST(request: NextRequest) {
         let isError = false;
 
         try {
-          switch (toolUse.name) {
-            case "run_report": {
-              const input = toolUse.input as {
-                metrics: string[];
-                dimensions?: string[];
-                startDate?: string;
-                endDate?: string;
-                limit?: number;
-                orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
-              };
-              result = await runReport(accessToken, {
-                propertyId,
-                metrics: input.metrics,
-                dimensions: input.dimensions,
-                startDate: input.startDate,
-                endDate: input.endDate,
-                limit: Math.min(input.limit || 10, 100),
-                orderBys: input.orderBys,
-              });
-              break;
-            }
-            case "run_realtime_report": {
-              const input = toolUse.input as {
-                metrics: string[];
-                dimensions?: string[];
-                limit?: number;
-              };
-              result = await runRealtimeReport(accessToken, {
-                propertyId,
-                metrics: input.metrics,
-                dimensions: input.dimensions,
-                limit: Math.min(input.limit || 10, 100),
-              });
-              break;
-            }
-            case "get_metadata": {
-              const input = toolUse.input as { type?: string };
-              const metadata = await getMetadata(
-                accessToken,
-                propertyId
-              );
-              if (input.type === "metrics") {
-                result = { metrics: metadata.metrics };
-              } else if (input.type === "dimensions") {
-                result = { dimensions: metadata.dimensions };
-              } else {
-                result = metadata;
+          if (usesBigQuery) {
+            // BigQuery tool execution
+            switch (toolUse.name) {
+              case "query_analytics": {
+                const input = toolUse.input as unknown as QueryAnalyticsInput;
+                const { sql, params } = buildAnalyticsSQL(input);
+                result = await runPropertyQuery(propertyId, sql, params);
+                break;
               }
-              break;
+              case "get_realtime_data": {
+                result = await queryRealtimeData(propertyId);
+                break;
+              }
+              case "get_available_fields": {
+                result = await getPropertySchema(propertyId);
+                break;
+              }
+              default:
+                result = { error: `Unknown tool: ${toolUse.name}` };
+                isError = true;
             }
-            default:
-              result = { error: `Unknown tool: ${toolUse.name}` };
-              isError = true;
+          } else {
+            // GA4 tool execution (legacy)
+            switch (toolUse.name) {
+              case "run_report": {
+                const input = toolUse.input as {
+                  metrics: string[];
+                  dimensions?: string[];
+                  startDate?: string;
+                  endDate?: string;
+                  limit?: number;
+                  orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
+                };
+                result = await runReport(accessToken, {
+                  propertyId,
+                  metrics: input.metrics,
+                  dimensions: input.dimensions,
+                  startDate: input.startDate,
+                  endDate: input.endDate,
+                  limit: Math.min(input.limit || 10, 100),
+                  orderBys: input.orderBys,
+                });
+                break;
+              }
+              case "run_realtime_report": {
+                const input = toolUse.input as {
+                  metrics: string[];
+                  dimensions?: string[];
+                  limit?: number;
+                };
+                result = await runRealtimeReport(accessToken, {
+                  propertyId,
+                  metrics: input.metrics,
+                  dimensions: input.dimensions,
+                  limit: Math.min(input.limit || 10, 100),
+                });
+                break;
+              }
+              case "get_metadata": {
+                const input = toolUse.input as { type?: string };
+                const metadata = await getMetadata(
+                  accessToken,
+                  propertyId
+                );
+                if (input.type === "metrics") {
+                  result = { metrics: metadata.metrics };
+                } else if (input.type === "dimensions") {
+                  result = { dimensions: metadata.dimensions };
+                } else {
+                  result = metadata;
+                }
+                break;
+              }
+              default:
+                result = { error: `Unknown tool: ${toolUse.name}` };
+                isError = true;
+            }
           }
         } catch (error: unknown) {
           const message =
@@ -298,8 +463,8 @@ export async function POST(request: NextRequest) {
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: GA4_TOOLS,
+        system: systemPrompt,
+        tools,
         messages: [
           ...anthropicMessages,
           { role: "assistant", content: assistantContent },

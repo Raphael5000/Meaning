@@ -1,6 +1,4 @@
-import fs from "fs";
-import path from "path";
-import matter from "gray-matter";
+import { prisma } from "@/lib/prisma";
 
 export interface Article {
   slug: string;
@@ -60,57 +58,49 @@ export const categories: Category[] = [
   },
 ];
 
-const CONTENT_DIR = path.join(process.cwd(), "content", "docs");
-const categorySlugs = new Set(categories.map((c) => c.slug));
-
-export function getAllArticles(): Article[] {
-  const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith(".mdx"));
-
-  return files.map((file) => {
-    const slug = file.replace(/\.mdx$/, "");
-    const raw = fs.readFileSync(path.join(CONTENT_DIR, file), "utf-8");
-    const { data } = matter(raw);
-
-    if (
-      process.env.NODE_ENV === "development" &&
-      data.category &&
-      !categorySlugs.has(data.category)
-    ) {
-      console.warn(
-        `[docs] Unknown category "${data.category}" in ${file}. Known: ${[...categorySlugs].join(", ")}`
-      );
-    }
-
-    return {
-      slug,
-      title: data.title ?? slug,
-      description: data.description ?? "",
-      category: data.category ?? "getting-started",
-      type: data.type ?? "article",
-      readTime: data.readTime,
-      duration: data.duration,
-      featured: data.featured,
-    };
+export async function getAllArticles(): Promise<Article[]> {
+  const rows = await prisma.article.findMany({
+    select: {
+      slug: true,
+      title: true,
+      description: true,
+      category: true,
+      type: true,
+      readTime: true,
+      duration: true,
+      featured: true,
+    },
+    orderBy: { publishedAt: "desc" },
   });
+
+  return rows.map((r) => ({
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    type: r.type as Article["type"],
+    readTime: r.readTime ?? undefined,
+    duration: r.duration ?? undefined,
+    featured: r.featured || undefined,
+  }));
 }
 
-export const articles: Article[] = getAllArticles();
-
-export function getArticlesByCategory(categorySlug: string): Article[] {
-  return articles.filter((a) => a.category === categorySlug);
+export async function getArticlesByCategory(categorySlug: string): Promise<Article[]> {
+  const all = await getAllArticles();
+  return all.filter((a) => a.category === categorySlug);
 }
 
-export function getFeaturedArticle(articleList?: Article[]): Article | undefined {
-  return (articleList ?? articles).find((a) => a.featured === true);
+export async function getFeaturedArticle(articleList?: Article[]): Promise<Article | undefined> {
+  const all = articleList ?? (await getAllArticles());
+  return all.find((a) => a.featured === true);
 }
 
-export function getArticle(
+export async function getArticle(
   categorySlug: string,
   articleSlug: string
-): Article | undefined {
-  return articles.find(
-    (a) => a.category === categorySlug && a.slug === articleSlug
-  );
+): Promise<Article | undefined> {
+  const all = await getAllArticles();
+  return all.find((a) => a.category === categorySlug && a.slug === articleSlug);
 }
 
 export function getCategory(slug: string): Category | undefined {

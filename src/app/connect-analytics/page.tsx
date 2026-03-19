@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -9,6 +9,12 @@ interface Property {
   propertyId: string;
   displayName: string;
   account: string;
+}
+
+interface BqStatus {
+  hasExport: boolean;
+  link: { project: string; dailyExportEnabled: boolean; streamingExportEnabled: boolean } | null;
+  dataSource: { id: string; status: string; bigqueryDataset: string | null } | null;
 }
 
 function ConnectAnalyticsContent() {
@@ -22,12 +28,14 @@ function ConnectAnalyticsContent() {
   const [error, setError] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(true);
 
+  // BigQuery status per property
+  const [bqStatuses, setBqStatuses] = useState<Record<string, BqStatus>>({});
+  const [checkingBq, setCheckingBq] = useState<Record<string, boolean>>({});
+
   const connected = searchParams.get("connected") === "true";
   const oauthError = searchParams.get("error");
 
   // Enforce onboarding order and detect Google Account from DB.
-  // This is the primary detection path for credentials users who linked
-  // Google separately — it doesn't rely on the JWT having the token.
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/user/onboarding-status")
@@ -45,11 +53,6 @@ function ConnectAnalyticsContent() {
       .finally(() => setCheckingConnection(false));
   }, [status]);
 
-  // Note: we no longer check the JWT for an access token here because
-  // Google login no longer requests the analytics scope.  The DB-backed
-  // check via /api/user/onboarding-status (above) is the single source
-  // of truth for whether analytics has been connected.
-
   // Once we know Google is linked, fetch GA properties
   useEffect(() => {
     if (!hasToken) return;
@@ -64,12 +67,7 @@ function ConnectAnalyticsContent() {
       .finally(() => setLoadingProps(false));
   }, [hasToken]);
 
-  // After redirect from the connect-google OAuth flow, re-check the
-  // onboarding status so the DB-backed token detection picks up the
-  // newly stored Google account.  The JWT callback in auth.ts already
-  // loads tokens from the DB on every API request, so a client-side
-  // session update() (which is a Server Action in NextAuth v5) is not
-  // needed and was causing "Failed to find Server Action" errors.
+  // After redirect from the connect-google OAuth flow, re-check
   useEffect(() => {
     if (!connected) return;
     fetch("/api/user/onboarding-status")
@@ -81,6 +79,36 @@ function ConnectAnalyticsContent() {
       })
       .catch(() => {});
   }, [connected]);
+
+  // Check BigQuery status for a property
+  const checkBqStatus = useCallback(async (propertyId: string) => {
+    setCheckingBq((prev) => ({ ...prev, [propertyId]: true }));
+    try {
+      const res = await fetch(`/api/analytics/bigquery-status?propertyId=${propertyId}`);
+      if (!res.ok) throw new Error("Failed to check");
+      const data = await res.json();
+      setBqStatuses((prev) => ({
+        ...prev,
+        [propertyId]: {
+          hasExport: data.hasExport,
+          link: data.link,
+          dataSource: data.dataSource,
+        },
+      }));
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setCheckingBq((prev) => ({ ...prev, [propertyId]: false }));
+    }
+  }, []);
+
+  // Auto-check BQ status when properties load
+  useEffect(() => {
+    if (properties.length === 0) return;
+    for (const prop of properties) {
+      checkBqStatus(prop.propertyId);
+    }
+  }, [properties, checkBqStatus]);
 
   async function handleContinue() {
     setCompleting(true);
@@ -290,7 +318,7 @@ function ConnectAnalyticsContent() {
             </div>
           )}
 
-          {/* STATE: Token available — show properties */}
+          {/* STATE: Token available — show properties with BQ status */}
           {hasToken && (
             <div className="flex flex-col items-center gap-4">
               {loadingProps ? (
@@ -338,45 +366,114 @@ function ConnectAnalyticsContent() {
                     linked to your account.
                   </p>
                   <ul className="w-full space-y-2">
-                    {properties.slice(0, 5).map((prop) => (
-                      <li
-                        key={prop.propertyId}
-                        className="flex items-center gap-3 rounded-lg px-4 py-3"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-color)",
-                        }}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="var(--accent)"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                    {properties.slice(0, 5).map((prop) => {
+                      const bq = bqStatuses[prop.propertyId];
+                      const isChecking = checkingBq[prop.propertyId];
+
+                      return (
+                        <li
+                          key={prop.propertyId}
+                          className="rounded-lg px-4 py-3"
+                          style={{
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                          }}
                         >
-                          <path d="M18 20V10" />
-                          <path d="M12 20V4" />
-                          <path d="M6 20v-6" />
-                        </svg>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="truncate text-sm font-medium"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {prop.displayName}
-                          </p>
-                          <p
-                            className="truncate text-xs"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            {prop.account}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
+                          <div className="flex items-center gap-3">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="var(--accent)"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M18 20V10" />
+                              <path d="M12 20V4" />
+                              <path d="M6 20v-6" />
+                            </svg>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="truncate text-sm font-medium"
+                                style={{ color: "var(--text-primary)" }}
+                              >
+                                {prop.displayName}
+                              </p>
+                              <p
+                                className="truncate text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {prop.account}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* BigQuery status indicator */}
+                          <div className="mt-2 flex items-center gap-2">
+                            {isChecking ? (
+                              <span
+                                className="text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                Checking BigQuery export...
+                              </span>
+                            ) : bq?.hasExport ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                                style={{
+                                  background: "rgba(16, 163, 127, 0.1)",
+                                  color: "var(--accent)",
+                                }}
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                BigQuery export enabled
+                                {bq.dataSource?.status === "ACTIVE" && " — Data ready"}
+                                {bq.dataSource?.status === "PENDING" && " — Waiting for data"}
+                              </span>
+                            ) : bq && !bq.hasExport ? (
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                                  style={{
+                                    background: "rgba(234, 179, 8, 0.1)",
+                                    color: "var(--text-secondary)",
+                                  }}
+                                >
+                                  BigQuery export not enabled
+                                </span>
+                                <button
+                                  onClick={() => checkBqStatus(prop.propertyId)}
+                                  className="text-xs underline"
+                                  style={{ color: "var(--accent)" }}
+                                >
+                                  Check again
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {/* Instructions if no BQ export */}
+                          {bq && !bq.hasExport && !isChecking && (
+                            <div
+                              className="mt-2 rounded-md px-3 py-2 text-xs leading-relaxed"
+                              style={{
+                                background: "rgba(234, 179, 8, 0.05)",
+                                border: "1px solid rgba(234, 179, 8, 0.15)",
+                                color: "var(--text-secondary)",
+                              }}
+                            >
+                              To enable enhanced analytics, set up BigQuery export in your{" "}
+                              <strong>GA4 Admin &gt; Product links &gt; BigQuery links</strong>.
+                              This is optional — Meaning works without it.
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                     {properties.length > 5 && (
                       <p
                         className="text-center text-xs"

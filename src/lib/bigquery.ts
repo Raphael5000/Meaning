@@ -1,0 +1,149 @@
+import { BigQuery } from "@google-cloud/bigquery";
+
+// ---------------------------------------------------------------------------
+// Client singleton
+// ---------------------------------------------------------------------------
+
+let _client: BigQuery | null = null;
+
+function getClient(): BigQuery {
+  if (_client) return _client;
+
+  const raw = process.env.GOOGLE_BIGQUERY_CREDENTIALS;
+  if (!raw) {
+    throw new Error("GOOGLE_BIGQUERY_CREDENTIALS env var is not set");
+  }
+
+  const credentials = JSON.parse(raw);
+  _client = new BigQuery({
+    projectId: credentials.project_id,
+    credentials,
+  });
+
+  return _client;
+}
+
+// ---------------------------------------------------------------------------
+// Core query runner
+// ---------------------------------------------------------------------------
+
+export interface QueryResult {
+  rows: Record<string, unknown>[];
+  totalRows: number;
+  bytesProcessed: number;
+}
+
+const MAX_BYTES_BILLED = 1_000_000_000; // 1 GB per query
+const MAX_ROWS = 500;
+
+export async function runQuery(
+  sql: string,
+  params?: Record<string, unknown>
+): Promise<QueryResult> {
+  const client = getClient();
+
+  // Enforce a LIMIT if the query doesn't already have one
+  const hasLimit = /\bLIMIT\s+\d+/i.test(sql);
+  const safeSql = hasLimit ? sql : `${sql.replace(/;\s*$/, "")} LIMIT ${MAX_ROWS}`;
+
+  const [job] = await client.createQueryJob({
+    query: safeSql,
+    params,
+    maximumBytesBilled: String(MAX_BYTES_BILLED),
+  });
+
+  const [rows] = await job.getQueryResults();
+  const metadata = await job.getMetadata();
+  const stats = metadata[0]?.statistics?.query;
+  const bytesProcessed = Number(stats?.totalBytesBilled || 0);
+
+  console.log(
+    `[BigQuery] ${bytesProcessed} bytes billed | ${rows.length} rows returned`
+  );
+
+  return {
+    rows,
+    totalRows: rows.length,
+    bytesProcessed,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Property-scoped query helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Run a query that is automatically scoped to a specific GA4 property's
+ * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
+ * with the property's dataset name.
+ */
+export async function runPropertyQuery(
+  propertyId: string,
+  sql: string,
+  params?: Record<string, unknown>
+): Promise<QueryResult> {
+  const dataset = `analytics_${propertyId}`;
+  const scopedSql = sql.replace(/\{dataset\}/g, dataset);
+  return runQuery(scopedSql, params);
+}
+
+// ---------------------------------------------------------------------------
+// Schema / available fields
+// ---------------------------------------------------------------------------
+
+export interface DatasetField {
+  tableName: string;
+  columnName: string;
+  dataType: string;
+}
+
+export async function getPropertySchema(
+  propertyId: string
+): Promise<DatasetField[]> {
+  const dataset = `analytics_${propertyId}`;
+  const client = getClient();
+
+  const [tables] = await client.dataset(dataset).getTables();
+  const fields: DatasetField[] = [];
+
+  for (const table of tables) {
+    const [metadata] = await table.getMetadata();
+    const schema = metadata.schema?.fields || [];
+    for (const field of schema) {
+      fields.push({
+        tableName: table.id || "",
+        columnName: field.name || "",
+        dataType: field.type || "",
+      });
+    }
+  }
+
+  return fields;
+}
+
+// ---------------------------------------------------------------------------
+// Realtime data (intraday table)
+// ---------------------------------------------------------------------------
+
+export async function queryRealtimeData(
+  propertyId: string
+): Promise<QueryResult> {
+  const dataset = `analytics_${propertyId}`;
+
+  const sql = `
+    SELECT
+      (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') AS page_location,
+      device.category AS device_category,
+      geo.country AS country,
+      COUNT(DISTINCT user_pseudo_id) AS active_users,
+      COUNT(*) AS event_count
+    FROM \`${dataset}.events_intraday_*\`
+    WHERE _TABLE_SUFFIX = FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+      AND TIMESTAMP_MICROS(event_timestamp) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 MINUTE)
+    GROUP BY page_location, device_category, country
+    ORDER BY active_users DESC
+    LIMIT 50
+  `;
+
+  return runQuery(sql);
+}

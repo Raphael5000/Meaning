@@ -7,6 +7,14 @@ import { buildEmailWrapper } from "@/lib/email-wrapper";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { isAlertDue, describeSchedule, frequencyLabel } from "@/lib/schedule";
 
+async function getUsesBigQuery(propertyId: string, userId: string): Promise<boolean> {
+  const dataSource = await prisma.dataSource.findFirst({
+    where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
+    select: { id: true },
+  });
+  return !!dataSource;
+}
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -76,16 +84,24 @@ async function handleSend(request: NextRequest) {
       try {
         let contentHtml: string;
 
+        // Check if this property uses BigQuery
+        const usesBigQuery = alert.propertyId
+          ? await getUsesBigQuery(alert.propertyId, alert.user.id)
+          : false;
+
         // Get a valid (refreshed if needed) Google access token for this user
+        // BigQuery path doesn't need the user's OAuth token, but we still try
+        // to get one for the GA4 fallback path
         const accessToken = await getValidGoogleTokenForUser(alert.user.id);
-        if (alert.propertyId && accessToken) {
+        if (alert.propertyId && (accessToken || usesBigQuery)) {
           try {
             contentHtml = await generateAlertContent(
-              accessToken,
+              accessToken || "",
               alert.propertyId,
               alert.alertType,
               freqLabel,
-              alert.customPrompt
+              alert.customPrompt,
+              usesBigQuery
             );
           } catch (genErr) {
             console.error(

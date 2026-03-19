@@ -1,13 +1,10 @@
 import { compileMDX } from "next-mdx-remote/rsc";
-import path from "path";
-import { readFile } from "fs/promises";
 import { cache } from "react";
 import GithubSlugger from "github-slugger";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { CodeBlockContainer } from "@/components/CodeBlockContainer";
-
-const CONTENT_DIR = path.join(process.cwd(), "content", "docs");
+import { prisma } from "@/lib/prisma";
 
 const mdxComponents = {
   pre: CodeBlockContainer,
@@ -54,13 +51,21 @@ export function extractHeadings(source: string): TocHeading[] {
  * Read and compile an MDX article in a single pass, returning both the
  * rendered content and the table-of-contents headings.
  *
- * Wrapped with React `cache()` so that multiple calls with the same slug
- * within a single server request are deduplicated (one file read, one compile).
+ * Reads from the database. Wrapped with React `cache()` so that multiple
+ * calls with the same slug within a single server request are deduplicated.
  */
 export const getArticleData = cache(async (slug: string) => {
-  const filePath = path.join(CONTENT_DIR, `${slug}.mdx`);
   try {
-    const raw = await readFile(filePath, "utf-8");
+    const article = await prisma.article.findUnique({
+      where: { slug },
+      select: { content: true },
+    });
+
+    if (!article) {
+      return { content: null, headings: [] as TocHeading[] };
+    }
+
+    const raw = article.content;
 
     // Strip the first # heading — the page already renders the title from frontmatter
     const stripped = raw.replace(/^(---[\s\S]*?---\s*)\n# .+\n/, "$1\n");
