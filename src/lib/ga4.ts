@@ -228,6 +228,7 @@ export async function createBigQueryLink(
     auth,
     requestBody: {
       project: `projects/${gcpProjectId}`,
+      datasetLocation: "EU",
       dailyExportEnabled: true,
       streamingExportEnabled: false,
       freshDailyExportEnabled: false,
