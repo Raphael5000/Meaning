@@ -37,21 +37,21 @@ function userBucket(userId: string): number {
  * Returns an object with the decision and context for logging.
  */
 /**
- * Check if a user has an active Google Ads DataSource linked to a property.
+ * Check if a user has an active Google Ads DataSource.
+ * Returns the adsCustomerId if found, null otherwise.
  */
-export async function hasGoogleAds(
-  propertyId: string,
+export async function getGoogleAdsCustomerId(
   userId: string
-): Promise<boolean> {
+): Promise<string | null> {
   const ds = await prisma.dataSource.findFirst({
     where: {
       userId,
       type: "GOOGLE_ADS",
       status: { in: ["ACTIVE", "BACKFILLING"] },
     },
-    select: { id: true },
+    select: { adsCustomerId: true },
   });
-  return !!ds;
+  return ds?.adsCustomerId ?? null;
 }
 
 export async function shouldUseBigQuery(

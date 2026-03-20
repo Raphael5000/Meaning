@@ -119,10 +119,11 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           enum: [
             "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
-            "ads_campaign_performance", "ads_keyword_performance", "ads_ga4_attribution", "ads_attribution_summary"
+            "ads_CampaignBasicStats", "ads_Campaign", "ads_KeywordBasicStats", "ads_Keyword",
+            "ads_AdGroup", "ads_AdGroupBasicStats", "ads_ClickStats", "ads_SearchQueryStats"
           ],
           description:
-            "Which analytics table to query. 'sessions' for session-level data. 'pageviews' for page-level data. 'users' for user-level aggregates. 'conversions' for conversion events. 'traffic_sources' for pre-aggregated daily source/medium performance. 'events' for raw event data. 'ads_campaign_performance' for daily Google Ads campaign metrics (impressions, clicks, cost, CTR, CPC, ROAS). 'ads_keyword_performance' for keyword-level Ads metrics. 'ads_ga4_attribution' for GA4 sessions attributed to Ads clicks via gclid. 'ads_attribution_summary' for aggregated campaign attribution with ROI.",
+            "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'ads_CampaignBasicStats' (daily campaign metrics), 'ads_Campaign' (campaign metadata), 'ads_KeywordBasicStats' (keyword metrics), 'ads_Keyword' (keyword metadata), 'ads_AdGroup' (ad group metadata), 'ads_AdGroupBasicStats' (ad group metrics), 'ads_ClickStats' (per-click data with gclid), 'ads_SearchQueryStats' (search query report).",
         },
         metrics: {
           type: "array",

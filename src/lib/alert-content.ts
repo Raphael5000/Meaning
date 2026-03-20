@@ -141,8 +141,8 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const params: Record<string, unknown> = {};
 
   const dateColumn =
-    table === "traffic_sources" || table === "sessions" || table === "ads_ga4_attribution" || table === "ads_attribution_summary" ? "session_date" :
-    table === "ads_campaign_performance" || table === "ads_keyword_performance" ? "stats_date" :
+    table === "traffic_sources" || table === "sessions" ? "session_date" :
+    table.startsWith("ads_") ? "_DATA_DATE" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 

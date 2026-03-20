@@ -86,13 +86,21 @@ const DBT_TABLES = new Set([
   "conversions",
   "traffic_sources",
   "stg_events",
-  // Google Ads tables
-  "ads_campaign_performance",
-  "ads_keyword_performance",
-  "ads_ga4_attribution",
-  "ads_attribution_summary",
-  "stg_ads_campaigns",
-  "stg_ads_clicks",
+]);
+
+/** Google Ads DTS tables — these live in ads_{customerId} dataset.
+ *  The actual table names in BigQuery have a _{customerId} suffix. */
+const ADS_TABLES = new Set([
+  "ads_CampaignBasicStats",
+  "ads_Campaign",
+  "ads_AdGroup",
+  "ads_AdGroupBasicStats",
+  "ads_Keyword",
+  "ads_KeywordBasicStats",
+  "ads_ClickStats",
+  "ads_SearchQueryStats",
+  "ads_GeoStats",
+  "ads_AccountBasicStats",
 ]);
 
 /**
@@ -101,18 +109,28 @@ const DBT_TABLES = new Set([
  * with the appropriate dataset:
  *   - dbt mart tables -> `dbt_meaning`
  *   - raw event tables -> `analytics_{propertyId}`
+ *   - ads tables -> `ads_{adsCustomerId}` (with _{customerId} suffix on table name)
+ *
+ * @param adsCustomerId - Optional Google Ads customer ID for routing Ads queries
  */
 export async function runPropertyQuery(
   propertyId: string,
   sql: string,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
+  adsCustomerId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
+  const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   const scopedSql = sql.replace(
     /\{dataset\}\.(\w+)/g,
     (_match, tableName: string) => {
+      // Check if it's an Ads DTS table
+      if (ADS_TABLES.has(tableName) && adsDataset) {
+        // DTS tables have _{customerId} suffix: ads_Campaign_6839681443
+        return `${adsDataset}.${tableName}_${adsCustomerId}`;
+      }
       const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
       return `${dataset}.${tableName}`;
     }

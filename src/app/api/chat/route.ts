@@ -7,7 +7,7 @@ import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
-import { shouldUseBigQuery, hasGoogleAds } from "@/lib/rollout";
+import { shouldUseBigQuery, getGoogleAdsCustomerId } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -153,22 +153,26 @@ function getBigQuerySystemPrompt(includeAds = false): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
-  - ads_campaign_performance: Daily Google Ads campaign metrics — stats_date, campaign_id, campaign_name, campaign_type, campaign_status, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas, budget
-  - ads_keyword_performance: Daily keyword/ad-group metrics — stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, keyword_status, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas
-  - ads_ga4_attribution: GA4 sessions attributed to Ads clicks via gclid — session_key, session_date, user_pseudo_id, gclid, campaign_id, campaign_name, campaign_type, ad_group_id, ad_group_name, keyword_text, match_type, pageviews, is_bounce, is_engaged, session_duration_seconds, landing_page, device_category, geo_country
-  - ads_attribution_summary: Daily aggregated attribution (campaign → sessions → ROI) — session_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, attributed_sessions, attributed_users, engaged_sessions, bounced_sessions, avg_session_duration, total_pageviews, ads_impressions, ads_clicks, ads_cost, ads_conversions, ads_conversions_value, ads_ctr, ads_cpc, ads_cpa, ads_roas, cost_per_attributed_session, attributed_engagement_rate, attributed_bounce_rate` : "";
+  - ads_CampaignBasicStats: Daily campaign metrics — campaign_id, metrics_clicks, metrics_conversions, metrics_conversions_value, metrics_cost_micros, metrics_impressions, metrics_interactions, segments_date, segments_device, segments_ad_network_type, _DATA_DATE
+  - ads_Campaign: Campaign metadata — campaign_id, campaign_name, campaign_status, campaign_advertising_channel_type, campaign_bidding_strategy_type, campaign_budget_amount_micros, campaign_start_date, campaign_end_date
+  - ads_AdGroupBasicStats: Daily ad group metrics — ad_group_id, campaign_id, metrics_clicks, metrics_conversions, metrics_cost_micros, metrics_impressions, segments_date
+  - ads_AdGroup: Ad group metadata — ad_group_id, campaign_id, ad_group_name, ad_group_status
+  - ads_KeywordBasicStats: Daily keyword metrics — ad_group_criterion_criterion_id, ad_group_id, campaign_id, metrics_clicks, metrics_conversions, metrics_cost_micros, metrics_impressions, segments_date
+  - ads_Keyword: Keyword metadata — ad_group_criterion_criterion_id, ad_group_id, campaign_id, ad_group_criterion_keyword_text, ad_group_criterion_keyword_match_type, ad_group_criterion_quality_info_quality_score
+  - ads_ClickStats: Per-click data with gclid — click_view_gclid, campaign_id, ad_group_id, click_view_keyword_info_text, click_view_keyword_info_match_type, segments_date, segments_device
+  - ads_SearchQueryStats: Search query report — metrics_clicks, metrics_impressions, metrics_cost_micros, segments_date` : "";
 
   const adsQueryGuidance = includeAds ? `
 
 GOOGLE ADS QUERIES:
-- For "which campaign drove the most sessions/conversions?", query ads_attribution_summary.
-- For "show me campaign performance", query ads_campaign_performance.
-- For "keyword-level ROI", query ads_keyword_performance.
-- For "which Ads clicks led to bounces vs engaged sessions?", query ads_ga4_attribution.
-- The ads_ga4_attribution table links GA4 sessions to Ads clicks via gclid — use it for any question about what happened AFTER an ad click.
-- Cost data is in currency units (already divided from micros). No need to divide by 1e6.
-- ROAS = conversions_value / cost. CPC = cost / clicks. CPA = cost / conversions. CTR = clicks / impressions.
-- For sankey diagrams showing Campaign → Landing Page → Conversion, query ads_ga4_attribution for the campaign+landing_page breakdown, then conversions for the conversion step.` : "";
+- For campaign performance, JOIN ads_CampaignBasicStats with ads_Campaign on campaign_id to get campaign names with metrics.
+- For keyword performance, JOIN ads_KeywordBasicStats with ads_Keyword on (ad_group_id, ad_group_criterion_criterion_id) to get keyword text with metrics.
+- For ad group performance, JOIN ads_AdGroupBasicStats with ads_AdGroup on ad_group_id.
+- Cost is in MICROS (divide by 1000000 to get currency units): metrics_cost_micros / 1000000 AS cost
+- Date column for stats tables is _DATA_DATE (DATE type). Use it for date filtering.
+- CTR = metrics_clicks / metrics_impressions. CPC = (metrics_cost_micros/1e6) / metrics_clicks. ROAS = metrics_conversions_value / (metrics_cost_micros/1e6).
+- To link Ads clicks to GA4 sessions, JOIN ads_ClickStats.click_view_gclid with stg_events.gclid (from collected_traffic_source).
+- Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.` : "";
 
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 
@@ -289,8 +293,8 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 
   // Date filtering
   const dateColumn =
-    table === "traffic_sources" || table === "sessions" || table === "ads_ga4_attribution" || table === "ads_attribution_summary" ? "session_date" :
-    table === "ads_campaign_performance" || table === "ads_keyword_performance" ? "stats_date" :
+    table === "traffic_sources" || table === "sessions" ? "session_date" :
+    table.startsWith("ads_") ? "_DATA_DATE" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
@@ -393,8 +397,9 @@ export async function POST(request: NextRequest) {
   // Determine data path: BigQuery or GA4
   const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
   const usesBigQuery = rollout.useBigQuery;
-  const hasAds = usesBigQuery && userId ? await hasGoogleAds(propertyId, userId) : false;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} reason=${rollout.reason}`);
+  const adsCustomerId = usesBigQuery && userId ? await getGoogleAdsCustomerId(userId) : null;
+  const hasAds = !!adsCustomerId;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} adsCustomer=${adsCustomerId} reason=${rollout.reason}`);
   const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
@@ -437,7 +442,7 @@ export async function POST(request: NextRequest) {
                 const { sql, params } = buildAnalyticsSQL(input);
                 console.log("[BigQuery] Tool input:", JSON.stringify(input));
                 console.log("[BigQuery] Generated SQL:", sql);
-                result = await runPropertyQuery(propertyId, sql, params);
+                result = await runPropertyQuery(propertyId, sql, params, adsCustomerId);
                 break;
               }
               case "get_realtime_data": {
