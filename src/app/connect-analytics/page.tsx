@@ -438,8 +438,8 @@ function ConnectAnalyticsContent() {
                     </strong>{" "}
                     linked to your account.
                   </p>
-                  <ul className="w-full space-y-2">
-                    {properties.slice(0, 5).map((prop) => {
+                  <ul className="w-full space-y-2 overflow-y-auto" style={{ maxHeight: "400px" }}>
+                    {properties.map((prop) => {
                       const bq = bqStatuses[prop.propertyId];
                       const isChecking = checkingBq[prop.propertyId];
 
@@ -551,14 +551,6 @@ function ConnectAnalyticsContent() {
                         </li>
                       );
                     })}
-                    {properties.length > 5 && (
-                      <p
-                        className="text-center text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        +{properties.length - 5} more
-                      </p>
-                    )}
                   </ul>
                 </>
               ) : (
