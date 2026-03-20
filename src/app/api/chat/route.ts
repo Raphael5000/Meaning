@@ -169,10 +169,11 @@ GOOGLE ADS QUERIES:
 - For keyword performance, JOIN ads_KeywordBasicStats with ads_Keyword on (ad_group_id, ad_group_criterion_criterion_id) to get keyword text with metrics.
 - For ad group performance, JOIN ads_AdGroupBasicStats with ads_AdGroup on ad_group_id.
 - Cost is in MICROS (divide by 1000000 to get currency units): metrics_cost_micros / 1000000 AS cost
-- Date column for stats tables is _DATA_DATE (DATE type). Use it for date filtering.
+- Date filtering: use segments_date for the actual metrics date. The _DATA_DATE = _LATEST_DATE filter is added automatically to avoid counting duplicates from DTS refresh windows.
 - CTR = metrics_clicks / metrics_impressions. CPC = (metrics_cost_micros/1e6) / metrics_clicks. ROAS = metrics_conversions_value / (metrics_cost_micros/1e6).
 - To link Ads clicks to GA4 sessions, JOIN ads_ClickStats.click_view_gclid with stg_events.gclid (from collected_traffic_source).
-- Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.` : "";
+- Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.
+- IMPORTANT: Stats tables have rows per segments_date + segments_device + segments_ad_network_type + segments_slot. When aggregating, GROUP BY the dimensions you need and SUM the metrics. Do NOT count rows — always SUM metrics columns.` : "";
 
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 
@@ -294,9 +295,14 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   // Date filtering
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
-    table.startsWith("ads_") ? "_DATA_DATE" :
+    table.startsWith("ads_") ? "segments_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
+
+  // For Ads DTS tables, filter to latest snapshot to avoid duplicates
+  if (table.startsWith("ads_")) {
+    whereParts.push("_DATA_DATE = _LATEST_DATE");
+  }
 
   if (startDate) {
     whereParts.push(`${dateColumn} >= @startDate`);

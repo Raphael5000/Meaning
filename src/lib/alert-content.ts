@@ -142,9 +142,14 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
-    table.startsWith("ads_") ? "_DATA_DATE" :
+    table.startsWith("ads_") ? "segments_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
+
+  // For Ads DTS tables, filter to latest snapshot to avoid duplicates
+  if (table.startsWith("ads_")) {
+    whereParts.push("_DATA_DATE = _LATEST_DATE");
+  }
 
   if (startDate) {
     whereParts.push(`${dateColumn} >= @startDate`);
