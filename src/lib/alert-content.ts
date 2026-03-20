@@ -140,9 +140,11 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const whereParts: string[] = [];
   const params: Record<string, unknown> = {};
 
+  const isAdsStats = table.startsWith("ads_") && table.includes("Stats");
+  const isAdsMeta = table.startsWith("ads_") && !table.includes("Stats");
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
-    table.startsWith("ads_") ? "segments_date" :
+    isAdsStats ? "segments_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
@@ -151,15 +153,18 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
     whereParts.push("_DATA_DATE = _LATEST_DATE");
   }
 
-  if (startDate) {
-    whereParts.push(`${dateColumn} >= @startDate`);
-    params.startDate = startDate;
-  } else {
-    whereParts.push(`${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)`);
-  }
-  if (endDate) {
-    whereParts.push(`${dateColumn} <= @endDate`);
-    params.endDate = endDate;
+  // Ads metadata tables don't have date columns
+  if (!isAdsMeta) {
+    if (startDate) {
+      whereParts.push(`${dateColumn} >= @startDate`);
+      params.startDate = startDate;
+    } else {
+      whereParts.push(`${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)`);
+    }
+    if (endDate) {
+      whereParts.push(`${dateColumn} <= @endDate`);
+      params.endDate = endDate;
+    }
   }
 
   if (filters) {
