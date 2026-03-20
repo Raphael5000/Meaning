@@ -42,13 +42,16 @@ models:
 
   - name: users
     description: >
-      One row per user (user_pseudo_id). Aggregated from sessions.
-      Includes acquisition attribution, lifetime metrics, and recency.
+      One row per user per property (property_id + user_pseudo_id).
+      Aggregated from sessions. Includes acquisition attribution,
+      lifetime metrics, and recency.
+    tests:
+      - unique:
+          column_name: "property_id || '-' || user_pseudo_id"
     columns:
       - name: user_pseudo_id
         description: GA4 anonymous user identifier
         tests:
-          - unique
           - not_null
       - name: first_seen
         description: Timestamp of user's first session
