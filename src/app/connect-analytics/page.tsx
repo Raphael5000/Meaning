@@ -468,90 +468,62 @@ function ConnectAnalyticsContent() {
                             </div>
                           </div>
 
-                          {/* BigQuery status indicator */}
-                          <div className="mt-2 flex items-center gap-2">
+                          {/* BigQuery status */}
+                          <div className="mt-2">
                             {isChecking ? (
                               <span
                                 className="text-xs"
                                 style={{ color: "var(--text-muted)" }}
                               >
-                                Checking BigQuery export...
+                                Checking...
                               </span>
                             ) : bq?.hasExport ? (
                               <span
-                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                                style={{
-                                  background: "rgba(16, 163, 127, 0.1)",
-                                  color: "var(--accent)",
-                                }}
+                                className="inline-flex items-center gap-1 text-xs"
+                                style={{ color: "var(--accent)" }}
                               >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
-                                BigQuery export enabled
-                                {bq.dataSource?.status === "ACTIVE" && " — Data ready"}
-                                {bq.dataSource?.status === "PENDING" && " — Waiting for data"}
+                                Enhanced analytics
+                                {bq.dataSource?.status === "ACTIVE" ? " active" : " — setting up"}
                               </span>
                             ) : bq && !bq.hasExport ? (
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                              <div className="flex items-center justify-between">
+                                <button
+                                  onClick={() => startBqEnable(prop.propertyId)}
+                                  disabled={enablingBq[prop.propertyId]}
+                                  className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity"
                                   style={{
-                                    background: "rgba(234, 179, 8, 0.1)",
-                                    color: "var(--text-secondary)",
+                                    color: "var(--accent)",
+                                    opacity: enablingBq[prop.propertyId] ? 0.5 : 1,
                                   }}
                                 >
-                                  BigQuery export not enabled
-                                </span>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                  </svg>
+                                  {enablingBq[prop.propertyId]
+                                    ? "Enabling..."
+                                    : "Enable enhanced analytics"}
+                                </button>
                                 <button
                                   onClick={() => checkBqStatus(prop.propertyId)}
-                                  className="text-xs underline"
-                                  style={{ color: "var(--accent)" }}
+                                  className="text-xs"
+                                  style={{ color: "var(--text-muted)" }}
                                 >
-                                  Check again
+                                  Refresh
                                 </button>
                               </div>
                             ) : null}
-                          </div>
-
-                          {/* Enable BQ export button */}
-                          {bq && !bq.hasExport && !isChecking && (
-                            <div className="mt-2 space-y-2">
-                              <button
-                                onClick={() => startBqEnable(prop.propertyId)}
-                                disabled={enablingBq[prop.propertyId]}
-                                className="w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors"
-                                style={{
-                                  background: "var(--accent)",
-                                  color: "white",
-                                  opacity: enablingBq[prop.propertyId] ? 0.6 : 1,
-                                }}
-                              >
-                                {enablingBq[prop.propertyId]
-                                  ? "Enabling..."
-                                  : "Enable enhanced analytics"}
-                              </button>
+                            {bqErrors[prop.propertyId] && (
                               <p
-                                className="text-center text-xs"
-                                style={{ color: "var(--text-muted)" }}
+                                className="mt-1 text-xs"
+                                style={{ color: "var(--error)" }}
                               >
-                                One-click setup — requires GA4 Admin or Editor access.
-                                This is optional.
+                                {bqErrors[prop.propertyId]}
                               </p>
-                              {bqErrors[prop.propertyId] && (
-                                <div
-                                  className="rounded-md px-3 py-2 text-xs"
-                                  style={{
-                                    background: "rgba(239, 68, 68, 0.1)",
-                                    color: "var(--error)",
-                                    border: "1px solid rgba(239, 68, 68, 0.2)",
-                                  }}
-                                >
-                                  {bqErrors[prop.propertyId]}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </li>
                       );
                     })}
