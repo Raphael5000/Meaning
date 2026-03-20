@@ -14,6 +14,48 @@ const handle = app.getRequestHandler();
 
 console.log("[server] PORT=%s (from env: %s), binding to %s:%s", port, process.env.PORT ?? "unset", hostname, port);
 
+// ---------------------------------------------------------------------------
+// Built-in cron jobs
+// ---------------------------------------------------------------------------
+
+function callLocal(path, method = "POST") {
+  const url = `http://localhost:${port}${path}`;
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.log("[cron] Skipping %s — CRON_SECRET not set", path);
+    return;
+  }
+  console.log("[cron] Calling %s %s", method, path);
+  fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${secret}` },
+  })
+    .then(async (res) => {
+      const body = await res.text();
+      console.log("[cron] %s → %s %s", path, res.status, body.slice(0, 200));
+    })
+    .catch((err) => {
+      console.error("[cron] %s failed:", path, err.message);
+    });
+}
+
+function startCronJobs() {
+  // Alerts: check every hour
+  setInterval(() => callLocal("/api/alerts/send"), 60 * 60 * 1000);
+
+  // Ads sync: once daily at ~06:00 UTC
+  // Run check every hour; only fire when the hour matches
+  setInterval(() => {
+    if (new Date().getUTCHours() === 6) {
+      callLocal("/api/ads/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily ~06:00 UTC)");
+}
+
+// ---------------------------------------------------------------------------
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
@@ -21,6 +63,7 @@ app.prepare().then(() => {
   });
   server.listen(port, hostname, () => {
     console.log("[server] Ready on http://%s:%s", hostname, port);
+    startCronJobs();
   });
   server.on("error", (err) => {
     console.error("[server] Listen error:", err.message || err);
