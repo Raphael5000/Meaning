@@ -70,6 +70,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
+  const [propertyBqStatus, setPropertyBqStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 768 : true
@@ -519,9 +520,10 @@ export default function Chat() {
               <PropertySelector
                 selectedPropertyId={propertyId}
                 disabled={messages.length > 0}
-                onSelect={(id, name) => {
+                onSelect={(id, name, bqStatus) => {
                   setPropertyId(id);
                   setPropertyName(name);
+                  setPropertyBqStatus(bqStatus);
                 }}
               />
             </div>
@@ -603,6 +605,35 @@ export default function Chat() {
             </div>
           )}
         </div>
+
+        {/* BigQuery enablement banner */}
+        {propertyId && propertyBqStatus !== "ACTIVE" && messages.length === 0 && (
+          <div
+            className="mx-auto flex max-w-3xl items-center gap-3 rounded-lg px-4 py-3 text-sm"
+            style={{
+              background: "rgba(16, 163, 127, 0.08)",
+              border: "1px solid rgba(16, 163, 127, 0.2)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="shrink-0">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <div className="flex-1">
+              <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                Enable enhanced analytics
+              </span>
+              {" "}for faster, richer insights powered by BigQuery.
+            </div>
+            <a
+              href="/connect-analytics"
+              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
+              style={{ background: "var(--accent)", color: "white" }}
+            >
+              Enable
+            </a>
+          </div>
+        )}
 
         {/* Error banner */}
         {error && (

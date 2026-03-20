@@ -8,11 +8,12 @@ interface Property {
   propertyId: string;
   displayName: string;
   account: string;
+  bigquery?: { status: string | null; dataset: string | null } | null;
 }
 
 interface PropertySelectorProps {
   selectedPropertyId: string | null;
-  onSelect: (propertyId: string, displayName: string) => void;
+  onSelect: (propertyId: string, displayName: string, bqStatus: string | null) => void;
   disabled?: boolean;
 }
 
@@ -41,7 +42,8 @@ export default function PropertySelector({
 
         // Auto-select if only one property
         if (data.properties?.length === 1 && !selectedPropertyId) {
-          onSelect(data.properties[0].propertyId, data.properties[0].displayName);
+          const p = data.properties[0];
+          onSelect(p.propertyId, p.displayName, p.bigquery?.status ?? null);
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to load");
@@ -165,7 +167,7 @@ export default function PropertySelector({
                   key={prop.propertyId}
                   type="button"
                   onClick={() => {
-                    onSelect(prop.propertyId, prop.displayName);
+                    onSelect(prop.propertyId, prop.displayName, prop.bigquery?.status ?? null);
                     setOpen(false);
                     setSearch("");
                   }}
