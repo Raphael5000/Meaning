@@ -251,28 +251,79 @@ export default function ConnectionsModal({
     setEnablingAds((prev) => ({ ...prev, [customerId]: true }));
     setAdsErrors((prev) => ({ ...prev, [customerId]: "" }));
     try {
-      const res = await fetch("/api/ads/enable-export", {
+      // Step 1: Get the DTS auth URL
+      const res1 = await fetch("/api/ads/enable-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId }),
       });
-      const data = await res.json();
-      console.log("[ConnectionsModal] enable-export response:", res.status, data);
-      if (!res.ok) {
-        setAdsErrors((prev) => ({
-          ...prev,
-          [customerId]: data.message || data.error || "Failed to enable.",
-        }));
+      const data1 = await res1.json();
+      if (!res1.ok) {
+        setAdsErrors((prev) => ({ ...prev, [customerId]: data1.message || data1.error || "Failed." }));
         return;
       }
-      // Open BigQuery Console for user to complete DTS setup
-      if (data.setupUrl) {
-        window.open(data.setupUrl, "_blank");
+
+      if (!data1.authUrl) {
+        setAdsErrors((prev) => ({ ...prev, [customerId]: "No auth URL returned." }));
+        return;
       }
-      setMessage({
-        type: "success",
-        text: `Dataset "${data.datasetId}" created. In the BigQuery Console tab, click "+ Create Transfer", select "Google Ads" as source, set destination dataset to "${data.datasetId}", and enter customer ID ${customerId}. Once data syncs, status here will update to Active.`,
+
+      // Open DTS OAuth in a popup and wait for version_info
+      const versionInfo = await new Promise<string | null>((resolve) => {
+        const popup = window.open(data1.authUrl, "dts_auth", "width=600,height=700");
+        if (!popup) {
+          resolve(null);
+          return;
+        }
+
+        // Poll the popup URL for the version_info parameter
+        const interval = setInterval(() => {
+          try {
+            if (popup.closed) {
+              clearInterval(interval);
+              resolve(null);
+              return;
+            }
+            const url = popup.location.href;
+            if (url && url.includes("version_info=")) {
+              const params = new URLSearchParams(url.split("?")[1]);
+              const vi = params.get("version_info");
+              clearInterval(interval);
+              popup.close();
+              resolve(vi);
+            }
+          } catch {
+            // Cross-origin — can't read URL yet, keep polling
+          }
+        }, 500);
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(interval);
+          if (!popup.closed) popup.close();
+          resolve(null);
+        }, 300000);
       });
+
+      if (!versionInfo) {
+        setAdsErrors((prev) => ({ ...prev, [customerId]: "Authorization was cancelled or timed out." }));
+        return;
+      }
+
+      // Step 2: Create the transfer with versionInfo
+      const res2 = await fetch("/api/ads/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, versionInfo }),
+      });
+      const data2 = await res2.json();
+      console.log("[ConnectionsModal] enable-export step 2:", res2.status, data2);
+      if (!res2.ok) {
+        setAdsErrors((prev) => ({ ...prev, [customerId]: data2.message || data2.error || "Failed to create transfer." }));
+        return;
+      }
+
+      setMessage({ type: "success", text: "Google Ads connected! Syncing historical data..." });
       fetchStatus();
     } catch (err) {
       console.error("[ConnectionsModal] enable-export error:", err);

@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { prepareAdsTransfer } from "@/lib/ads-transfer";
+import { getDtsAuthUrl, getAdsDataset, ensureDataset, createAdsTransfer } from "@/lib/ads-transfer";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/ads/enable-export
  *
- * Creates the BigQuery dataset for a Google Ads customer and returns
- * a BigQuery Console URL where the user completes the DTS setup.
- * DTS requires in-browser OAuth consent, so we can't do it fully programmatically.
- *
- * Body: { customerId: string }
+ * Two-step flow:
+ * Step 1: { customerId } → returns { authUrl } for DTS OAuth consent
+ * Step 2: { customerId, versionInfo } → creates the DTS transfer
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -22,60 +20,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { customerId: string };
-  const { customerId } = body;
+  const body = (await req.json()) as { customerId: string; versionInfo?: string };
+  const { customerId, versionInfo } = body;
 
   if (!customerId) {
-    return NextResponse.json(
-      { error: "customerId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "customerId is required" }, { status: 400 });
   }
 
-  // Check if already exists
-  const existing = await prisma.dataSource.findFirst({
-    where: { userId, type: "GOOGLE_ADS", propertyId: customerId },
-  });
-  if (existing) {
-    return NextResponse.json(
-      { error: "already_exists", message: "Google Ads is already connected for this account.", dataSource: existing },
-      { status: 409 }
-    );
+  // Step 1: Return the DTS auth URL
+  if (!versionInfo) {
+    const datasetId = getAdsDataset(customerId);
+    await ensureDataset(datasetId);
+    const authUrl = getDtsAuthUrl();
+    return NextResponse.json({ authUrl, datasetId, step: 1 });
   }
 
+  // Step 2: Create the transfer with versionInfo
   try {
-    const { datasetId, setupUrl } = await prepareAdsTransfer(customerId);
+    // Check if already exists
+    const existing = await prisma.dataSource.findFirst({
+      where: { userId, type: "GOOGLE_ADS", propertyId: customerId, status: "ACTIVE" },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "already_exists", message: "Google Ads is already connected.", dataSource: existing },
+        { status: 409 }
+      );
+    }
 
-    // Get the user's team (if any)
+    const { transferConfigName, datasetId } = await createAdsTransfer(customerId, versionInfo);
+
     const teamMembership = await prisma.teamMembership.findFirst({
       where: { userId },
       select: { teamId: true },
     });
 
-    // Create the DataSource record in PENDING state
-    const dataSource = await prisma.dataSource.create({
-      data: {
+    const dataSource = await prisma.dataSource.upsert({
+      where: {
+        userId_propertyId_type: {
+          userId,
+          propertyId: customerId,
+          type: "GOOGLE_ADS",
+        },
+      },
+      update: {
+        dtsTransferId: transferConfigName,
+        bigqueryDataset: datasetId,
+        status: "BACKFILLING",
+      },
+      create: {
         userId,
         teamId: teamMembership?.teamId ?? undefined,
         type: "GOOGLE_ADS",
         propertyId: customerId,
         bigqueryDataset: datasetId,
         adsCustomerId: customerId,
-        status: "PENDING",
+        dtsTransferId: transferConfigName,
+        status: "BACKFILLING",
       },
     });
 
-    console.log(`[enable-ads-export] Created GOOGLE_ADS DataSource ${dataSource.id} for customer ${customerId}`);
-
-    return NextResponse.json({
-      dataSource,
-      datasetId,
-      setupUrl,
-    });
+    console.log(`[enable-ads-export] Created DTS transfer for customer ${customerId}: ${transferConfigName}`);
+    return NextResponse.json({ dataSource, step: 2 });
   } catch (err) {
     console.error("[enable-ads-export] Error:", err);
     return NextResponse.json(
-      { error: "Failed to set up Google Ads export", message: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Failed to create transfer", message: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
     );
   }

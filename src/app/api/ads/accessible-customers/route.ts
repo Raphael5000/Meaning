@@ -53,7 +53,7 @@ export async function GET() {
     }
 
     const res = await fetch(
-      "https://googleads.googleapis.com/v19/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v20/customers:listAccessibleCustomers",
       { headers }
     );
 

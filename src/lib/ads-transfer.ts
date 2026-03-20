@@ -1,8 +1,25 @@
+import { DataTransferServiceClient } from "@google-cloud/bigquery-data-transfer";
 import { BigQuery } from "@google-cloud/bigquery";
 
 // ---------------------------------------------------------------------------
-// Client singleton
+// Client singletons
 // ---------------------------------------------------------------------------
+
+let _dtsClient: DataTransferServiceClient | null = null;
+
+function getDtsClient(): DataTransferServiceClient {
+  if (_dtsClient) return _dtsClient;
+
+  const raw = process.env.GOOGLE_BIGQUERY_CREDENTIALS;
+  if (!raw) throw new Error("GOOGLE_BIGQUERY_CREDENTIALS env var is not set");
+
+  const credentials = JSON.parse(raw);
+  _dtsClient = new DataTransferServiceClient({
+    projectId: credentials.project_id,
+    credentials,
+  });
+  return _dtsClient;
+}
 
 let _bqClient: BigQuery | null = null;
 
@@ -30,17 +47,10 @@ function getProjectId(): string {
 // Dataset helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Get the BigQuery dataset name for a Google Ads customer.
- * Format: ads_{customerId} (customer ID without dashes)
- */
 export function getAdsDataset(customerId: string): string {
   return `ads_${customerId.replace(/-/g, "")}`;
 }
 
-/**
- * Ensure the target BigQuery dataset exists, creating it if necessary.
- */
 export async function ensureDataset(datasetId: string): Promise<void> {
   const bq = getBqClient();
   const dataset = bq.dataset(datasetId);
@@ -52,35 +62,94 @@ export async function ensureDataset(datasetId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Setup helpers
+// DTS versionInfo OAuth URL
 // ---------------------------------------------------------------------------
 
-export interface SetupAdsResult {
+/**
+ * Get the OAuth URL that the user must visit to generate a `versionInfo` token
+ * for DTS. The Google Ads data source requires specific scopes.
+ * After consent, Google redirects to the redirect_uri with `version_info` param.
+ */
+export function getDtsAuthUrl(): string {
+  const clientId = process.env.GOOGLE_CLIENT_ID!;
+  const scopes = encodeURIComponent(
+    "https://www.googleapis.com/auth/bigquery https://www.googleapis.com/auth/adwords"
+  );
+
+  // Use urn:ietf:wg:oauth:2.0:oob so Google shows the version_info on a page
+  // Our app will redirect from that page via the state parameter
+  return `https://bigquery.cloud.google.com/datatransfer/oauthz/auth?client_id=${encodeURIComponent(clientId)}&scope=${scopes}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=version_info`;
+}
+
+// ---------------------------------------------------------------------------
+// DTS transfer creation (programmatic)
+// ---------------------------------------------------------------------------
+
+export interface CreateAdsTransferResult {
+  transferConfigName: string;
   datasetId: string;
-  setupUrl: string;
 }
 
 /**
- * Prepare for Google Ads DTS by creating the target dataset and
- * returning a BigQuery Console URL where the user completes the
- * DTS transfer setup (which requires their OAuth consent in-browser).
+ * Create a BigQuery Data Transfer Service config for Google Ads.
+ * Requires a `versionInfo` token obtained from the DTS OAuth flow.
  */
-export async function prepareAdsTransfer(
+export async function createAdsTransfer(
   customerId: string,
-): Promise<SetupAdsResult> {
+  versionInfo: string,
+  backfillDays = 90,
+): Promise<CreateAdsTransferResult> {
   const projectId = getProjectId();
   const datasetId = getAdsDataset(customerId);
 
   await ensureDataset(datasetId);
 
-  // BigQuery Data Transfer setup page
-  const setupUrl = `https://console.cloud.google.com/bigquery/transfers?project=${projectId}`;
+  const client = getDtsClient();
+  const parent = `projects/${projectId}/locations/us`;
 
-  return { datasetId, setupUrl };
+  const [transferConfig] = await client.createTransferConfig({
+    parent,
+    transferConfig: {
+      displayName: `Google Ads - ${customerId}`,
+      dataSourceId: "google_ads",
+      destinationDatasetId: datasetId,
+      params: {
+        fields: {
+          customer_id: { stringValue: customerId },
+        },
+      },
+      schedule: "every 24 hours",
+      dataRefreshWindowDays: 3,
+    },
+    versionInfo,
+  });
+
+  const transferConfigName = transferConfig!.name!;
+  console.log(`[ads-transfer] Created DTS config: ${transferConfigName}`);
+
+  // Trigger backfill
+  if (backfillDays > 0) {
+    const startTime = new Date();
+    startTime.setDate(startTime.getDate() - backfillDays);
+    const endTime = new Date();
+    endTime.setDate(endTime.getDate() - 1);
+    endTime.setHours(23, 59, 59, 0);
+
+    await client.startManualTransferRuns({
+      parent: transferConfigName,
+      requestedTimeRange: {
+        startTime: { seconds: Math.floor(startTime.getTime() / 1000) },
+        endTime: { seconds: Math.floor(endTime.getTime() / 1000) },
+      },
+    });
+    console.log(`[ads-transfer] Triggered ${backfillDays}-day backfill`);
+  }
+
+  return { transferConfigName, datasetId };
 }
 
 // ---------------------------------------------------------------------------
-// Transfer status (checks if data has arrived in the dataset)
+// Transfer status
 // ---------------------------------------------------------------------------
 
 export interface AdsDataStatus {
@@ -89,10 +158,6 @@ export interface AdsDataStatus {
   tables: string[];
 }
 
-/**
- * Check if a Google Ads dataset has data by listing its tables.
- * DTS creates tables like ads_Campaign, ads_ClickStats, etc.
- */
 export async function checkAdsDataStatus(
   customerId: string,
 ): Promise<AdsDataStatus> {
@@ -108,8 +173,6 @@ export async function checkAdsDataStatus(
 
     const [tables] = await dataset.getTables();
     const tableNames = tables.map((t) => t.id || "").filter(Boolean);
-
-    // Consider it "has data" if at least one ads_ table exists
     const adsTables = tableNames.filter((t) => t.startsWith("ads_") || t.startsWith("Ads"));
     return { datasetId, hasData: adsTables.length > 0, tables: tableNames };
   } catch {
