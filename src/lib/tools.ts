@@ -188,6 +188,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_ads_query",
+    description:
+      "Run a custom SQL query that can JOIN Google Ads data with GA4 data. Use this for attribution queries that need to link Ads clicks to website sessions via gclid, or any query that spans both Ads and GA4 tables. Use {dataset}.tableName for table references — the system routes to the correct dataset automatically. Ads tables include a _{customerId} suffix automatically. Include _DATA_DATE = _LATEST_DATE filter on all Ads tables.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT c.campaign_name, p.page_location FROM `{dataset}.ads_ClickStats` cl JOIN `{dataset}.ads_Campaign` c ON cl.campaign_id = c.campaign_id JOIN `{dataset}.stg_events` e ON cl.click_view_gclid = e.gclid",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "get_realtime_data",
     description:
       "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",

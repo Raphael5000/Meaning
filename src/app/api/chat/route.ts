@@ -174,7 +174,9 @@ GOOGLE ADS QUERIES:
 - To link Ads clicks to GA4 sessions, JOIN ads_ClickStats.click_view_gclid with stg_events.gclid (from collected_traffic_source).
 - Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.
 - IMPORTANT: Stats tables have rows per segments_date + segments_device + segments_ad_network_type + segments_slot. When aggregating, GROUP BY the dimensions you need and SUM the metrics. Do NOT count rows — always SUM metrics columns.
-- CURRENCY: Query ads_Customer table (customer_currency_code column) to get the account's currency. Display all cost/spend values with the correct currency symbol (e.g. R for ZAR, $ for USD, € for EUR). Default to USD if unknown.` : "";
+- CURRENCY: Query ads_Customer table (customer_currency_code column) to get the account's currency. Display all cost/spend values with the correct currency symbol (e.g. R for ZAR, $ for USD, € for EUR). Default to USD if unknown.
+- ATTRIBUTION / CROSS-SOURCE QUERIES: Use the run_ads_query tool to write SQL that JOINs Ads and GA4 data. Example: to show user flow from a campaign through the website, JOIN ads_ClickStats (gclid, campaign_id) → stg_events (gclid → ga_session_id) → pageviews (ga_session_id → page flow). This is the key for sankey diagrams showing Campaign → Landing Page → Page 2 → etc.
+- SANKEY FROM ADS: To build a sankey of users from a specific campaign flowing through the site, use run_ads_query with SQL like: WITH campaign_sessions AS (SELECT DISTINCT e.ga_session_id FROM \`{dataset}.ads_ClickStats\` cl JOIN \`{dataset}.ads_Campaign\` c ON cl.campaign_id = c.campaign_id AND c._DATA_DATE = c._LATEST_DATE JOIN \`{dataset}.stg_events\` e ON cl.click_view_gclid = e.gclid WHERE cl._DATA_DATE = cl._LATEST_DATE AND c.campaign_name = 'campaign name'), ordered AS (SELECT p.ga_session_id, REGEXP_EXTRACT(p.page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY p.ga_session_id ORDER BY p.event_timestamp) AS step FROM \`{dataset}.pageviews\` p JOIN campaign_sessions cs ON p.ga_session_id = cs.ga_session_id), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, COUNT(*) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30` : "";
 
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 
@@ -455,6 +457,13 @@ export async function POST(request: NextRequest) {
                 console.log("[BigQuery] Tool input:", JSON.stringify(input));
                 console.log("[BigQuery] Generated SQL:", sql);
                 result = await runPropertyQuery(propertyId, sql, params, adsCustomerId);
+                break;
+              }
+              case "run_ads_query": {
+                const input = toolUse.input as { sql: string; description?: string };
+                console.log("[BigQuery] Ads query:", input.description || "custom");
+                console.log("[BigQuery] Raw SQL:", input.sql);
+                result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId);
                 break;
               }
               case "get_realtime_data": {
