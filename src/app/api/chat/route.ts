@@ -523,6 +523,8 @@ export async function POST(request: NextRequest) {
       scorecard: scorecard ?? undefined,
       chart: chart ?? undefined,
       suggestedQuestions: suggestedQuestions ?? undefined,
+      _dataPath: usesBigQuery ? "bigquery" : "ga4",
+      _rolloutReason: rollout.reason,
     });
   } catch (error: unknown) {
     console.error("Chat API error:", error);
