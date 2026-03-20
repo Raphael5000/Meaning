@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { createBigQueryLink, listBigQueryLinks } from "@/lib/ga4";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { prisma } from "@/lib/prisma";
+import { backfillProperty } from "@/lib/backfill";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,8 @@ export async function POST(request: NextRequest) {
     // Create the BigQuery link
     const link = await createBigQueryLink(accessToken, propertyId, GCP_PROJECT_ID);
 
-    // Create DataSource record in PENDING status
+    // Create DataSource record — set to ACTIVE immediately since we'll
+    // backfill historical data from the GA4 API right now.
     const bigqueryDataset = `analytics_${propertyId}`;
     const dataSource = await prisma.dataSource.upsert({
       where: {
@@ -73,15 +75,22 @@ export async function POST(request: NextRequest) {
       },
       update: {
         bigqueryDataset,
-        status: "PENDING",
+        status: "ACTIVE",
       },
       create: {
         userId,
         type: "GA4_BIGQUERY",
         propertyId,
         bigqueryDataset,
-        status: "PENDING",
+        status: "ACTIVE",
       },
+    });
+
+    // Backfill 90 days of historical data from GA4 API in the background.
+    // This gives the user data immediately instead of waiting 24hrs for
+    // the first GA4 daily export.
+    backfillProperty(accessToken, propertyId, 90).catch((err) => {
+      console.error(`[enable-bigquery-export] Backfill failed for ${propertyId}:`, err);
     });
 
     return NextResponse.json({
