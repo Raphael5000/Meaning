@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createBigQueryLink, listBigQueryLinks } from "@/lib/ga4";
-import { getGoogleAccessToken } from "@/lib/google-token";
+import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -19,16 +19,16 @@ const GCP_PROJECT_ID = "scenic-healer-486415-u3";
  */
 export async function POST(request: NextRequest) {
   const session = await auth();
-  const accessToken = await getGoogleAccessToken(
-    session as { accessToken?: string; userId?: string; teamAdminId?: string } | null
-  );
-
-  if (!accessToken) {
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const userId = (session as { userId?: string })?.userId;
-  if (!userId) {
+  // Always read fresh from DB — the session JWT may still have the old
+  // analytics.readonly token, but the DB has the new analytics.edit token
+  // from the elevated OAuth flow.
+  const accessToken = await getValidGoogleTokenForUser(userId);
+  if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
