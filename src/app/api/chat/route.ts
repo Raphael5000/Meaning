@@ -173,7 +173,8 @@ GOOGLE ADS QUERIES:
 - CTR = metrics_clicks / metrics_impressions. CPC = (metrics_cost_micros/1e6) / metrics_clicks. ROAS = metrics_conversions_value / (metrics_cost_micros/1e6).
 - To link Ads clicks to GA4 sessions, JOIN ads_ClickStats.click_view_gclid with stg_events.gclid (from collected_traffic_source).
 - Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.
-- IMPORTANT: Stats tables have rows per segments_date + segments_device + segments_ad_network_type + segments_slot. When aggregating, GROUP BY the dimensions you need and SUM the metrics. Do NOT count rows — always SUM metrics columns.` : "";
+- IMPORTANT: Stats tables have rows per segments_date + segments_device + segments_ad_network_type + segments_slot. When aggregating, GROUP BY the dimensions you need and SUM the metrics. Do NOT count rows — always SUM metrics columns.
+- CURRENCY: Query ads_Customer table (customer_currency_code column) to get the account's currency. Display all cost/spend values with the correct currency symbol (e.g. R for ZAR, $ for USD, € for EUR). Default to USD if unknown.` : "";
 
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 

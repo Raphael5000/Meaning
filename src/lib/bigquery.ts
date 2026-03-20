@@ -101,6 +101,7 @@ const ADS_TABLES = new Set([
   "ads_SearchQueryStats",
   "ads_GeoStats",
   "ads_AccountBasicStats",
+  "ads_Customer",
 ]);
 
 /**
