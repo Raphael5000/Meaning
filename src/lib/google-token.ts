@@ -41,7 +41,8 @@ export async function getGoogleAccessTokenForTeam(
  * Used by the cron send endpoint and as a fallback for session-based lookups.
  */
 export async function getValidGoogleTokenForUser(
-  userId: string
+  userId: string,
+  forceRefresh = false
 ): Promise<string | null> {
   try {
     const account = await prisma.account.findFirst({
@@ -62,7 +63,7 @@ export async function getValidGoogleTokenForUser(
       !account.expires_at ||
       Date.now() >= (account.expires_at - bufferSeconds) * 1000;
 
-    if (!isExpired && account.access_token) {
+    if (!forceRefresh && !isExpired && account.access_token) {
       return account.access_token;
     }
 

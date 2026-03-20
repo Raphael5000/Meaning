@@ -30,8 +30,8 @@ export async function GET() {
     );
   }
 
-  // Always use DB token (not session JWT) to get the latest token with adwords scope
-  const accessToken = await getValidGoogleTokenForUser(userId);
+  // Force-refresh to ensure token has adwords scope (old token may be cached without it)
+  const accessToken = await getValidGoogleTokenForUser(userId, true);
 
   if (!accessToken) {
     return NextResponse.json(
