@@ -12,3 +12,13 @@ sources:
       - name: pseudonymous_users
         description: GA4 pseudonymous user data (sharded by date)
         identifier: "pseudonymous_users_*"
+
+  - name: backfill
+    description: Historical backfill data from GA4 API
+    database: scenic-healer-486415-u3
+    schema: dbt_meaning
+    tables:
+      - name: backfill_sessions
+        description: Backfilled session rows from GA4 API (aggregated, not raw events)
+      - name: backfill_traffic_sources
+        description: Backfilled daily traffic source aggregates from GA4 API

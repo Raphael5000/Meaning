@@ -92,12 +92,14 @@ async function runGA4Report(
 
 async function insertRows(table: string, rows: Record<string, unknown>[]) {
   if (rows.length === 0) return;
+  // Write to backfill_ prefixed tables to avoid conflicts with dbt-managed tables
+  const targetTable = table.startsWith("backfill_") ? table : `backfill_${table}`;
   try {
-    await bqClient.dataset(DBT_DATASET).table(table).insert(rows);
+    await bqClient.dataset(DBT_DATASET).table(targetTable).insert(rows);
   } catch (e: unknown) {
     const err = e as { errors?: { row?: unknown; errors?: unknown[] }[] };
     if (err.errors?.length) {
-      console.error(`\n  Insert error in ${table}:`, JSON.stringify(err.errors[0], null, 2));
+      console.error(`\n  Insert error in ${targetTable}:`, JSON.stringify(err.errors[0], null, 2));
     }
     throw e;
   }
