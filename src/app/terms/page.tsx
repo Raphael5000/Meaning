@@ -69,7 +69,7 @@ export default function TermsPage() {
               Meaning provides an AI-powered chat interface that allows you to
               query and analyse your Google Analytics (GA4) data using natural
               language. The Service requires a paid subscription and connection
-              of your Google Analytics account. Analytics data is queried live from Google each time you submit a question and is processed using third-party AI technology to generate insights.
+              of your Google Analytics account. Analytics data may be queried live from Google or via Google BigQuery (when enhanced analytics is enabled) and is processed using third-party AI technology to generate insights.
             </p>
           </section>
 
@@ -104,7 +104,13 @@ export default function TermsPage() {
             <p>When you connect your Google Analytics account to the Service:</p>
             <ul>
               <li>
-                You authorise Meaning to access your GA4 property data via the Google Analytics Data API
+                You authorise Meaning to access your GA4 property data via the Google Analytics Data API using read-only permissions
+              </li>
+              <li>
+                If you choose to enable enhanced analytics, you grant Meaning additional permission (analytics.edit scope) to create a BigQuery export link on your GA4 property. This exports your GA4 event data to Google BigQuery within our managed Google Cloud project for faster and more detailed analysis. We do not modify any other GA4 property settings
+              </li>
+              <li>
+                When enhanced analytics is enabled, your analytics data is stored in Google BigQuery and processed into aggregated models. This data is isolated to your account and not shared with other customers
               </li>
               <li>
                 You may revoke access at any time through your{" "}
@@ -119,7 +125,7 @@ export default function TermsPage() {
                 </a>
               </li>
               <li>
-                Revoking access will prevent the Service from querying your analytics data
+                Revoking access will prevent the Service from querying your analytics data. If enhanced analytics was enabled, the BigQuery export link will remain on your GA4 property until you remove it manually
               </li>
             </ul>
           </section>

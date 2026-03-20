@@ -41,7 +41,7 @@ export default function PrivacyPage() {
           className="mb-12 text-sm"
           style={{ color: "var(--text-muted)" }}
         >
-          Last updated: February 2026
+          Last updated: March 2026
         </p>
 
         <div
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
                 <strong>Payment and billing information:</strong> Processed securely through our payment provider for subscription management
               </li>
               <li>
-                <strong>Google Analytics data:</strong> When you connect your Google account, we access your GA4 property data via the Google Analytics Data API to answer your queries
+                <strong>Google Analytics data:</strong> When you connect your Google account, we access your GA4 property data via the Google Analytics Data API and, where enabled, via Google BigQuery to answer your queries
               </li>
               <li>
                 <strong>Chat queries:</strong> The questions and prompts you submit to our chat interface
@@ -89,16 +89,13 @@ export default function PrivacyPage() {
               Use of Google APIs and Analytics Data
             </h2>
             <p>
-              Meaning uses the Google Analytics Data API to access your GA4
+              Meaning uses the Google Analytics Data API and the Google Analytics Admin API to access and configure your GA4
               property data. When you connect your Google account:
             </p>
             <ul>
               <li>
                 We access only the Google Analytics data you authorise us to
                 use
-              </li>
-              <li>
-                Your analytics data is queried live from Google each time you submit a question; we do not cache or permanently store your raw Google Analytics data
               </li>
               <li>
                 Your analytics data is used solely to answer your questions and
@@ -122,6 +119,55 @@ export default function PrivacyPage() {
                   Google API Services User Data Policy
                 </a>
                 , including the Limited Use requirements
+              </li>
+            </ul>
+
+            <h3 style={{ color: "var(--text-primary)" }}>
+              Google OAuth Scopes
+            </h3>
+            <p>We request the following Google permissions:</p>
+            <ul>
+              <li>
+                <strong>analytics.readonly</strong> (requested during initial Google connection): Allows us to read your GA4 property data and answer your analytics questions
+              </li>
+              <li>
+                <strong>analytics.edit</strong> (requested only when you choose to enable enhanced analytics): Allows us to create a BigQuery export link on your GA4 property so your analytics data is exported to Google BigQuery for faster, richer analysis. This permission is only requested if you explicitly opt in and is used solely to configure the BigQuery export — we do not modify your GA4 property settings, goals, audiences, or any other configuration
+              </li>
+            </ul>
+            <p>
+              You can revoke either permission at any time through your{" "}
+              <a
+                href="https://myaccount.google.com/permissions"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--accent)" }}
+                className="underline hover:no-underline"
+              >
+                Google Account permissions
+              </a>.
+            </p>
+
+            <h3 style={{ color: "var(--text-primary)" }}>
+              BigQuery Data Storage
+            </h3>
+            <p>
+              When you enable enhanced analytics, your GA4 event data is exported by Google to a BigQuery dataset within our Google Cloud project. This data:
+            </p>
+            <ul>
+              <li>
+                Is stored in Google BigQuery infrastructure within our managed Google Cloud project
+              </li>
+              <li>
+                Is processed into aggregated models (sessions, pageviews, users, traffic sources) to enable faster and more detailed analytics queries
+              </li>
+              <li>
+                Is accessed only by our Service to answer your queries and generate insights — it is not shared with other customers or third parties
+              </li>
+              <li>
+                Is scoped to your GA4 property and isolated from other customers&apos; data
+              </li>
+              <li>
+                Will be deleted within 30 days if you cancel your subscription or revoke access
               </li>
             </ul>
           </section>
@@ -159,6 +205,9 @@ export default function PrivacyPage() {
                 <strong>Hosting provider (Code Capsules):</strong> Our Service is hosted on Code Capsules&apos; infrastructure, which processes data as necessary to deliver the Service.
               </li>
               <li>
+                <strong>Cloud data platform (Google Cloud / BigQuery):</strong> When enhanced analytics is enabled, your GA4 event data is stored and processed in Google BigQuery within our Google Cloud project to provide faster and more detailed analytics queries.
+              </li>
+              <li>
                 <strong>Email service provider (Resend):</strong> We use Resend to send transactional and service-related emails to you.
               </li>
             </ul>
@@ -183,7 +232,7 @@ export default function PrivacyPage() {
                 <strong>Account and chat data:</strong> Retained for the duration of your active subscription. If you cancel your subscription, your account data, chat history, and all associated information is retained for 30 days following the end of your billing period, after which it is permanently deleted.
               </li>
               <li>
-                <strong>Google Analytics data:</strong> Queried live and not permanently stored. Query results are held only for the duration of your active session.
+                <strong>Google Analytics data:</strong> When using the standard connection, data is queried live and not permanently stored. When enhanced analytics (BigQuery) is enabled, your GA4 event data is stored in Google BigQuery within our managed infrastructure for the duration of your active subscription and deleted within 30 days of cancellation or access revocation.
               </li>
               <li>
                 <strong>Payment records:</strong> Retained as required by applicable tax and accounting regulations.
