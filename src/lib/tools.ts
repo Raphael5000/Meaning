@@ -119,11 +119,10 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           enum: [
             "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
-            "ads_CampaignBasicStats", "ads_Campaign", "ads_KeywordBasicStats", "ads_Keyword",
-            "ads_AdGroup", "ads_AdGroupBasicStats", "ads_ClickStats", "ads_SearchQueryStats"
+            "campaign_performance", "keyword_performance", "click_attribution", "account_info"
           ],
           description:
-            "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'ads_CampaignBasicStats' (daily campaign metrics), 'ads_Campaign' (campaign metadata), 'ads_KeywordBasicStats' (keyword metrics), 'ads_Keyword' (keyword metadata), 'ads_AdGroup' (ad group metadata), 'ads_AdGroupBasicStats' (ad group metrics), 'ads_ClickStats' (per-click data with gclid), 'ads_SearchQueryStats' (search query report).",
+            "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'campaign_performance' (daily campaign metrics with cost, clicks, impressions, conversions), 'keyword_performance' (daily keyword/ad-group metrics), 'click_attribution' (per-click data with gclid for attribution), 'account_info' (account currency and name).",
         },
         metrics: {
           type: "array",
@@ -190,14 +189,14 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
   {
     name: "run_ads_query",
     description:
-      "Run a custom SQL query that can JOIN Google Ads data with GA4 data. Use this for attribution queries that need to link Ads clicks to website sessions via gclid, or any query that spans both Ads and GA4 tables. Use {dataset}.tableName for table references — the system routes to the correct dataset automatically. Ads tables include a _{customerId} suffix automatically. Include _DATA_DATE = _LATEST_DATE filter on all Ads tables.",
+      "Run a custom SQL query that can JOIN Google Ads data with GA4 data. Use this for attribution queries that need to link Ads clicks to website sessions via gclid, or any query that spans both Ads and GA4 tables. Use {dataset}.tableName for table references — the system routes to the correct dataset automatically. Ads tables: campaign_performance, keyword_performance, click_attribution, account_info.",
     input_schema: {
       type: "object" as const,
       properties: {
         sql: {
           type: "string",
           description:
-            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT c.campaign_name, p.page_location FROM `{dataset}.ads_ClickStats` cl JOIN `{dataset}.ads_Campaign` c ON cl.campaign_id = c.campaign_id JOIN `{dataset}.stg_events` e ON cl.click_view_gclid = e.gclid",
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT cl.campaign_name, e.page_location FROM `{dataset}.click_attribution` cl JOIN `{dataset}.stg_events` e ON cl.gclid = e.gclid",
         },
         description: {
           type: "string",

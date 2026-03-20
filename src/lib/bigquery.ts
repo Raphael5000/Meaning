@@ -88,20 +88,12 @@ const DBT_TABLES = new Set([
   "stg_events",
 ]);
 
-/** Google Ads DTS tables — these live in ads_{customerId} dataset.
- *  The actual table names in BigQuery have a _{customerId} suffix. */
+/** Google Ads tables — these live in ads_{customerId} dataset. */
 const ADS_TABLES = new Set([
-  "ads_CampaignBasicStats",
-  "ads_Campaign",
-  "ads_AdGroup",
-  "ads_AdGroupBasicStats",
-  "ads_Keyword",
-  "ads_KeywordBasicStats",
-  "ads_ClickStats",
-  "ads_SearchQueryStats",
-  "ads_GeoStats",
-  "ads_AccountBasicStats",
-  "ads_Customer",
+  "campaign_performance",
+  "keyword_performance",
+  "click_attribution",
+  "account_info",
 ]);
 
 /**
@@ -110,7 +102,7 @@ const ADS_TABLES = new Set([
  * with the appropriate dataset:
  *   - dbt mart tables -> `dbt_meaning`
  *   - raw event tables -> `analytics_{propertyId}`
- *   - ads tables -> `ads_{adsCustomerId}` (with _{customerId} suffix on table name)
+ *   - ads tables -> `ads_{adsCustomerId}` (no suffix on table name)
  *
  * @param adsCustomerId - Optional Google Ads customer ID for routing Ads queries
  */
@@ -127,10 +119,8 @@ export async function runPropertyQuery(
   const scopedSql = sql.replace(
     /\{dataset\}\.(\w+)/g,
     (_match, tableName: string) => {
-      // Check if it's an Ads DTS table
       if (ADS_TABLES.has(tableName) && adsDataset) {
-        // DTS tables have _{customerId} suffix: ads_Campaign_6839681443
-        return `${adsDataset}.${tableName}_${adsCustomerId}`;
+        return `${adsDataset}.${tableName}`;
       }
       const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
       return `${dataset}.${tableName}`;

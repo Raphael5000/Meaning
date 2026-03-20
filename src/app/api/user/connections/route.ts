@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
         propertyId: true,
         bigqueryDataset: true,
         adsCustomerId: true,
+        ga4PropertyId: true,
         status: true,
       },
     });
@@ -50,7 +51,9 @@ export async function GET(req: NextRequest) {
 
     const propertyDataSources = propertyId
       ? dataSources.filter(
-          (ds) => ds.propertyId === propertyId || ds.type === "GOOGLE_ADS"
+          (ds) =>
+            ds.propertyId === propertyId ||
+            (ds.type === "GOOGLE_ADS" && ds.ga4PropertyId === propertyId)
         )
       : dataSources;
 

@@ -153,30 +153,23 @@ function getBigQuerySystemPrompt(includeAds = false): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
-  - ads_CampaignBasicStats: Daily campaign metrics — campaign_id, metrics_clicks, metrics_conversions, metrics_conversions_value, metrics_cost_micros, metrics_impressions, metrics_interactions, segments_date, segments_device, segments_ad_network_type, _DATA_DATE
-  - ads_Campaign: Campaign metadata — campaign_id, campaign_name, campaign_status, campaign_advertising_channel_type, campaign_bidding_strategy_type, campaign_budget_amount_micros, campaign_start_date, campaign_end_date
-  - ads_AdGroupBasicStats: Daily ad group metrics — ad_group_id, campaign_id, metrics_clicks, metrics_conversions, metrics_cost_micros, metrics_impressions, segments_date
-  - ads_AdGroup: Ad group metadata — ad_group_id, campaign_id, ad_group_name, ad_group_status
-  - ads_KeywordBasicStats: Daily keyword metrics — ad_group_criterion_criterion_id, ad_group_id, campaign_id, metrics_clicks, metrics_conversions, metrics_cost_micros, metrics_impressions, segments_date
-  - ads_Keyword: Keyword metadata — ad_group_criterion_criterion_id, ad_group_id, campaign_id, ad_group_criterion_keyword_text, ad_group_criterion_keyword_match_type, ad_group_criterion_quality_info_quality_score
-  - ads_ClickStats: Per-click data with gclid — click_view_gclid, campaign_id, ad_group_id, click_view_keyword_info_text, click_view_keyword_info_match_type, segments_date, segments_device
-  - ads_SearchQueryStats: Search query report — metrics_clicks, metrics_impressions, metrics_cost_micros, segments_date` : "";
+  - campaign_performance: Daily campaign metrics — stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost_micros, cost (already in currency units), conversions, conversions_value
+  - keyword_performance: Daily keyword/ad-group metrics — stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions
+  - click_attribution: Per-click data with gclid — click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text
+  - account_info: Account metadata (single row) — customer_id, currency_code, descriptive_name, last_synced_at` : "";
 
   const adsQueryGuidance = includeAds ? `
 
 GOOGLE ADS QUERIES:
-- For campaign performance, JOIN ads_CampaignBasicStats with ads_Campaign on campaign_id to get campaign names with metrics.
-- For keyword performance, JOIN ads_KeywordBasicStats with ads_Keyword on (ad_group_id, ad_group_criterion_criterion_id) to get keyword text with metrics.
-- For ad group performance, JOIN ads_AdGroupBasicStats with ads_AdGroup on ad_group_id.
-- Cost is in MICROS (divide by 1000000 to get currency units): metrics_cost_micros / 1000000 AS cost
-- Date filtering: use segments_date for the actual metrics date. The _DATA_DATE = _LATEST_DATE filter is added automatically to avoid counting duplicates from DTS refresh windows.
-- CTR = metrics_clicks / metrics_impressions. CPC = (metrics_cost_micros/1e6) / metrics_clicks. ROAS = metrics_conversions_value / (metrics_cost_micros/1e6).
-- To link Ads clicks to GA4 sessions, JOIN ads_ClickStats.click_view_gclid with stg_events.gclid (from collected_traffic_source).
+- campaign_performance already has campaign_name, cost (currency units), and all metrics — no JOINs needed for basic campaign reports.
+- keyword_performance already has campaign_name, ad_group_name, keyword_text, cost — no JOINs needed for keyword reports.
+- Date column: stats_date for campaign_performance and keyword_performance, click_date for click_attribution. account_info has no date column.
+- cost is already in currency units (not micros). cost_micros is also available if needed.
+- CTR = clicks / impressions. CPC = cost / clicks. ROAS = conversions_value / cost.
+- CURRENCY: Query account_info table (currency_code column) to get the account's currency. Display all cost/spend values with the correct currency symbol (e.g. R for ZAR, $ for USD, € for EUR).
+- ATTRIBUTION / CROSS-SOURCE QUERIES: Use the run_ads_query tool to write SQL that JOINs Ads and GA4 data. Join click_attribution.gclid with stg_events.gclid to link Ads clicks to GA4 sessions.
 - Always use {dataset}.tableName format — the system routes Ads tables to the correct dataset automatically.
-- IMPORTANT: Stats tables have rows per segments_date + segments_device + segments_ad_network_type + segments_slot. When aggregating, GROUP BY the dimensions you need and SUM the metrics. Do NOT count rows — always SUM metrics columns.
-- CURRENCY: Query ads_Customer table (customer_currency_code column) to get the account's currency. Display all cost/spend values with the correct currency symbol (e.g. R for ZAR, $ for USD, € for EUR). Default to USD if unknown.
-- ATTRIBUTION / CROSS-SOURCE QUERIES: Use the run_ads_query tool to write SQL that JOINs Ads and GA4 data. Example: to show user flow from a campaign through the website, JOIN ads_ClickStats (gclid, campaign_id) → stg_events (gclid → ga_session_id) → pageviews (ga_session_id → page flow). This is the key for sankey diagrams showing Campaign → Landing Page → Page 2 → etc.
-- SANKEY FROM ADS: To build a sankey of users from a specific campaign flowing through the site, use run_ads_query with SQL like: WITH campaign_sessions AS (SELECT DISTINCT e.ga_session_id FROM \`{dataset}.ads_ClickStats\` cl JOIN \`{dataset}.ads_Campaign\` c ON cl.campaign_id = c.campaign_id AND c._DATA_DATE = c._LATEST_DATE JOIN \`{dataset}.stg_events\` e ON cl.click_view_gclid = e.gclid WHERE cl._DATA_DATE = cl._LATEST_DATE AND c.campaign_name = 'campaign name'), ordered AS (SELECT p.ga_session_id, REGEXP_EXTRACT(p.page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY p.ga_session_id ORDER BY p.event_timestamp) AS step FROM \`{dataset}.pageviews\` p JOIN campaign_sessions cs ON p.ga_session_id = cs.ga_session_id), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, COUNT(*) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30` : "";
+- SANKEY FROM ADS: To build a sankey of users from a specific campaign flowing through the site, use run_ads_query with SQL like: WITH campaign_sessions AS (SELECT DISTINCT e.ga_session_id FROM \`{dataset}.click_attribution\` cl JOIN \`{dataset}.stg_events\` e ON cl.gclid = e.gclid WHERE cl.campaign_name = 'campaign name' AND cl.click_date >= @startDate), ordered AS (SELECT p.ga_session_id, REGEXP_EXTRACT(p.page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY p.ga_session_id ORDER BY p.event_timestamp) AS step FROM \`{dataset}.pageviews\` p JOIN campaign_sessions cs ON p.ga_session_id = cs.ga_session_id), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, COUNT(*) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30` : "";
 
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 
@@ -296,21 +289,17 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const params: Record<string, unknown> = {};
 
   // Date filtering
-  const isAdsStats = table.startsWith("ads_") && table.includes("Stats");
-  const isAdsMeta = table.startsWith("ads_") && !table.includes("Stats");
+  const isAdsTable = ["campaign_performance", "keyword_performance", "click_attribution", "account_info"].includes(table);
+  const isAccountInfo = table === "account_info";
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
-    isAdsStats ? "segments_date" :
+    table === "campaign_performance" || table === "keyword_performance" ? "stats_date" :
+    table === "click_attribution" ? "click_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
-  // For Ads DTS tables, filter to latest snapshot to avoid duplicates
-  if (table.startsWith("ads_")) {
-    whereParts.push("_DATA_DATE = _LATEST_DATE");
-  }
-
-  // Ads metadata tables (ads_Campaign, ads_AdGroup, etc.) don't have date columns
-  if (!isAdsMeta) {
+  // account_info has no date column
+  if (!isAccountInfo) {
     if (startDate) {
       whereParts.push(`${dateColumn} >= @startDate`);
       params.startDate = startDate;
@@ -411,7 +400,7 @@ export async function POST(request: NextRequest) {
   // Determine data path: BigQuery or GA4
   const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
   const usesBigQuery = rollout.useBigQuery;
-  const adsCustomerId = usesBigQuery && userId ? await getGoogleAdsCustomerId(userId) : null;
+  const adsCustomerId = usesBigQuery && userId ? await getGoogleAdsCustomerId(userId, propertyId) : null;
   const hasAds = !!adsCustomerId;
   console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} adsCustomer=${adsCustomerId} reason=${rollout.reason}`);
   const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds) : GA4_SYSTEM_PROMPT;

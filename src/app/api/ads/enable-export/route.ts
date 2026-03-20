@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getAdsDataset, ensureDataset, checkAdsDataStatus } from "@/lib/ads-transfer";
+import { getAdsDataset, ensureDataset, ensureAdsTables, syncAdsData } from "@/lib/ads-transfer";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/ads/enable-export
  *
- * Creates a GOOGLE_ADS DataSource and checks if DTS data already exists.
+ * Creates BigQuery dataset + tables and triggers a 90-day backfill.
  * Body: { customerId: string }
  */
 export async function POST(req: NextRequest) {
@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { customerId: string };
-  const { customerId } = body;
+  const body = (await req.json()) as { customerId: string; ga4PropertyId?: string };
+  const { customerId, ga4PropertyId } = body;
 
   if (!customerId) {
     return NextResponse.json({ error: "customerId is required" }, { status: 400 });
@@ -29,9 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     const datasetId = getAdsDataset(customerId);
     await ensureDataset(datasetId);
-
-    // Check if DTS data already exists
-    const dataStatus = await checkAdsDataStatus(customerId);
+    await ensureAdsTables(datasetId);
 
     const teamMembership = await prisma.teamMembership.findFirst({
       where: { userId },
@@ -49,7 +47,8 @@ export async function POST(req: NextRequest) {
       update: {
         bigqueryDataset: datasetId,
         adsCustomerId: customerId,
-        status: dataStatus.hasData ? "ACTIVE" : "PENDING",
+        ga4PropertyId: ga4PropertyId || undefined,
+        status: "BACKFILLING",
       },
       create: {
         userId,
@@ -58,11 +57,36 @@ export async function POST(req: NextRequest) {
         propertyId: customerId,
         bigqueryDataset: datasetId,
         adsCustomerId: customerId,
-        status: dataStatus.hasData ? "ACTIVE" : "PENDING",
+        ga4PropertyId: ga4PropertyId || undefined,
+        status: "BACKFILLING",
       },
     });
 
-    return NextResponse.json({ dataSource, dataStatus });
+    // Fire-and-forget: 90-day backfill
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 1);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 90);
+
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+    syncAdsData(userId, customerId, fmt(startDate), fmt(endDate))
+      .then(async (result) => {
+        console.log(`[enable-ads-export] Backfill complete for ${customerId}:`, result);
+        await prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { status: "ACTIVE" },
+        });
+      })
+      .catch(async (err) => {
+        console.error(`[enable-ads-export] Backfill failed for ${customerId}:`, err);
+        await prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { status: "ERROR" },
+        }).catch(() => {});
+      });
+
+    return NextResponse.json({ dataSource, syncing: true });
   } catch (err) {
     console.error("[enable-ads-export] Error:", err);
     return NextResponse.json(

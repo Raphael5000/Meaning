@@ -268,6 +268,7 @@ model DataSource {
   propertyId String                            // GA4 property ID (or Ads customer ID for GOOGLE_ADS)
   bigqueryDataset String?                      // e.g. "analytics_123456789" or "ads_1234567890"
   adsCustomerId   String?                      // Google Ads customer ID (without dashes)
+  ga4PropertyId   String?                      // GA4 property this Ads account is linked to
   dtsTransferId   String?                      // BigQuery Data Transfer Service config name
   status     String   @default("PENDING")      // PENDING | ACTIVE | BACKFILLING | ERROR
 

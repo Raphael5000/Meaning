@@ -254,7 +254,7 @@ export default function ConnectionsModal({
       const res = await fetch("/api/ads/enable-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId }),
+        body: JSON.stringify({ customerId, ga4PropertyId: propertyId }),
       });
       const data = await res.json();
       if (!res.ok) {

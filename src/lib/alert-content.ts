@@ -43,10 +43,10 @@ You have access to these tools:
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
   - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
-  - ads_campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas)
-  - ads_keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_name, ad_group_name, keyword_text, match_type, impressions, clicks, cost, ctr, cpc, roas)
-  - ads_ga4_attribution: GA4 sessions attributed to Ads clicks via gclid (session_date, campaign_name, ad_group_name, keyword_text, pageviews, is_bounce, landing_page)
-  - ads_attribution_summary: Daily aggregated attribution with ROI (session_date, campaign_name, attributed_sessions, ads_cost, ads_roas, cost_per_attributed_session)
+  - campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost_micros, cost, conversions, conversions_value)
+  - keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions)
+  - click_attribution: Per-click data with gclid (click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text)
+  - account_info: Account metadata (customer_id, currency_code, descriptive_name, last_synced_at)
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - get_available_fields: Discover available tables and columns in the dataset.
 
@@ -140,21 +140,16 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const whereParts: string[] = [];
   const params: Record<string, unknown> = {};
 
-  const isAdsStats = table.startsWith("ads_") && table.includes("Stats");
-  const isAdsMeta = table.startsWith("ads_") && !table.includes("Stats");
+  const isAccountInfo = table === "account_info";
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
-    isAdsStats ? "segments_date" :
+    table === "campaign_performance" || table === "keyword_performance" ? "stats_date" :
+    table === "click_attribution" ? "click_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
-  // For Ads DTS tables, filter to latest snapshot to avoid duplicates
-  if (table.startsWith("ads_")) {
-    whereParts.push("_DATA_DATE = _LATEST_DATE");
-  }
-
-  // Ads metadata tables don't have date columns
-  if (!isAdsMeta) {
+  // account_info has no date column
+  if (!isAccountInfo) {
     if (startDate) {
       whereParts.push(`${dateColumn} >= @startDate`);
       params.startDate = startDate;

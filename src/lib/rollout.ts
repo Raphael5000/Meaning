@@ -41,13 +41,15 @@ function userBucket(userId: string): number {
  * Returns the adsCustomerId if found, null otherwise.
  */
 export async function getGoogleAdsCustomerId(
-  userId: string
+  userId: string,
+  ga4PropertyId?: string
 ): Promise<string | null> {
   const ds = await prisma.dataSource.findFirst({
     where: {
       userId,
       type: "GOOGLE_ADS",
       status: { in: ["ACTIVE", "BACKFILLING"] },
+      ...(ga4PropertyId ? { ga4PropertyId } : {}),
     },
     select: { adsCustomerId: true },
   });
