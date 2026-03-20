@@ -422,8 +422,11 @@ export async function POST(request: NextRequest) {
       messages: anthropicMessages,
     });
 
-    // Agentic tool-use loop
-    while (response.stop_reason === "tool_use") {
+    // Agentic tool-use loop (max 8 rounds to prevent runaway credit burn)
+    let toolRound = 0;
+    const MAX_TOOL_ROUNDS = 8;
+    while (response.stop_reason === "tool_use" && toolRound < MAX_TOOL_ROUNDS) {
+      toolRound++;
       const assistantContent = response.content;
       const toolUseBlocks = assistantContent.filter(
         (block): block is Anthropic.ContentBlockParam & { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } =>

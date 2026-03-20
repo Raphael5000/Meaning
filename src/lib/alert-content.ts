@@ -329,9 +329,10 @@ export async function generateAlertContent(
     messages,
   });
 
-  // Agentic tool-use loop — accumulate full conversation across rounds
+  // Agentic tool-use loop — accumulate full conversation across rounds (max 8 rounds)
   let round = 0;
-  while (response.stop_reason === "tool_use") {
+  const MAX_TOOL_ROUNDS = 8;
+  while (response.stop_reason === "tool_use" && round < MAX_TOOL_ROUNDS) {
     round++;
     const assistantContent = response.content;
 
