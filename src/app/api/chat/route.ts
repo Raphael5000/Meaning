@@ -7,6 +7,7 @@ import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
+import { shouldUseBigQuery } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -148,7 +149,11 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-const BIGQUERY_SYSTEM_PROMPT = `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
+function getBigQuerySystemPrompt(): string {
+  const today = new Date().toISOString().split("T")[0];
+  return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
+
+Today's date is ${today}.
 
 ${SHARED_PROMPT_RULES}
 
@@ -160,16 +165,19 @@ When the user asks a question about their analytics:
 
 You have access to these tools:
 - query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables and their key columns:
-  - sessions: session_id, user_pseudo_id, session_start, session_duration, pageviews, is_bounce, landing_page, exit_page, source, medium, channel_group, device_category, country, city
-  - pageviews: event_timestamp, user_pseudo_id, session_id, page_path, page_title, page_referrer, engagement_time_msec
-  - users: user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, country
-  - conversions: event_timestamp, user_pseudo_id, session_id, event_name, conversion_value, source, medium
-  - traffic_sources: date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration
-  - events: raw event data (event_timestamp, event_name, user_pseudo_id, event_params)
+  - sessions: session_key, property_id, user_pseudo_id, ga_session_id, session_date, session_start, session_end, session_duration_seconds, pageviews, total_engagement_time_msec, is_engaged, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city, ga_session_number, is_first_visit
+  - pageviews: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, page_location, page_title, page_referrer, engagement_time_msec, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city
+  - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
+  - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
+  - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - get_available_fields: Discover available tables and columns in the dataset.
 
+IMPORTANT: Data is exported from GA4 daily and may be up to 24 hours behind. Today's data is typically not available until tomorrow. When users ask about "today", inform them of this lag and show yesterday's data instead. When asked about "this week", use a date range starting from the Monday of the current week.
+
 ${SHARED_PROMPT_OUTPUT}`;
+}
 
 // ---------------------------------------------------------------------------
 // BigQuery SQL builder from structured tool input
@@ -196,13 +204,28 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   for (const metric of metrics) {
     // Map common metric names to SQL aggregations
     switch (metric) {
-      case "sessions": selectParts.push("COUNT(DISTINCT session_id) AS sessions"); break;
-      case "users": selectParts.push("COUNT(DISTINCT user_pseudo_id) AS users"); break;
-      case "pageviews": selectParts.push("SUM(pageviews) AS pageviews"); break;
-      case "bounce_rate": selectParts.push("AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate"); break;
-      case "avg_session_duration": selectParts.push("AVG(session_duration) AS avg_session_duration"); break;
-      case "conversion_value": selectParts.push("SUM(conversion_value) AS conversion_value"); break;
-      case "new_users": selectParts.push("SUM(new_users) AS new_users"); break;
+      case "sessions":
+        selectParts.push(table === "traffic_sources" ? "SUM(sessions) AS sessions" : "COUNT(*) AS sessions");
+        break;
+      case "users":
+        selectParts.push(table === "traffic_sources" ? "SUM(users) AS users" : "COUNT(DISTINCT user_pseudo_id) AS users");
+        break;
+      case "pageviews":
+        selectParts.push(table === "traffic_sources" ? "SUM(pageviews) AS pageviews" : "SUM(pageviews) AS pageviews");
+        break;
+      case "bounce_rate":
+        selectParts.push(table === "traffic_sources" ? "AVG(bounce_rate) AS bounce_rate" : "AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate");
+        break;
+      case "avg_session_duration":
+        selectParts.push(table === "traffic_sources" ? "AVG(avg_session_duration_seconds) AS avg_session_duration" : "AVG(session_duration_seconds) AS avg_session_duration");
+        break;
+      case "new_users":
+        if (table === "traffic_sources") {
+          selectParts.push("SUM(new_users) AS new_users");
+        } else {
+          selectParts.push("COUNTIF(is_first_visit) AS new_users");
+        }
+        break;
       case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
       default:
         // For traffic_sources table, metrics are pre-aggregated columns
@@ -221,10 +244,10 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const params: Record<string, unknown> = {};
 
   // Date filtering
-  const dateColumn = table === "traffic_sources" ? "date" :
-    table === "sessions" ? "DATE(session_start)" :
-    table === "pageviews" || table === "conversions" || table === "events" ? "DATE(event_timestamp)" :
-    table === "users" ? "DATE(last_seen)" : "date";
+  const dateColumn = table === "traffic_sources" ? "session_date" :
+    table === "sessions" ? "session_date" :
+    table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
+    table === "users" ? "DATE(last_seen)" : "event_date";
 
   if (startDate) {
     whereParts.push(`${dateColumn} >= @startDate`);
@@ -266,13 +289,7 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 // Route handler
 // ---------------------------------------------------------------------------
 
-async function getUsesBigQuery(propertyId: string, userId: string): Promise<boolean> {
-  const dataSource = await prisma.dataSource.findFirst({
-    where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
-    select: { id: true },
-  });
-  return !!dataSource;
-}
+// getUsesBigQuery moved to src/lib/rollout.ts as shouldUseBigQuery
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -329,8 +346,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Determine data path: BigQuery or GA4
-  const usesBigQuery = userId ? await getUsesBigQuery(propertyId, userId) : false;
-  const systemPrompt = usesBigQuery ? BIGQUERY_SYSTEM_PROMPT : GA4_SYSTEM_PROMPT;
+  const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
+  const usesBigQuery = rollout.useBigQuery;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} reason=${rollout.reason}`);
+  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt() : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   try {
@@ -370,6 +389,8 @@ export async function POST(request: NextRequest) {
               case "query_analytics": {
                 const input = toolUse.input as unknown as QueryAnalyticsInput;
                 const { sql, params } = buildAnalyticsSQL(input);
+                console.log("[BigQuery] Tool input:", JSON.stringify(input));
+                console.log("[BigQuery] Generated SQL:", sql);
                 result = await runPropertyQuery(propertyId, sql, params);
                 break;
               }

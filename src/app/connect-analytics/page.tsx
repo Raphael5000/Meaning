@@ -31,8 +31,11 @@ function ConnectAnalyticsContent() {
   // BigQuery status per property
   const [bqStatuses, setBqStatuses] = useState<Record<string, BqStatus>>({});
   const [checkingBq, setCheckingBq] = useState<Record<string, boolean>>({});
+  const [enablingBq, setEnablingBq] = useState<Record<string, boolean>>({});
+  const [bqErrors, setBqErrors] = useState<Record<string, string>>({});
 
   const connected = searchParams.get("connected") === "true";
+  const adminConnected = searchParams.get("admin_connected") === "true";
   const oauthError = searchParams.get("error");
 
   // Enforce onboarding order and detect Google Account from DB.
@@ -109,6 +112,61 @@ function ConnectAnalyticsContent() {
       checkBqStatus(prop.propertyId);
     }
   }, [properties, checkBqStatus]);
+
+  // After elevated OAuth callback, auto-enable BQ export for the pending property
+  useEffect(() => {
+    if (!adminConnected || properties.length === 0) return;
+    // Find the property that doesn't have BQ export yet
+    const pendingPropId = sessionStorage.getItem("bq_enable_property");
+    if (pendingPropId) {
+      sessionStorage.removeItem("bq_enable_property");
+      enableBqExport(pendingPropId);
+    }
+  }, [adminConnected, properties]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Enable BigQuery export for a property
+  async function enableBqExport(propertyId: string) {
+    setEnablingBq((prev) => ({ ...prev, [propertyId]: true }));
+    setBqErrors((prev) => ({ ...prev, [propertyId]: "" }));
+    try {
+      const res = await fetch("/api/analytics/enable-bigquery-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === "permission_denied") {
+          setBqErrors((prev) => ({
+            ...prev,
+            [propertyId]:
+              "You need Admin or Editor access on this GA4 property.",
+          }));
+        } else {
+          setBqErrors((prev) => ({
+            ...prev,
+            [propertyId]: data.message || data.error || "Failed to enable.",
+          }));
+        }
+        return;
+      }
+      // Refresh BQ status to show the new link
+      await checkBqStatus(propertyId);
+    } catch {
+      setBqErrors((prev) => ({
+        ...prev,
+        [propertyId]: "Something went wrong. Please try again.",
+      }));
+    } finally {
+      setEnablingBq((prev) => ({ ...prev, [propertyId]: false }));
+    }
+  }
+
+  // Start the elevated OAuth flow, then enable BQ export on callback
+  function startBqEnable(propertyId: string) {
+    sessionStorage.setItem("bq_enable_property", propertyId);
+    window.location.href = "/api/auth/connect-google-admin";
+  }
 
   async function handleContinue() {
     setCompleting(true);
@@ -456,19 +514,42 @@ function ConnectAnalyticsContent() {
                             ) : null}
                           </div>
 
-                          {/* Instructions if no BQ export */}
+                          {/* Enable BQ export button */}
                           {bq && !bq.hasExport && !isChecking && (
-                            <div
-                              className="mt-2 rounded-md px-3 py-2 text-xs leading-relaxed"
-                              style={{
-                                background: "rgba(234, 179, 8, 0.05)",
-                                border: "1px solid rgba(234, 179, 8, 0.15)",
-                                color: "var(--text-secondary)",
-                              }}
-                            >
-                              To enable enhanced analytics, set up BigQuery export in your{" "}
-                              <strong>GA4 Admin &gt; Product links &gt; BigQuery links</strong>.
-                              This is optional — Meaning works without it.
+                            <div className="mt-2 space-y-2">
+                              <button
+                                onClick={() => startBqEnable(prop.propertyId)}
+                                disabled={enablingBq[prop.propertyId]}
+                                className="w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                                style={{
+                                  background: "var(--accent)",
+                                  color: "white",
+                                  opacity: enablingBq[prop.propertyId] ? 0.6 : 1,
+                                }}
+                              >
+                                {enablingBq[prop.propertyId]
+                                  ? "Enabling..."
+                                  : "Enable enhanced analytics"}
+                              </button>
+                              <p
+                                className="text-center text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                One-click setup — requires GA4 Admin or Editor access.
+                                This is optional.
+                              </p>
+                              {bqErrors[prop.propertyId] && (
+                                <div
+                                  className="rounded-md px-3 py-2 text-xs"
+                                  style={{
+                                    background: "rgba(239, 68, 68, 0.1)",
+                                    color: "var(--error)",
+                                    border: "1px solid rgba(239, 68, 68, 0.2)",
+                                  }}
+                                >
+                                  {bqErrors[prop.propertyId]}
+                                </div>
+                              )}
                             </div>
                           )}
                         </li>

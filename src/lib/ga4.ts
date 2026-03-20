@@ -213,3 +213,35 @@ export async function listBigQueryLinks(
     streamingExportEnabled: link.streamingExportEnabled ?? false,
   }));
 }
+
+// ---------- Create BigQuery export link ----------
+
+export async function createBigQueryLink(
+  accessToken: string,
+  propertyId: string,
+  gcpProjectId: string,
+): Promise<BigQueryLink> {
+  const auth = getAuthClient(accessToken);
+
+  const res = await analyticsAdminAlpha.properties.bigQueryLinks.create({
+    parent: `properties/${propertyId}`,
+    auth,
+    requestBody: {
+      project: gcpProjectId,
+      dailyExportEnabled: true,
+      streamingExportEnabled: false,
+      freshDailyExportEnabled: false,
+      includeAdvertisingId: false,
+      exportStreams: [],
+    },
+  });
+
+  const link = res.data;
+  return {
+    name: link.name || "",
+    project: link.project || "",
+    dataset: link.datasetLocation || "",
+    dailyExportEnabled: link.dailyExportEnabled ?? false,
+    streamingExportEnabled: link.streamingExportEnabled ?? false,
+  };
+}

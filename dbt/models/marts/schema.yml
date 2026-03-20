@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: sessions
+    description: >
+      One row per session. Aggregated from stg_events using ga_session_id.
+      Includes landing/exit pages, traffic source, engagement, device, and geo.
+    columns:
+      - name: session_key
+        description: Surrogate key (property_id-user_pseudo_id-ga_session_id)
+        tests:
+          - unique
+          - not_null
+      - name: session_date
+        description: Date of session start
+      - name: session_start
+        description: Timestamp of first event in session
+      - name: pageviews
+        description: Number of page_view events in the session
+      - name: is_bounce
+        description: True if session had 1 or fewer pageviews and no engagement
+      - name: landing_page
+        description: URL of the first page viewed
+      - name: session_source
+        description: Traffic source (last-click attribution)
+      - name: session_medium
+        description: Traffic medium (last-click attribution)
+      - name: session_default_channel_group
+        description: GA4 default channel grouping
+
+  - name: pageviews
+    description: >
+      One row per page_view event. Enriched with session traffic source,
+      device, and geo context.
+    columns:
+      - name: event_timestamp
+        description: Timestamp of the pageview
+        tests:
+          - not_null
+      - name: page_location
+        description: Full page URL
+
+  - name: users
+    description: >
+      One row per user (user_pseudo_id). Aggregated from sessions.
+      Includes acquisition attribution, lifetime metrics, and recency.
+    columns:
+      - name: user_pseudo_id
+        description: GA4 anonymous user identifier
+        tests:
+          - unique
+          - not_null
+      - name: first_seen
+        description: Timestamp of user's first session
+      - name: total_sessions
+        description: Lifetime session count
+      - name: acquisition_source
+        description: Traffic source of the user's first session
+      - name: acquisition_channel_group
+        description: Channel group of the user's first session
+
+  - name: traffic_sources
+    description: >
+      Pre-aggregated daily traffic source performance.
+      One row per date + property + source + medium + channel_group.
+    columns:
+      - name: session_date
+        description: Date
+        tests:
+          - not_null
+      - name: source
+        description: Traffic source
+      - name: medium
+        description: Traffic medium
+      - name: sessions
+        description: Number of sessions from this source on this date
+
+  - name: conversions
+    description: >
+      One row per conversion event (custom events, excluding standard
+      auto-collected GA4 events). Used for goal tracking and attribution.
+    columns:
+      - name: event_name
+        description: Conversion event name
+        tests:
+          - not_null

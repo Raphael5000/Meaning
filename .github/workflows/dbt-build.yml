@@ -1,0 +1,93 @@
+name: dbt build
+
+on:
+  schedule:
+    # Daily incremental build at 06:00 UTC (after GA4 daily export completes ~04:00 UTC)
+    - cron: "0 6 * * *"
+    # Weekly full refresh on Sundays at 07:00 UTC
+    - cron: "0 7 * * 0"
+  workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: "Run full refresh instead of incremental"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+env:
+  DBT_PROFILES_DIR: dbt
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt
+        run: pip install dbt-bigquery
+
+      - name: Write service account keyfile
+        run: echo '${{ secrets.GOOGLE_BIGQUERY_CREDENTIALS }}' > service-account.json
+
+      - name: Determine if full refresh
+        id: refresh
+        run: |
+          # Full refresh on Sunday schedule or manual trigger
+          if [[ "${{ github.event.schedule }}" == "0 7 * * 0" ]] || [[ "${{ inputs.full_refresh }}" == "true" ]]; then
+            echo "flag=--full-refresh" >> "$GITHUB_OUTPUT"
+            echo "Running full refresh"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "Running incremental build"
+          fi
+
+      - name: dbt deps
+        run: dbt deps --profiles-dir .
+
+      - name: dbt build
+        run: dbt build --profiles-dir . ${{ steps.refresh.outputs.flag }}
+
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts-${{ github.run_id }}
+          path: |
+            dbt/target/manifest.json
+            dbt/target/run_results.json
+          retention-days: 7
+
+  validate:
+    needs: dbt-build
+    runs-on: ubuntu-latest
+    # Only run validation on daily builds, not full refresh
+    if: github.event.schedule != '0 7 * * 0'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install -g pnpm && pnpm install --frozen-lockfile
+
+      - name: Run BQ vs GA4 validation
+        env:
+          GOOGLE_BIGQUERY_CREDENTIALS: ${{ secrets.GOOGLE_BIGQUERY_CREDENTIALS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx scripts/validate-bq-vs-ga4.ts 1

@@ -1,0 +1,26 @@
+meaning_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: scenic-healer-486415-u3
+      dataset: dbt_meaning
+      keyfile: service-account.json
+      threads: 4
+      timeout_seconds: 300
+      location: EU
+      priority: interactive
+      maximum_bytes_billed: 1000000000  # 1 GB
+
+    prod:
+      type: bigquery
+      method: service-account
+      project: scenic-healer-486415-u3
+      dataset: meaning_marts
+      keyfile: service-account.json
+      threads: 4
+      timeout_seconds: 300
+      location: EU
+      priority: interactive
+      maximum_bytes_billed: 5000000000  # 5 GB

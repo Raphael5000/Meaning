@@ -275,6 +275,7 @@ model DataSource {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, propertyId, type])
   @@index([userId])
   @@index([propertyId])
 }

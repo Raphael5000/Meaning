@@ -6,14 +6,7 @@ import { ALERT_TYPES } from "@/lib/alert-prompts";
 import { buildEmailWrapper } from "@/lib/email-wrapper";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { isAlertDue, describeSchedule, frequencyLabel } from "@/lib/schedule";
-
-async function getUsesBigQuery(propertyId: string, userId: string): Promise<boolean> {
-  const dataSource = await prisma.dataSource.findFirst({
-    where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
-    select: { id: true },
-  });
-  return !!dataSource;
-}
+import { shouldUseBigQuery } from "@/lib/rollout";
 
 export const dynamic = "force-dynamic";
 
@@ -84,10 +77,12 @@ async function handleSend(request: NextRequest) {
       try {
         let contentHtml: string;
 
-        // Check if this property uses BigQuery
-        const usesBigQuery = alert.propertyId
-          ? await getUsesBigQuery(alert.propertyId, alert.user.id)
-          : false;
+        // Check if this property uses BigQuery (respects rollout percentage)
+        const rollout = alert.propertyId
+          ? await shouldUseBigQuery(alert.propertyId, alert.user.id)
+          : { useBigQuery: false, reason: "no_property" };
+        const usesBigQuery = rollout.useBigQuery;
+        console.log(`[alerts] property=${alert.propertyId} user=${alert.user.id} path=${usesBigQuery ? "bigquery" : "ga4"} reason=${rollout.reason}`);
 
         // Get a valid (refreshed if needed) Google access token for this user
         // BigQuery path doesn't need the user's OAuth token, but we still try

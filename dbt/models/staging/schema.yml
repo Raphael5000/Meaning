@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: >
+      Flattened GA4 events with unnested event_params, normalized timestamps,
+      and extracted traffic source / device / geo fields. One row per event.
+    columns:
+      - name: event_date
+        description: Event date (DATE type, partitioned)
+      - name: event_timestamp
+        description: Event timestamp in UTC
+      - name: event_name
+        description: GA4 event name (page_view, session_start, first_visit, scroll, click, etc.)
+      - name: property_id
+        description: GA4 property ID
+      - name: user_pseudo_id
+        description: GA4 anonymous user identifier (null for consent-mode denied users)
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: ga_session_id
+        description: GA4 session identifier (int)
+      - name: page_location
+        description: Full page URL
+      - name: page_title
+        description: Page title
+      - name: session_source
+        description: Session-scoped traffic source (last-click attribution)
+      - name: session_medium
+        description: Session-scoped traffic medium (last-click attribution)
+      - name: session_default_channel_group
+        description: GA4 default channel grouping for the session
+      - name: device_category
+        description: Device type (desktop, mobile, tablet)
+      - name: geo_country
+        description: User country

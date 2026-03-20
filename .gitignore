@@ -44,3 +44,11 @@ next-env.d.ts
 # database
 *.db
 *.db-journal
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/service-account.json
+dbt/.user.yml
+logs/

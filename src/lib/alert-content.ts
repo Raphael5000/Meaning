@@ -29,15 +29,20 @@ Important rules:
 - Use <h3> for section headings. Do NOT use <h1> or <h2>.
 - Follow the detailed styling rules in the user prompt exactly.`;
 
-const BIGQUERY_ALERT_SYSTEM_PROMPT = `You are an analytics expert that generates concise, professional email reports. You query analytics data from BigQuery using the provided tools and return a well-formatted HTML summary.
+function getBigQueryAlertSystemPrompt(): string {
+  const today = new Date().toISOString().split("T")[0];
+  return `You are an analytics expert that generates concise, professional email reports. You query analytics data from BigQuery using the provided tools and return a well-formatted HTML summary.
+
+Today's date is ${today}. Data is exported daily and may be up to 24 hours behind — today's data is typically not available until tomorrow.
 
 You have access to these tools:
 - query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables:
-  - sessions: session_id, user_pseudo_id, session_start, session_duration, pageviews, is_bounce, landing_page, exit_page, source, medium, channel_group, device_category, country, city
-  - pageviews: event_timestamp, user_pseudo_id, session_id, page_path, page_title, page_referrer, engagement_time_msec
-  - users: user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, country
-  - conversions: event_timestamp, user_pseudo_id, session_id, event_name, conversion_value, source, medium
-  - traffic_sources: date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration
+  - sessions: session_key, property_id, user_pseudo_id, ga_session_id, session_date, session_start, session_end, session_duration_seconds, pageviews, total_engagement_time_msec, is_engaged, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city, ga_session_number, is_first_visit
+  - pageviews: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, page_location, page_title, page_referrer, engagement_time_msec, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city
+  - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
+  - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
+  - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - get_available_fields: Discover available tables and columns in the dataset.
 
@@ -49,6 +54,7 @@ Important rules:
 - Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
 - Use <h3> for section headings. Do NOT use <h1> or <h2>.
 - Follow the detailed styling rules in the user prompt exactly.`;
+}
 
 // ---------------------------------------------------------------------------
 // BigQuery SQL builder (same as chat route)
@@ -73,13 +79,28 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 
   for (const metric of metrics) {
     switch (metric) {
-      case "sessions": selectParts.push("COUNT(DISTINCT session_id) AS sessions"); break;
-      case "users": selectParts.push("COUNT(DISTINCT user_pseudo_id) AS users"); break;
-      case "pageviews": selectParts.push("SUM(pageviews) AS pageviews"); break;
-      case "bounce_rate": selectParts.push("AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate"); break;
-      case "avg_session_duration": selectParts.push("AVG(session_duration) AS avg_session_duration"); break;
-      case "conversion_value": selectParts.push("SUM(conversion_value) AS conversion_value"); break;
-      case "new_users": selectParts.push("SUM(new_users) AS new_users"); break;
+      case "sessions":
+        selectParts.push(table === "traffic_sources" ? "SUM(sessions) AS sessions" : "COUNT(*) AS sessions");
+        break;
+      case "users":
+        selectParts.push(table === "traffic_sources" ? "SUM(users) AS users" : "COUNT(DISTINCT user_pseudo_id) AS users");
+        break;
+      case "pageviews":
+        selectParts.push(table === "traffic_sources" ? "SUM(pageviews) AS pageviews" : "SUM(pageviews) AS pageviews");
+        break;
+      case "bounce_rate":
+        selectParts.push(table === "traffic_sources" ? "AVG(bounce_rate) AS bounce_rate" : "AVG(CASE WHEN is_bounce THEN 1.0 ELSE 0.0 END) AS bounce_rate");
+        break;
+      case "avg_session_duration":
+        selectParts.push(table === "traffic_sources" ? "AVG(avg_session_duration_seconds) AS avg_session_duration" : "AVG(session_duration_seconds) AS avg_session_duration");
+        break;
+      case "new_users":
+        if (table === "traffic_sources") {
+          selectParts.push("SUM(new_users) AS new_users");
+        } else {
+          selectParts.push("COUNTIF(is_first_visit) AS new_users");
+        }
+        break;
       case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
       default:
         if (table === "traffic_sources") {
@@ -94,10 +115,10 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const whereParts: string[] = [];
   const params: Record<string, unknown> = {};
 
-  const dateColumn = table === "traffic_sources" ? "date" :
-    table === "sessions" ? "DATE(session_start)" :
-    table === "pageviews" || table === "conversions" || table === "events" ? "DATE(event_timestamp)" :
-    table === "users" ? "DATE(last_seen)" : "date";
+  const dateColumn = table === "traffic_sources" ? "session_date" :
+    table === "sessions" ? "session_date" :
+    table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
+    table === "users" ? "DATE(last_seen)" : "event_date";
 
   if (startDate) {
     whereParts.push(`${dateColumn} >= @startDate`);
@@ -258,7 +279,7 @@ export async function generateAlertContent(
 
   const userPrompt = `${promptText}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
 
-  const systemPrompt = usesBigQuery ? BIGQUERY_ALERT_SYSTEM_PROMPT : GA4_ALERT_SYSTEM_PROMPT;
+  const systemPrompt = usesBigQuery ? getBigQueryAlertSystemPrompt() : GA4_ALERT_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   const messages: Anthropic.MessageParam[] = [

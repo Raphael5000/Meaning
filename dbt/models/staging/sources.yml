@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: ga4_raw
+    description: Raw GA4 BigQuery export tables
+    database: scenic-healer-486415-u3
+    schema: analytics_404628120
+    tables:
+      - name: events
+        description: Daily GA4 event export (sharded by date as events_YYYYMMDD)
+        identifier: "events_*"
+      - name: pseudonymous_users
+        description: GA4 pseudonymous user data (sharded by date)
+        identifier: "pseudonymous_users_*"

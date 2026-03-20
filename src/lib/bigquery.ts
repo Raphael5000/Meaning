@@ -73,17 +73,44 @@ export async function runQuery(
 // ---------------------------------------------------------------------------
 
 /**
+ * The dbt dataset where mart models (sessions, pageviews, users, etc.) live.
+ * Raw event data remains in the per-property `analytics_{propertyId}` dataset.
+ */
+const DBT_DATASET = "dbt_meaning";
+
+/** Tables that live in the dbt dataset rather than the raw GA4 export. */
+const DBT_TABLES = new Set([
+  "sessions",
+  "pageviews",
+  "users",
+  "conversions",
+  "traffic_sources",
+  "stg_events",
+]);
+
+/**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
- * with the property's dataset name.
+ * with the appropriate dataset:
+ *   - dbt mart tables -> `dbt_meaning`
+ *   - raw event tables -> `analytics_{propertyId}`
  */
 export async function runPropertyQuery(
   propertyId: string,
   sql: string,
   params?: Record<string, unknown>
 ): Promise<QueryResult> {
-  const dataset = `analytics_${propertyId}`;
-  const scopedSql = sql.replace(/\{dataset\}/g, dataset);
+  const rawDataset = `analytics_${propertyId}`;
+
+  // Replace {dataset}.tableName with the correct dataset based on table type
+  const scopedSql = sql.replace(
+    /\{dataset\}\.(\w+)/g,
+    (_match, tableName: string) => {
+      const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
+      return `${dataset}.${tableName}`;
+    }
+  );
+
   return runQuery(scopedSql, params);
 }
 
@@ -100,13 +127,12 @@ export interface DatasetField {
 export async function getPropertySchema(
   propertyId: string
 ): Promise<DatasetField[]> {
-  const dataset = `analytics_${propertyId}`;
   const client = getClient();
-
-  const [tables] = await client.dataset(dataset).getTables();
   const fields: DatasetField[] = [];
 
-  for (const table of tables) {
+  // Include dbt mart tables (primary query targets)
+  const [dbtTables] = await client.dataset(DBT_DATASET).getTables();
+  for (const table of dbtTables) {
     const [metadata] = await table.getMetadata();
     const schema = metadata.schema?.fields || [];
     for (const field of schema) {
@@ -116,6 +142,25 @@ export async function getPropertySchema(
         dataType: field.type || "",
       });
     }
+  }
+
+  // Include raw GA4 export tables
+  const rawDataset = `analytics_${propertyId}`;
+  try {
+    const [rawTables] = await client.dataset(rawDataset).getTables();
+    for (const table of rawTables) {
+      const [metadata] = await table.getMetadata();
+      const schema = metadata.schema?.fields || [];
+      for (const field of schema) {
+        fields.push({
+          tableName: table.id || "",
+          columnName: field.name || "",
+          dataType: field.type || "",
+        });
+      }
+    }
+  } catch {
+    // Raw dataset may not exist yet for new properties
   }
 
   return fields;
