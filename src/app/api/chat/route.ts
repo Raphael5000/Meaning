@@ -174,6 +174,10 @@ You have access to these tools:
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - get_available_fields: Discover available tables and columns in the dataset.
 
+USER FLOW / SANKEY DIAGRAMS: You CAN build page-to-page transition data for sankey diagrams by querying the pageviews table. Each row has ga_session_id, event_timestamp, and page_location. To get page transitions within sessions, use a query like:
+  WITH ordered AS (SELECT ga_session_id, page_location, ROW_NUMBER() OVER (PARTITION BY ga_session_id ORDER BY event_timestamp) AS step FROM \`{dataset}.pageviews\` WHERE event_date >= @startDate), pairs AS (SELECT a.page_location AS from_page, b.page_location AS to_page FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1) SELECT from_page, to_page, COUNT(*) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC
+Use REGEXP_EXTRACT(page_location, r'https?://[^/]+(/[^?]*)') to clean URLs (strip query params and domain). Always clean URLs before grouping.
+
 IMPORTANT: Data is exported from GA4 daily and may be up to 24 hours behind. Today's data is typically not available until tomorrow. When users ask about "today", inform them of this lag and show yesterday's data instead. When asked about "this week", use a date range starting from the Monday of the current week.
 
 ${SHARED_PROMPT_OUTPUT}`;
