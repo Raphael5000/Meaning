@@ -123,6 +123,77 @@ function isSankeyChart(option: Record<string, unknown>): boolean {
   return false;
 }
 
+/** Remove cycles from sankey data so ECharts doesn't throw.
+ *  Uses topological sort — drops the weakest link in any cycle found. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function removeSankeyCycles(series: any): any {
+  if (series.type !== "sankey") return series;
+
+  const nodes: { name: string }[] = Array.isArray(series.data) ? series.data : series.nodes || [];
+  const links: { source: string | number; target: string | number; value: number }[] = series.links || [];
+  if (links.length === 0) return series;
+
+  // Build name-based adjacency for cycle detection
+  const nameSet = new Set(nodes.map((n) => n.name));
+  // Ensure all link sources/targets are in the node set
+  for (const l of links) {
+    if (typeof l.source === "string" && !nameSet.has(l.source)) {
+      nodes.push({ name: l.source });
+      nameSet.add(l.source);
+    }
+    if (typeof l.target === "string" && !nameSet.has(l.target)) {
+      nodes.push({ name: l.target });
+      nameSet.add(l.target);
+    }
+  }
+
+  // Repeatedly remove links that form cycles using in-degree/topological approach
+  let safeLinks = [...links];
+  for (let iter = 0; iter < 20; iter++) {
+    const adj = new Map<string, { target: string; idx: number; value: number }[]>();
+    const inDeg = new Map<string, number>();
+    for (const n of nameSet) { adj.set(n, []); inDeg.set(n, 0); }
+    for (let i = 0; i < safeLinks.length; i++) {
+      const s = String(safeLinks[i].source);
+      const t = String(safeLinks[i].target);
+      adj.get(s)?.push({ target: t, idx: i, value: safeLinks[i].value || 1 });
+      inDeg.set(t, (inDeg.get(t) || 0) + 1);
+    }
+
+    // Kahn's algorithm
+    const queue: string[] = [];
+    for (const [n, deg] of inDeg) { if (deg === 0) queue.push(n); }
+    const visited = new Set<string>();
+    while (queue.length > 0) {
+      const n = queue.shift()!;
+      visited.add(n);
+      for (const edge of adj.get(n) || []) {
+        const newDeg = (inDeg.get(edge.target) || 1) - 1;
+        inDeg.set(edge.target, newDeg);
+        if (newDeg === 0) queue.push(edge.target);
+      }
+    }
+
+    if (visited.size === nameSet.size) break; // No cycles
+
+    // Find the weakest link among unvisited nodes and remove it
+    let weakestIdx = -1;
+    let weakestVal = Infinity;
+    for (let i = 0; i < safeLinks.length; i++) {
+      const s = String(safeLinks[i].source);
+      const t = String(safeLinks[i].target);
+      if (!visited.has(s) || !visited.has(t)) {
+        const v = safeLinks[i].value || 1;
+        if (v < weakestVal) { weakestVal = v; weakestIdx = i; }
+      }
+    }
+    if (weakestIdx >= 0) safeLinks.splice(weakestIdx, 1);
+    else break;
+  }
+
+  return { ...series, data: nodes, links: safeLinks };
+}
+
 /** Apply vibrant styling to sankey series for the neon-gradient look */
 function applySankeyTheme(
   option: Record<string, unknown>,
@@ -316,8 +387,17 @@ function applyTheme(
     yAxis: applyAxisTheme(option.yAxis, textColor, axisLineColor, splitLineColor),
   };
 
-  // Apply special sankey styling on top
+  // Apply special sankey styling on top (with cycle removal)
   if (isSankeyChart(option)) {
+    // Remove cycles from sankey data before styling
+    const series = themed.series;
+    if (Array.isArray(series)) {
+      themed.series = series.map((s) =>
+        (s as Record<string, unknown>).type === "sankey" ? removeSankeyCycles(s) : s
+      );
+    } else if (series && (series as Record<string, unknown>).type === "sankey") {
+      themed.series = removeSankeyCycles(series);
+    }
     themed = applySankeyTheme(themed, isDark);
   }
 
