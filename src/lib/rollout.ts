@@ -40,17 +40,20 @@ export async function shouldUseBigQuery(
   propertyId: string,
   userId: string
 ): Promise<{ useBigQuery: boolean; reason: string }> {
+  const percent = getRolloutPercent();
+  console.log(`[rollout] checking: propertyId=${propertyId} userId=${userId} BQ_ROLLOUT_PERCENT=${process.env.BQ_ROLLOUT_PERCENT} parsed=${percent}`);
+
   // Check for active DataSource
   const dataSource = await prisma.dataSource.findFirst({
     where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
     select: { id: true },
   });
 
+  console.log(`[rollout] dataSource found: ${!!dataSource} ${dataSource?.id || "none"}`);
+
   if (!dataSource) {
     return { useBigQuery: false, reason: "no_active_datasource" };
   }
-
-  const percent = getRolloutPercent();
 
   // 100% means all eligible users
   if (percent >= 100) {
