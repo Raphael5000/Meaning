@@ -85,8 +85,8 @@ export async function backfillProperty(
   // 2. Backfill sessions
   const sessRows = await backfillSessions(client, accessToken, propertyId, startDate, endDate);
 
-  // 3. Rebuild users table
-  await rebuildUsers(client);
+  // Skip users rebuild — dbt handles this on its next scheduled run.
+  // Rebuilding here would drop/recreate the shared users table mid-flight.
 
   // Flip DataSource from BACKFILLING to ACTIVE
   await prisma.dataSource.updateMany({
