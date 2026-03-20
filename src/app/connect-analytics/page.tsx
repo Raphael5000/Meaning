@@ -113,6 +113,21 @@ function ConnectAnalyticsContent() {
     }
   }, [properties, checkBqStatus]);
 
+  // Poll BQ status while any property is BACKFILLING
+  useEffect(() => {
+    const backfilling = Object.entries(bqStatuses).filter(
+      ([, bq]) => bq.dataSource?.status === "BACKFILLING"
+    );
+    if (backfilling.length === 0) return;
+
+    const interval = setInterval(() => {
+      for (const [pid] of backfilling) {
+        checkBqStatus(pid);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [bqStatuses, checkBqStatus]);
+
   // After elevated OAuth callback, auto-enable BQ export for the pending property
   useEffect(() => {
     if (!adminConnected || properties.length === 0) return;
@@ -478,16 +493,25 @@ function ConnectAnalyticsContent() {
                                 Checking...
                               </span>
                             ) : bq?.hasExport ? (
-                              <span
-                                className="inline-flex items-center gap-1 text-xs"
-                                style={{ color: "var(--accent)" }}
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                Enhanced analytics
-                                {bq.dataSource?.status === "ACTIVE" ? " active" : " — setting up"}
-                              </span>
+                              bq.dataSource?.status === "BACKFILLING" ? (
+                                <div className="flex items-center gap-2 text-xs" style={{ color: "var(--accent)" }}>
+                                  <div
+                                    className="h-3 w-3 animate-spin rounded-full border-2 border-current"
+                                    style={{ borderTopColor: "transparent" }}
+                                  />
+                                  Importing your historical data... this takes about a minute
+                                </div>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 text-xs"
+                                  style={{ color: "var(--accent)" }}
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  Enhanced analytics active
+                                </span>
+                              )
                             ) : bq && !bq.hasExport ? (
                               <div className="flex items-center justify-between">
                                 <button

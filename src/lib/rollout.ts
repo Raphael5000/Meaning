@@ -45,7 +45,7 @@ export async function shouldUseBigQuery(
 
   // Check for active DataSource
   const dataSource = await prisma.dataSource.findFirst({
-    where: { propertyId, userId, status: "ACTIVE", type: "GA4_BIGQUERY" },
+    where: { propertyId, userId, status: { in: ["ACTIVE", "BACKFILLING"] }, type: "GA4_BIGQUERY" },
     select: { id: true },
   });
 

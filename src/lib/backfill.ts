@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { google } from "googleapis";
+import { prisma } from "@/lib/prisma";
 
 const DBT_DATASET = "dbt_meaning";
 
@@ -87,7 +88,13 @@ export async function backfillProperty(
   // 3. Rebuild users table
   await rebuildUsers(client);
 
-  console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources`);
+  // Flip DataSource from BACKFILLING to ACTIVE
+  await prisma.dataSource.updateMany({
+    where: { propertyId, type: "GA4_BIGQUERY", status: "BACKFILLING" },
+    data: { status: "ACTIVE" },
+  });
+
+  console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources — status set to ACTIVE`);
   return { sessions: sessRows, trafficSources: tsRows };
 }
 

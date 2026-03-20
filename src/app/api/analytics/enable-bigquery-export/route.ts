@@ -75,14 +75,14 @@ export async function POST(request: NextRequest) {
       },
       update: {
         bigqueryDataset,
-        status: "ACTIVE",
+        status: "BACKFILLING",
       },
       create: {
         userId,
         type: "GA4_BIGQUERY",
         propertyId,
         bigqueryDataset,
-        status: "ACTIVE",
+        status: "BACKFILLING",
       },
     });
 
