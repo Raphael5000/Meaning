@@ -227,7 +227,7 @@ export async function createBigQueryLink(
     parent: `properties/${propertyId}`,
     auth,
     requestBody: {
-      project: gcpProjectId,
+      project: `projects/${gcpProjectId}`,
       dailyExportEnabled: true,
       streamingExportEnabled: false,
       freshDailyExportEnabled: false,
