@@ -79,6 +79,15 @@ export default function Chat() {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+
+  // Auto-open Connections modal after Google Ads OAuth redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ads_connected") === "true") {
+      setConnectionsOpen(true);
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
   const [teamOpen, setTeamOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -654,7 +663,7 @@ export default function Chat() {
 
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
       <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
-      <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
+      <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} propertyId={propertyId} propertyName={propertyName} />
       <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />
     </div>
   );

@@ -117,9 +117,12 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
       properties: {
         table: {
           type: "string",
-          enum: ["sessions", "pageviews", "users", "conversions", "traffic_sources", "events"],
+          enum: [
+            "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
+            "ads_campaign_performance", "ads_keyword_performance", "ads_ga4_attribution", "ads_attribution_summary"
+          ],
           description:
-            "Which analytics table to query. 'sessions' for session-level data (traffic sources, bounce rate, duration). 'pageviews' for page-level data. 'users' for user-level aggregates. 'conversions' for conversion events. 'traffic_sources' for pre-aggregated daily source/medium performance. 'events' for raw event data.",
+            "Which analytics table to query. 'sessions' for session-level data. 'pageviews' for page-level data. 'users' for user-level aggregates. 'conversions' for conversion events. 'traffic_sources' for pre-aggregated daily source/medium performance. 'events' for raw event data. 'ads_campaign_performance' for daily Google Ads campaign metrics (impressions, clicks, cost, CTR, CPC, ROAS). 'ads_keyword_performance' for keyword-level Ads metrics. 'ads_ga4_attribution' for GA4 sessions attributed to Ads clicks via gclid. 'ads_attribution_summary' for aggregated campaign attribution with ROI.",
         },
         metrics: {
           type: "array",

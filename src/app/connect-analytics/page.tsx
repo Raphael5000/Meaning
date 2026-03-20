@@ -34,8 +34,16 @@ function ConnectAnalyticsContent() {
   const [enablingBq, setEnablingBq] = useState<Record<string, boolean>>({});
   const [bqErrors, setBqErrors] = useState<Record<string, string>>({});
 
+  // Google Ads state
+  const [adsCustomerIds, setAdsCustomerIds] = useState<string[]>([]);
+  const [loadingAds, setLoadingAds] = useState(false);
+  const [adsStatuses, setAdsStatuses] = useState<Record<string, { status: string; datasetId?: string }>>({});
+  const [enablingAds, setEnablingAds] = useState<Record<string, boolean>>({});
+  const [adsErrors, setAdsErrors] = useState<Record<string, string>>({});
+
   const connected = searchParams.get("connected") === "true";
   const adminConnected = searchParams.get("admin_connected") === "true";
+  const adsConnected = searchParams.get("ads_connected") === "true";
   const oauthError = searchParams.get("error");
 
   // Enforce onboarding order and detect Google Account from DB.
@@ -182,6 +190,116 @@ function ConnectAnalyticsContent() {
     sessionStorage.setItem("bq_enable_property", propertyId);
     window.location.href = "/api/auth/connect-google-admin";
   }
+
+  // Fetch accessible Google Ads customer IDs
+  const loadAdsCustomers = useCallback(async () => {
+    setLoadingAds(true);
+    try {
+      const res = await fetch("/api/ads/accessible-customers");
+      if (!res.ok) {
+        if (res.status === 403) return; // No ads scope — user hasn't connected yet
+        return;
+      }
+      const data = await res.json();
+      setAdsCustomerIds(data.customerIds || []);
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingAds(false);
+    }
+  }, []);
+
+  // Check Ads transfer status for a customer
+  const checkAdsStatus = useCallback(async (customerId: string) => {
+    try {
+      const res = await fetch(`/api/ads/transfer-status?customerId=${customerId}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setAdsStatuses((prev) => ({ ...prev, [customerId]: { status: "NOT_CONNECTED" } }));
+        }
+        return;
+      }
+      const data = await res.json();
+      setAdsStatuses((prev) => ({
+        ...prev,
+        [customerId]: {
+          status: data.dataSource?.status || "NOT_CONNECTED",
+          datasetId: data.dataSource?.bigqueryDataset,
+        },
+      }));
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  // Enable Ads export for a customer
+  async function enableAdsExport(customerId: string) {
+    setEnablingAds((prev) => ({ ...prev, [customerId]: true }));
+    setAdsErrors((prev) => ({ ...prev, [customerId]: "" }));
+    try {
+      const res = await fetch("/api/ads/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdsErrors((prev) => ({
+          ...prev,
+          [customerId]: data.message || data.error || "Failed to enable.",
+        }));
+        return;
+      }
+      await checkAdsStatus(customerId);
+    } catch {
+      setAdsErrors((prev) => ({
+        ...prev,
+        [customerId]: "Something went wrong. Please try again.",
+      }));
+    } finally {
+      setEnablingAds((prev) => ({ ...prev, [customerId]: false }));
+    }
+  }
+
+  // Start Ads OAuth flow
+  function startAdsConnect() {
+    window.location.href = "/api/auth/connect-google-ads";
+  }
+
+  // Load Ads customers when token is available
+  useEffect(() => {
+    if (!hasToken) return;
+    loadAdsCustomers();
+  }, [hasToken, loadAdsCustomers]);
+
+  // After Ads OAuth callback, reload customers
+  useEffect(() => {
+    if (!adsConnected) return;
+    loadAdsCustomers();
+  }, [adsConnected, loadAdsCustomers]);
+
+  // Check Ads status for each customer
+  useEffect(() => {
+    if (adsCustomerIds.length === 0) return;
+    for (const cid of adsCustomerIds) {
+      checkAdsStatus(cid);
+    }
+  }, [adsCustomerIds, checkAdsStatus]);
+
+  // Poll Ads status while any customer is BACKFILLING
+  useEffect(() => {
+    const backfilling = Object.entries(adsStatuses).filter(
+      ([, s]) => s.status === "BACKFILLING"
+    );
+    if (backfilling.length === 0) return;
+
+    const interval = setInterval(() => {
+      for (const [cid] of backfilling) {
+        checkAdsStatus(cid);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [adsStatuses, checkAdsStatus]);
 
   async function handleContinue() {
     setCompleting(true);
@@ -562,6 +680,131 @@ function ConnectAnalyticsContent() {
                   your Google account has access to at least one GA4 property.
                 </p>
               )}
+
+              {/* Google Ads section */}
+              <div
+                className="w-full rounded-lg p-4"
+                style={{
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--text-primary)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                  </svg>
+                  <h3
+                    className="text-sm font-medium"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Google Ads (Optional)
+                  </h3>
+                </div>
+                <p
+                  className="text-xs mb-3"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Connect Google Ads to see campaign attribution, keyword-level
+                  ROI, and which ads drive conversions.
+                </p>
+
+                {adsCustomerIds.length === 0 ? (
+                  <button
+                    onClick={startAdsConnect}
+                    disabled={loadingAds}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity"
+                    style={{
+                      color: "var(--accent)",
+                      opacity: loadingAds ? 0.5 : 1,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    {loadingAds ? "Checking..." : "Connect Google Ads"}
+                  </button>
+                ) : (
+                  <ul className="space-y-2">
+                    {adsCustomerIds.map((cid) => {
+                      const status = adsStatuses[cid];
+                      return (
+                        <li
+                          key={cid}
+                          className="flex items-center justify-between rounded px-3 py-2"
+                          style={{
+                            background: "var(--card-bg)",
+                            border: "1px solid var(--border-color)",
+                          }}
+                        >
+                          <div>
+                            <p
+                              className="text-xs font-medium"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              Account {cid}
+                            </p>
+                            {status?.status === "ACTIVE" && (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs"
+                                style={{ color: "var(--accent)" }}
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Active
+                              </span>
+                            )}
+                            {status?.status === "BACKFILLING" && (
+                              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--accent)" }}>
+                                <div
+                                  className="h-3 w-3 animate-spin rounded-full border-2 border-current"
+                                  style={{ borderTopColor: "transparent" }}
+                                />
+                                Syncing...
+                              </div>
+                            )}
+                            {status?.status === "ERROR" && (
+                              <span className="text-xs" style={{ color: "var(--error)" }}>
+                                Sync error
+                              </span>
+                            )}
+                          </div>
+                          {(!status || status.status === "NOT_CONNECTED") && (
+                            <button
+                              onClick={() => enableAdsExport(cid)}
+                              disabled={enablingAds[cid]}
+                              className="text-xs font-medium"
+                              style={{
+                                color: "var(--accent)",
+                                opacity: enablingAds[cid] ? 0.5 : 1,
+                              }}
+                            >
+                              {enablingAds[cid] ? "Enabling..." : "Enable"}
+                            </button>
+                          )}
+                          {adsErrors[cid] && (
+                            <p className="text-xs" style={{ color: "var(--error)" }}>
+                              {adsErrors[cid]}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
 
               <button
                 onClick={handleContinue}

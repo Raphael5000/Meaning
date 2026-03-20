@@ -86,6 +86,13 @@ const DBT_TABLES = new Set([
   "conversions",
   "traffic_sources",
   "stg_events",
+  // Google Ads tables
+  "ads_campaign_performance",
+  "ads_keyword_performance",
+  "ads_ga4_attribution",
+  "ads_attribution_summary",
+  "stg_ads_campaigns",
+  "stg_ads_clicks",
 ]);
 
 /**

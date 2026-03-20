@@ -7,7 +7,7 @@ import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
-import { shouldUseBigQuery } from "@/lib/rollout";
+import { shouldUseBigQuery, hasGoogleAds } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -149,8 +149,27 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(): string {
+function getBigQuerySystemPrompt(includeAds = false): string {
   const today = new Date().toISOString().split("T")[0];
+
+  const adsTablesPrompt = includeAds ? `
+  - ads_campaign_performance: Daily Google Ads campaign metrics — stats_date, campaign_id, campaign_name, campaign_type, campaign_status, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas, budget
+  - ads_keyword_performance: Daily keyword/ad-group metrics — stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, keyword_status, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas
+  - ads_ga4_attribution: GA4 sessions attributed to Ads clicks via gclid — session_key, session_date, user_pseudo_id, gclid, campaign_id, campaign_name, campaign_type, ad_group_id, ad_group_name, keyword_text, match_type, pageviews, is_bounce, is_engaged, session_duration_seconds, landing_page, device_category, geo_country
+  - ads_attribution_summary: Daily aggregated attribution (campaign → sessions → ROI) — session_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, attributed_sessions, attributed_users, engaged_sessions, bounced_sessions, avg_session_duration, total_pageviews, ads_impressions, ads_clicks, ads_cost, ads_conversions, ads_conversions_value, ads_ctr, ads_cpc, ads_cpa, ads_roas, cost_per_attributed_session, attributed_engagement_rate, attributed_bounce_rate` : "";
+
+  const adsQueryGuidance = includeAds ? `
+
+GOOGLE ADS QUERIES:
+- For "which campaign drove the most sessions/conversions?", query ads_attribution_summary.
+- For "show me campaign performance", query ads_campaign_performance.
+- For "keyword-level ROI", query ads_keyword_performance.
+- For "which Ads clicks led to bounces vs engaged sessions?", query ads_ga4_attribution.
+- The ads_ga4_attribution table links GA4 sessions to Ads clicks via gclid — use it for any question about what happened AFTER an ad click.
+- Cost data is in currency units (already divided from micros). No need to divide by 1e6.
+- ROAS = conversions_value / cost. CPC = cost / clicks. CPA = cost / conversions. CTR = clicks / impressions.
+- For sankey diagrams showing Campaign → Landing Page → Conversion, query ads_ga4_attribution for the campaign+landing_page breakdown, then conversions for the conversion step.` : "";
+
   return `You are an analytics expert assistant. You help users understand their website analytics data by querying their BigQuery data warehouse and interpreting the results in clear, actionable language.
 
 Today's date is ${today}.
@@ -170,9 +189,9 @@ You have access to these tools:
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
-- get_available_fields: Discover available tables and columns in the dataset.
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: You CAN build page-to-page transition data for sankey diagrams by querying the pageviews table. Each row has ga_session_id, event_timestamp, and page_location. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, append the step number to each node label so every position is unique. Use this query pattern:
   WITH ordered AS (SELECT ga_session_id, REGEXP_EXTRACT(page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY ga_session_id ORDER BY event_timestamp) AS step FROM \`{dataset}.pageviews\` WHERE event_date >= @startDate AND page_location IS NOT NULL), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page, 1 AS cnt FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, SUM(cnt) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30
@@ -231,6 +250,27 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
         }
         break;
       case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
+      // Google Ads metrics
+      case "impressions": selectParts.push("SUM(impressions) AS impressions"); break;
+      case "clicks": selectParts.push("SUM(clicks) AS clicks"); break;
+      case "cost": selectParts.push("SUM(cost) AS cost"); break;
+      case "conversions":
+        if (table.startsWith("ads_")) {
+          selectParts.push("SUM(conversions) AS conversions");
+        } else {
+          selectParts.push("COUNT(*) AS conversions");
+        }
+        break;
+      case "conversions_value": selectParts.push("SUM(conversions_value) AS conversions_value"); break;
+      case "ctr": selectParts.push("SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr"); break;
+      case "cpc": selectParts.push("SAFE_DIVIDE(SUM(cost), SUM(clicks)) AS cpc"); break;
+      case "cpa": selectParts.push("SAFE_DIVIDE(SUM(cost), SUM(conversions)) AS cpa"); break;
+      case "roas": selectParts.push("SAFE_DIVIDE(SUM(conversions_value), SUM(cost)) AS roas"); break;
+      case "attributed_sessions": selectParts.push("SUM(attributed_sessions) AS attributed_sessions"); break;
+      case "attributed_users": selectParts.push("SUM(attributed_users) AS attributed_users"); break;
+      case "ads_cost": selectParts.push("SUM(ads_cost) AS ads_cost"); break;
+      case "ads_roas": selectParts.push("SAFE_DIVIDE(SUM(ads_conversions_value), SUM(ads_cost)) AS ads_roas"); break;
+      case "cost_per_attributed_session": selectParts.push("SAFE_DIVIDE(SUM(ads_cost), SUM(attributed_sessions)) AS cost_per_attributed_session"); break;
       default:
         // For traffic_sources table, metrics are pre-aggregated columns
         if (table === "traffic_sources") {
@@ -248,8 +288,9 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const params: Record<string, unknown> = {};
 
   // Date filtering
-  const dateColumn = table === "traffic_sources" ? "session_date" :
-    table === "sessions" ? "session_date" :
+  const dateColumn =
+    table === "traffic_sources" || table === "sessions" || table === "ads_ga4_attribution" || table === "ads_attribution_summary" ? "session_date" :
+    table === "ads_campaign_performance" || table === "ads_keyword_performance" ? "stats_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
@@ -352,8 +393,9 @@ export async function POST(request: NextRequest) {
   // Determine data path: BigQuery or GA4
   const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
   const usesBigQuery = rollout.useBigQuery;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} reason=${rollout.reason}`);
-  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt() : GA4_SYSTEM_PROMPT;
+  const hasAds = usesBigQuery && userId ? await hasGoogleAds(propertyId, userId) : false;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} reason=${rollout.reason}`);
+  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   try {

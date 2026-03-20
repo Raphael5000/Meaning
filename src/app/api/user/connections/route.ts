@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   const userId = (session as { userId?: string })?.userId;
 
@@ -12,26 +12,59 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const googleAccount = await prisma.account.findFirst({
-    where: { userId, provider: "google" },
-    select: { id: true, providerAccountId: true, refresh_token: true },
-  });
-
-  // Try to get the Google email from the id_token or from the user record
-  let googleEmail: string | null = null;
-  if (googleAccount) {
-    // The user's email is on the User model — for Google OAuth users this is
-    // the Google email.  For credentials users who linked Google separately,
-    // it is still typically the same email.
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true },
+  try {
+    const googleAccount = await prisma.account.findFirst({
+      where: { userId, provider: "google" },
+      select: { id: true, providerAccountId: true, refresh_token: true, scope: true },
     });
-    googleEmail = user?.email ?? null;
-  }
 
-  return NextResponse.json({
-    hasGoogleAccount: !!googleAccount?.refresh_token,
-    googleEmail,
-  });
+    // Try to get the Google email from the user record
+    let googleEmail: string | null = null;
+    if (googleAccount) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      googleEmail = user?.email ?? null;
+    }
+
+    // Check if adwords scope is granted
+    const hasAdsScope = googleAccount?.scope?.includes("adwords") ?? false;
+    console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope);
+
+    // Get all DataSources for this user
+    const dataSources = await prisma.dataSource.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        type: true,
+        propertyId: true,
+        bigqueryDataset: true,
+        adsCustomerId: true,
+        status: true,
+      },
+    });
+
+    // Optional: if propertyId is passed, filter property-specific sources
+    const propertyId = req.nextUrl.searchParams.get("propertyId");
+
+    const propertyDataSources = propertyId
+      ? dataSources.filter(
+          (ds) => ds.propertyId === propertyId || ds.type === "GOOGLE_ADS"
+        )
+      : dataSources;
+
+    return NextResponse.json({
+      hasGoogleAccount: !!googleAccount,
+      googleEmail,
+      hasAdsScope,
+      dataSources: propertyDataSources,
+    });
+  } catch (err) {
+    console.error("[connections] Error:", err);
+    return NextResponse.json(
+      { error: "Internal server error", detail: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
 }

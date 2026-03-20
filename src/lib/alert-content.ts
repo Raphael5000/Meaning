@@ -43,6 +43,10 @@ You have access to these tools:
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
   - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
+  - ads_campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, impressions, clicks, cost, conversions, conversions_value, ctr, cpc, cpa, roas)
+  - ads_keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_name, ad_group_name, keyword_text, match_type, impressions, clicks, cost, ctr, cpc, roas)
+  - ads_ga4_attribution: GA4 sessions attributed to Ads clicks via gclid (session_date, campaign_name, ad_group_name, keyword_text, pageviews, is_bounce, landing_page)
+  - ads_attribution_summary: Daily aggregated attribution with ROI (session_date, campaign_name, attributed_sessions, ads_cost, ads_roas, cost_per_attributed_session)
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - get_available_fields: Discover available tables and columns in the dataset.
 
@@ -102,6 +106,27 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
         }
         break;
       case "event_count": selectParts.push("COUNT(*) AS event_count"); break;
+      // Google Ads metrics
+      case "impressions": selectParts.push("SUM(impressions) AS impressions"); break;
+      case "clicks": selectParts.push("SUM(clicks) AS clicks"); break;
+      case "cost": selectParts.push("SUM(cost) AS cost"); break;
+      case "conversions":
+        if (table.startsWith("ads_")) {
+          selectParts.push("SUM(conversions) AS conversions");
+        } else {
+          selectParts.push("COUNT(*) AS conversions");
+        }
+        break;
+      case "conversions_value": selectParts.push("SUM(conversions_value) AS conversions_value"); break;
+      case "ctr": selectParts.push("SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr"); break;
+      case "cpc": selectParts.push("SAFE_DIVIDE(SUM(cost), SUM(clicks)) AS cpc"); break;
+      case "cpa": selectParts.push("SAFE_DIVIDE(SUM(cost), SUM(conversions)) AS cpa"); break;
+      case "roas": selectParts.push("SAFE_DIVIDE(SUM(conversions_value), SUM(cost)) AS roas"); break;
+      case "attributed_sessions": selectParts.push("SUM(attributed_sessions) AS attributed_sessions"); break;
+      case "attributed_users": selectParts.push("SUM(attributed_users) AS attributed_users"); break;
+      case "ads_cost": selectParts.push("SUM(ads_cost) AS ads_cost"); break;
+      case "ads_roas": selectParts.push("SAFE_DIVIDE(SUM(ads_conversions_value), SUM(ads_cost)) AS ads_roas"); break;
+      case "cost_per_attributed_session": selectParts.push("SAFE_DIVIDE(SUM(ads_cost), SUM(attributed_sessions)) AS cost_per_attributed_session"); break;
       default:
         if (table === "traffic_sources") {
           selectParts.push(`SUM(${metric}) AS ${metric}`);
@@ -115,8 +140,9 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const whereParts: string[] = [];
   const params: Record<string, unknown> = {};
 
-  const dateColumn = table === "traffic_sources" ? "session_date" :
-    table === "sessions" ? "session_date" :
+  const dateColumn =
+    table === "traffic_sources" || table === "sessions" || table === "ads_ga4_attribution" || table === "ads_attribution_summary" ? "session_date" :
+    table === "ads_campaign_performance" || table === "ads_keyword_performance" ? "stats_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 

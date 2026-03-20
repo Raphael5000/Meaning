@@ -264,10 +264,12 @@ model DataSource {
   id         String   @id @default(cuid())
   userId     String
   teamId     String?
-  type       String   @default("GA4_BIGQUERY") // GA4_BIGQUERY | STRIPE | SEARCH_CONSOLE | HUBSPOT
-  propertyId String                            // GA4 property ID
-  bigqueryDataset String?                      // e.g. "analytics_123456789"
-  status     String   @default("PENDING")      // PENDING | ACTIVE | ERROR
+  type       String   @default("GA4_BIGQUERY") // GA4_BIGQUERY | GOOGLE_ADS | STRIPE | SEARCH_CONSOLE | HUBSPOT
+  propertyId String                            // GA4 property ID (or Ads customer ID for GOOGLE_ADS)
+  bigqueryDataset String?                      // e.g. "analytics_123456789" or "ads_1234567890"
+  adsCustomerId   String?                      // Google Ads customer ID (without dashes)
+  dtsTransferId   String?                      // BigQuery Data Transfer Service config name
+  status     String   @default("PENDING")      // PENDING | ACTIVE | BACKFILLING | ERROR
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

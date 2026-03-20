@@ -22,3 +22,22 @@ sources:
         description: Backfilled session rows from GA4 API (aggregated, not raw events)
       - name: backfill_traffic_sources
         description: Backfilled daily traffic source aggregates from GA4 API
+
+  - name: google_ads
+    description: Google Ads data imported via BigQuery Data Transfer Service
+    database: scenic-healer-486415-u3
+    schema: ads_{{ var('ads_customer_id', '0000000000') }}
+    tables:
+      - name: ads_Campaign
+        description: Campaign metadata (names, types, budgets, status)
+      - name: ads_AdGroup
+        description: Ad group details within campaigns
+      - name: ads_Keyword
+        description: Keyword text, match type, and status
+      - name: ads_ClickStats
+        description: Per-click data with gclid, campaign_id, ad_group_id
+        identifier: ads_ClickStats
+      - name: ads_CampaignBasicStats
+        description: Daily campaign-level metrics (impressions, clicks, cost, conversions)
+      - name: ads_AdGroupBasicStats
+        description: Daily ad group-level metrics
