@@ -56,8 +56,16 @@ export async function ensureDataset(datasetId: string): Promise<void> {
   const dataset = bq.dataset(datasetId);
   const [exists] = await dataset.exists();
   if (!exists) {
-    await bq.createDataset(datasetId, { location: "US" });
-    console.log(`[ads-transfer] Created dataset: ${datasetId}`);
+    // Match the location of existing datasets (dbt_meaning) for cross-dataset JOINs
+    let location = "EU";
+    try {
+      const [meta] = await bq.dataset("dbt_meaning").getMetadata();
+      location = meta.location || "EU";
+    } catch {
+      // Default to EU if we can't check
+    }
+    await bq.createDataset(datasetId, { location });
+    console.log(`[ads-transfer] Created dataset: ${datasetId} in ${location}`);
   }
 }
 
