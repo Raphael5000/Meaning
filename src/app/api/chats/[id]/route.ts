@@ -41,33 +41,42 @@ export async function PUT(
     };
 
     // Build update data
-    const updateData: Record<string, unknown> = {};
+    const updateData: Prisma.ChatUpdateInput = {};
     if (body.title !== undefined) updateData.title = body.title;
     if (body.propertyId !== undefined) updateData.propertyId = body.propertyId;
     if (body.propertyName !== undefined) updateData.propertyName = body.propertyName;
 
-    // If messages provided, delete old ones and insert the new set
+    let chat;
     if (body.messages) {
-      await prisma.chatMessage.deleteMany({ where: { chatId: id } });
-      updateData.messages = {
-        create: body.messages.map((m, i) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          scorecard: m.scorecard ?? undefined,
-          scorecardRevealed: m.scorecardRevealed ?? false,
-          suggestedQuestions: m.suggestedQuestions ?? undefined,
-          chart: (m.chart ?? undefined) as Prisma.InputJsonValue | undefined,
-          sortOrder: i,
-        })),
-      };
-    }
+      // Use a transaction to atomically delete old messages and insert new ones
+      // (prevents race conditions from concurrent PUTs)
+      const messageRows = body.messages.map((m, i) => ({
+        role: m.role,
+        content: m.content,
+        scorecard: (m.scorecard ?? undefined) as Prisma.InputJsonValue | undefined,
+        scorecardRevealed: m.scorecardRevealed ?? false,
+        suggestedQuestions: (m.suggestedQuestions ?? undefined) as Prisma.InputJsonValue | undefined,
+        chart: (m.chart ?? undefined) as Prisma.InputJsonValue | undefined,
+        sortOrder: i,
+        chatId: id,
+      }));
 
-    const chat = await prisma.chat.update({
-      where: { id },
-      data: updateData,
-      include: { messages: { orderBy: { sortOrder: "asc" } } },
-    });
+      chat = await prisma.$transaction(async (tx) => {
+        await tx.chatMessage.deleteMany({ where: { chatId: id } });
+        await tx.chat.update({ where: { id }, data: updateData });
+        await tx.chatMessage.createMany({ data: messageRows });
+        return tx.chat.findUniqueOrThrow({
+          where: { id },
+          include: { messages: { orderBy: { sortOrder: "asc" } } },
+        });
+      });
+    } else {
+      chat = await prisma.chat.update({
+        where: { id },
+        data: updateData,
+        include: { messages: { orderBy: { sortOrder: "asc" } } },
+      });
+    }
 
     return NextResponse.json(chat);
   } catch (err) {

@@ -179,12 +179,14 @@ ${SHARED_PROMPT_RULES}
 
 When the user asks a question about their analytics:
 1. Determine which tool(s) to call to answer their question.
-2. Call the tool(s) with appropriate parameters.
+2. Call the tool(s) with appropriate parameters. For the metrics array, use simple metric names like "cost", "clicks", "sessions" — NOT SQL expressions like "SUM(cost)". The system applies the correct aggregation automatically.
 3. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
 4. Use tables or lists when presenting data for clarity.
 
+IMPORTANT: Be efficient with tool calls. Most questions can be answered in 1-2 tool calls. If your first query returns valid data, use that data to answer — do NOT re-query the same table with different parameters. Only make additional calls if the first result was genuinely insufficient (e.g. missing a required column, or you need data from a different table).
+
 You have access to these tools:
-- query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables and their key columns:
+- query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. For metrics, use simple names: "cost", "clicks", "impressions", "sessions", "users", "conversions", "ctr", "cpc", "roas" — the system wraps them in the correct SQL aggregation. Available tables and their key columns:
   - sessions: session_key, property_id, user_pseudo_id, ga_session_id, session_date, session_start, session_end, session_duration_seconds, pageviews, total_engagement_time_msec, is_engaged, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city, ga_session_number, is_first_visit
   - pageviews: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, page_location, page_title, page_referrer, engagement_time_msec, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
@@ -255,13 +257,11 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
       case "impressions": selectParts.push("SUM(impressions) AS impressions"); break;
       case "clicks": selectParts.push("SUM(clicks) AS clicks"); break;
       case "cost": selectParts.push("SUM(cost) AS cost"); break;
-      case "conversions":
-        if (table.startsWith("ads_")) {
-          selectParts.push("SUM(conversions) AS conversions");
-        } else {
-          selectParts.push("COUNT(*) AS conversions");
-        }
+      case "conversions": {
+        const isAds = ["campaign_performance", "keyword_performance", "click_attribution", "account_info"].includes(table);
+        selectParts.push(isAds ? "SUM(conversions) AS conversions" : "COUNT(*) AS conversions");
         break;
+      }
       case "conversions_value": selectParts.push("SUM(conversions_value) AS conversions_value"); break;
       case "ctr": selectParts.push("SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr"); break;
       case "cpc": selectParts.push("SAFE_DIVIDE(SUM(cost), SUM(clicks)) AS cpc"); break;
@@ -272,14 +272,33 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
       case "ads_cost": selectParts.push("SUM(ads_cost) AS ads_cost"); break;
       case "ads_roas": selectParts.push("SAFE_DIVIDE(SUM(ads_conversions_value), SUM(ads_cost)) AS ads_roas"); break;
       case "cost_per_attributed_session": selectParts.push("SAFE_DIVIDE(SUM(ads_cost), SUM(attributed_sessions)) AS cost_per_attributed_session"); break;
-      default:
-        // For traffic_sources table, metrics are pre-aggregated columns
-        if (table === "traffic_sources") {
+      default: {
+        // Handle when Claude passes raw SQL like "SUM(cost)" or "SUM(cost) as total_cost"
+        // Extract alias if present, otherwise derive one from the expression
+        const aliasMatch = metric.match(/\bas\s+(\w+)\s*$/i);
+        if (aliasMatch) {
+          // Already has an alias: "SUM(cost) as total_cost"
+          selectParts.push(metric);
+        } else if (table === "traffic_sources") {
           selectParts.push(`SUM(${metric}) AS ${metric}`);
         } else {
-          selectParts.push(metric);
+          // Add a sensible alias for raw expressions like "SUM(cost)" -> "cost"
+          const innerMatch = metric.match(/^\w+\((\w+)\)$/);
+          if (innerMatch) {
+            selectParts.push(`${metric} AS ${innerMatch[1]}`);
+          } else {
+            selectParts.push(metric);
+          }
         }
+      }
     }
+  }
+
+  // Build a map of known aliases from the SELECT parts for orderBy resolution
+  const aliasSet = new Set<string>();
+  for (const part of selectParts) {
+    const m = part.match(/\bAS\s+(\w+)\s*$/i);
+    if (m) aliasSet.add(m[1]);
   }
 
   const selectClause = selectParts.join(", ");
@@ -329,7 +348,18 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 
   const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
   const groupByClause = dimensions && dimensions.length > 0 ? `GROUP BY ${dimensions.join(", ")}` : "";
-  const orderByClause = orderBy ? `ORDER BY ${orderBy.field} ${orderBy.direction || "DESC"}` : "";
+  const rawDir = (orderBy?.direction || "DESC").toUpperCase();
+  const dir = rawDir.startsWith("ASC") ? "ASC" : "DESC";
+  // Normalize orderBy field: if Claude passes "SUM(cost)", resolve to the alias "cost"
+  let orderField = orderBy?.field;
+  if (orderField && !aliasSet.has(orderField)) {
+    // Try to find the alias for this expression (e.g. "SUM(cost)" -> "cost")
+    const innerMatch = orderField.match(/^\w+\((\w+)\)$/);
+    if (innerMatch && aliasSet.has(innerMatch[1])) {
+      orderField = innerMatch[1];
+    }
+  }
+  const orderByClause = orderBy ? `ORDER BY ${orderField} ${dir}` : "";
   const limitClause = `LIMIT ${Math.min(limit || 10, 500)}`;
 
   const sql = `SELECT ${selectClause} FROM \`{dataset}.${table}\` ${whereClause} ${groupByClause} ${orderByClause} ${limitClause}`;
@@ -406,194 +436,279 @@ export async function POST(request: NextRequest) {
   const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
-  try {
-    // Convert chat messages to Anthropic format
-    const anthropicMessages: Anthropic.MessageParam[] = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+  // Helper: describe a tool call for the progress stream
+  function describeToolCall(name: string, input: Record<string, unknown>): string {
+    switch (name) {
+      case "query_analytics": {
+        const t = (input.table as string) || "data";
+        const m = (input.metrics as string[])?.join(", ") || "";
+        return `Querying ${t}${m ? ` for ${m}` : ""}`;
+      }
+      case "run_ads_query":
+        return (input.description as string) || "Running Ads query";
+      case "run_report":
+        return `Querying GA4 report`;
+      case "run_realtime_report":
+        return "Checking realtime data";
+      case "get_realtime_data":
+        return "Checking realtime data";
+      case "get_available_fields":
+      case "get_metadata":
+        return "Loading available fields";
+      default:
+        return `Running ${name}`;
+    }
+  }
 
-    // Run the agentic loop: Claude may call tools multiple times
-    let response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      tools,
-      messages: anthropicMessages,
-    });
-
-    // Agentic tool-use loop (max 8 rounds to prevent runaway credit burn)
-    let toolRound = 0;
-    const MAX_TOOL_ROUNDS = 8;
-    while (response.stop_reason === "tool_use" && toolRound < MAX_TOOL_ROUNDS) {
-      toolRound++;
-      const assistantContent = response.content;
-      const toolUseBlocks = assistantContent.filter(
-        (block): block is Anthropic.ContentBlockParam & { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } =>
-          block.type === "tool_use"
-      );
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const toolUse of toolUseBlocks) {
-        let result: unknown;
-        let isError = false;
-
-        try {
-          if (usesBigQuery) {
-            // BigQuery tool execution
-            switch (toolUse.name) {
-              case "query_analytics": {
-                const input = toolUse.input as unknown as QueryAnalyticsInput;
-                const { sql, params } = buildAnalyticsSQL(input);
-                console.log("[BigQuery] Tool input:", JSON.stringify(input));
-                console.log("[BigQuery] Generated SQL:", sql);
-                result = await runPropertyQuery(propertyId, sql, params, adsCustomerId);
-                break;
-              }
-              case "run_ads_query": {
-                const input = toolUse.input as { sql: string; description?: string };
-                console.log("[BigQuery] Ads query:", input.description || "custom");
-                console.log("[BigQuery] Raw SQL:", input.sql);
-                result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId);
-                break;
-              }
-              case "get_realtime_data": {
-                result = await queryRealtimeData(propertyId);
-                break;
-              }
-              case "get_available_fields": {
-                result = await getPropertySchema(propertyId);
-                break;
-              }
-              default:
-                result = { error: `Unknown tool: ${toolUse.name}` };
-                isError = true;
-            }
-          } else {
-            // GA4 tool execution (legacy)
-            switch (toolUse.name) {
-              case "run_report": {
-                const input = toolUse.input as {
-                  metrics: string[];
-                  dimensions?: string[];
-                  startDate?: string;
-                  endDate?: string;
-                  limit?: number;
-                  orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
-                };
-                result = await runReport(accessToken, {
-                  propertyId,
-                  metrics: input.metrics,
-                  dimensions: input.dimensions,
-                  startDate: input.startDate,
-                  endDate: input.endDate,
-                  limit: Math.min(input.limit || 10, 100),
-                  orderBys: input.orderBys,
-                });
-                break;
-              }
-              case "run_realtime_report": {
-                const input = toolUse.input as {
-                  metrics: string[];
-                  dimensions?: string[];
-                  limit?: number;
-                };
-                result = await runRealtimeReport(accessToken, {
-                  propertyId,
-                  metrics: input.metrics,
-                  dimensions: input.dimensions,
-                  limit: Math.min(input.limit || 10, 100),
-                });
-                break;
-              }
-              case "get_metadata": {
-                const input = toolUse.input as { type?: string };
-                const metadata = await getMetadata(
-                  accessToken,
-                  propertyId
-                );
-                if (input.type === "metrics") {
-                  result = { metrics: metadata.metrics };
-                } else if (input.type === "dimensions") {
-                  result = { dimensions: metadata.dimensions };
-                } else {
-                  result = metadata;
-                }
-                break;
-              }
-              default:
-                result = { error: `Unknown tool: ${toolUse.name}` };
-                isError = true;
-            }
-          }
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Tool execution failed";
-          result = { error: message };
-          isError = true;
-        }
-
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: JSON.stringify(result),
-          is_error: isError,
-        });
+  // Stream NDJSON: each line is a JSON object with { type, ... }
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(event: Record<string, unknown>) {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
       }
 
-      // Continue the conversation with tool results
-      response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: systemPrompt,
-        tools,
-        messages: [
-          ...anthropicMessages,
-          { role: "assistant", content: assistantContent },
-          { role: "user", content: toolResults },
-        ],
-      });
-    }
+      try {
+        // Convert chat messages to Anthropic format
+        const anthropicMessages: Anthropic.MessageParam[] = messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
 
-    // Extract the final text response
-    const textBlocks = response.content.filter(
-      (block): block is Anthropic.TextBlock => block.type === "text"
-    );
-    let rawMessage = textBlocks.map((b) => b.text).join("\n");
+        send({ type: "status", message: "Thinking..." });
 
-    // Parse scorecard block at start (for "how many...?" style questions)
-    const scorecard = parseScorecard(rawMessage);
-    if (scorecard) {
-      rawMessage = stripScorecardBlock(rawMessage);
-    }
+        // Run the agentic loop: Claude may call tools multiple times
+        let response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: systemPrompt,
+          tools,
+          messages: anthropicMessages,
+        });
 
-    // Parse chart block
-    const chart = parseChart(rawMessage);
-    if (chart) {
-      rawMessage = stripChartBlock(rawMessage);
-    }
+        // Accumulate conversation history across tool rounds so Claude sees ALL prior results
+        const conversationMessages: Anthropic.MessageParam[] = [...anthropicMessages];
 
-    // Parse suggested follow-up questions from JSON block at end
-    const suggestedQuestions = parseSuggestedQuestions(rawMessage);
-    if (suggestedQuestions) {
-      rawMessage = stripSuggestedQuestionsBlock(rawMessage);
-    }
+        // Agentic tool-use loop (max 4 rounds to prevent runaway credit burn)
+        let toolRound = 0;
+        const MAX_TOOL_ROUNDS = 4;
+        while (response.stop_reason === "tool_use" && toolRound < MAX_TOOL_ROUNDS) {
+          toolRound++;
+          const assistantContent = response.content;
+          const toolUseBlocks = assistantContent.filter(
+            (block): block is Anthropic.ContentBlockParam & { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } =>
+              block.type === "tool_use"
+          );
 
-    return NextResponse.json({
-      message: rawMessage.trim(),
-      scorecard: scorecard ?? undefined,
-      chart: chart ?? undefined,
-      suggestedQuestions: suggestedQuestions ?? undefined,
-      _dataPath: usesBigQuery ? "bigquery" : "ga4",
-      _rolloutReason: rollout.reason,
-    });
-  } catch (error: unknown) {
-    console.error("Chat API error:", error);
-    const message =
-      error instanceof Error ? error.message : "Chat request failed";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+          // Send status for each tool call
+          for (const toolUse of toolUseBlocks) {
+            send({ type: "status", message: describeToolCall(toolUse.name, toolUse.input) });
+          }
+
+          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+          for (const toolUse of toolUseBlocks) {
+            let result: unknown;
+            let isError = false;
+
+            try {
+              if (usesBigQuery) {
+                // BigQuery tool execution
+                switch (toolUse.name) {
+                  case "query_analytics": {
+                    const input = toolUse.input as unknown as QueryAnalyticsInput;
+                    const { sql, params } = buildAnalyticsSQL(input);
+                    console.log("[BigQuery] Tool input:", JSON.stringify(input));
+                    console.log("[BigQuery] Generated SQL:", sql);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId);
+                    break;
+                  }
+                  case "run_ads_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] Ads query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId);
+                    break;
+                  }
+                  case "get_realtime_data": {
+                    result = await queryRealtimeData(propertyId);
+                    break;
+                  }
+                  case "get_available_fields": {
+                    result = await getPropertySchema(propertyId);
+                    break;
+                  }
+                  default:
+                    result = { error: `Unknown tool: ${toolUse.name}` };
+                    isError = true;
+                }
+              } else {
+                // GA4 tool execution (legacy)
+                switch (toolUse.name) {
+                  case "run_report": {
+                    const input = toolUse.input as {
+                      metrics: string[];
+                      dimensions?: string[];
+                      startDate?: string;
+                      endDate?: string;
+                      limit?: number;
+                      orderBys?: { field: string; direction?: "ASCENDING" | "DESCENDING"; type?: "metric" | "dimension" }[];
+                    };
+                    result = await runReport(accessToken, {
+                      propertyId,
+                      metrics: input.metrics,
+                      dimensions: input.dimensions,
+                      startDate: input.startDate,
+                      endDate: input.endDate,
+                      limit: Math.min(input.limit || 10, 100),
+                      orderBys: input.orderBys,
+                    });
+                    break;
+                  }
+                  case "run_realtime_report": {
+                    const input = toolUse.input as {
+                      metrics: string[];
+                      dimensions?: string[];
+                      limit?: number;
+                    };
+                    result = await runRealtimeReport(accessToken, {
+                      propertyId,
+                      metrics: input.metrics,
+                      dimensions: input.dimensions,
+                      limit: Math.min(input.limit || 10, 100),
+                    });
+                    break;
+                  }
+                  case "get_metadata": {
+                    const input = toolUse.input as { type?: string };
+                    const metadata = await getMetadata(
+                      accessToken,
+                      propertyId
+                    );
+                    if (input.type === "metrics") {
+                      result = { metrics: metadata.metrics };
+                    } else if (input.type === "dimensions") {
+                      result = { dimensions: metadata.dimensions };
+                    } else {
+                      result = metadata;
+                    }
+                    break;
+                  }
+                  default:
+                    result = { error: `Unknown tool: ${toolUse.name}` };
+                    isError = true;
+                }
+              }
+            } catch (error: unknown) {
+              const errMsg =
+                error instanceof Error
+                  ? error.message
+                  : "Tool execution failed";
+              result = { error: errMsg };
+              isError = true;
+            }
+
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: toolUse.id,
+              content: JSON.stringify(result),
+              is_error: isError,
+            });
+          }
+
+          send({ type: "status", message: "Analysing results..." });
+
+          // Append this round's exchange to the accumulated conversation
+          conversationMessages.push({ role: "assistant", content: assistantContent });
+          conversationMessages.push({ role: "user", content: toolResults });
+
+          // Continue the conversation with full history
+          response = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4096,
+            system: systemPrompt,
+            tools,
+            messages: conversationMessages,
+          });
+        }
+
+        // If the loop ended because of max rounds but Claude still wants tools,
+        // make one final call WITHOUT tools to force a text response.
+        if (response.stop_reason === "tool_use") {
+          console.log("[chat] Max tool rounds reached — forcing final text response");
+          send({ type: "status", message: "Summarising..." });
+          const assistantContent = response.content;
+          const toolUseBlocks = assistantContent.filter(
+            (block): block is Anthropic.ContentBlockParam & { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } =>
+              block.type === "tool_use"
+          );
+          const emptyResults = toolUseBlocks.map((t) => ({
+            type: "tool_result" as const,
+            tool_use_id: t.id,
+            content: JSON.stringify({ error: "Tool limit reached. Answer the user's question using the data from your previous successful queries." }),
+            is_error: true,
+          }));
+          conversationMessages.push({ role: "assistant", content: assistantContent });
+          conversationMessages.push({ role: "user", content: emptyResults });
+          response = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4096,
+            system: systemPrompt,
+            messages: conversationMessages,
+          });
+        }
+
+        // Extract the final text response
+        const textBlocks = response.content.filter(
+          (block): block is Anthropic.TextBlock => block.type === "text"
+        );
+        let rawMessage = textBlocks.map((b) => b.text).join("\n");
+        console.log("[chat] rawMessage length:", rawMessage.length, "textBlocks:", textBlocks.length, "stop_reason:", response.stop_reason);
+
+        // Parse scorecard block at start (for "how many...?" style questions)
+        const scorecard = parseScorecard(rawMessage);
+        if (scorecard) {
+          rawMessage = stripScorecardBlock(rawMessage);
+        }
+
+        // Parse chart block
+        const chart = parseChart(rawMessage);
+        if (chart) {
+          rawMessage = stripChartBlock(rawMessage);
+        }
+
+        // Parse suggested follow-up questions from JSON block at end
+        const suggestedQuestions = parseSuggestedQuestions(rawMessage);
+        if (suggestedQuestions) {
+          rawMessage = stripSuggestedQuestionsBlock(rawMessage);
+        }
+
+        send({
+          type: "result",
+          message: rawMessage.trim(),
+          scorecard: scorecard ?? undefined,
+          chart: chart ?? undefined,
+          suggestedQuestions: suggestedQuestions ?? undefined,
+          _dataPath: usesBigQuery ? "bigquery" : "ga4",
+          _rolloutReason: rollout.reason,
+        });
+
+        controller.close();
+      } catch (error: unknown) {
+        console.error("Chat API error:", error);
+        const errMsg =
+          error instanceof Error ? error.message : "Chat request failed";
+        send({ type: "error", error: errMsg });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

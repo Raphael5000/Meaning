@@ -68,6 +68,7 @@ export default function Chat() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
   const [propertyBqStatus, setPropertyBqStatus] = useState<string | null>(null);
@@ -209,6 +210,7 @@ export default function Chat() {
     }
 
     setError(null);
+    setToolStatus(null);
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -266,18 +268,51 @@ export default function Chat() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Request failed");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error((errData as { error?: string }).error || "Request failed");
       }
 
-      const data = await res.json();
+      // Read NDJSON stream for tool progress events
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let data: { message?: string; scorecard?: unknown; chart?: unknown; suggestedQuestions?: string[]; error?: string } = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.type === "status") {
+              setToolStatus(event.message);
+            } else if (event.type === "result") {
+              data = event;
+            } else if (event.type === "error") {
+              throw new Error(event.error);
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue; // skip malformed lines
+            throw e;
+          }
+        }
+      }
+
+      setToolStatus(null);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.message,
-        scorecard: data.scorecard,
-        chart: data.chart,
+        content: data.message || "",
+        scorecard: data.scorecard as Message["scorecard"],
+        chart: data.chart as Message["chart"],
         suggestedQuestions: data.suggestedQuestions,
       };
 
@@ -301,6 +336,7 @@ export default function Chat() {
       setError(message);
     } finally {
       setLoading(false);
+      setToolStatus(null);
     }
   }
 
@@ -608,7 +644,21 @@ export default function Chat() {
                 CHART_KEYWORDS.test(messages[messages.length - 1].content) ? (
                   <ChartLoadingIndicator />
                 ) : (
-                  <TypingIndicator />
+                  <div className="flex w-full justify-center px-4 py-6">
+                    <div className="flex w-full max-w-3xl">
+                      <div className="min-w-0 flex-1">
+                        <TypingIndicator />
+                        {toolStatus && (
+                          <p
+                            className="mt-2 text-xs animate-pulse"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {toolStatus}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               <div ref={messagesEndRef} />
             </div>
