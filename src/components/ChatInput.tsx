@@ -73,7 +73,8 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
         {/* Popover — opens upward from trigger */}
         {sourcesOpen && hasDataSources && (
           <div
-            className="absolute bottom-8 left-0 z-10 w-52 overflow-hidden rounded-lg border border-border/60 bg-popover py-1.5 shadow-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-100"
+            className="absolute bottom-8 left-0 z-10 w-52 overflow-hidden rounded-lg border border-border bg-popover py-1.5 shadow-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-100"
+            style={{ borderColor: "var(--border-color)" }}
           >
             {activeSources.map((ds, i) => (
               <div

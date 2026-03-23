@@ -25,7 +25,7 @@ import TypingIndicator from "./TypingIndicator";
 import ChartLoadingIndicator from "./ChartLoadingIndicator";
 import AlertsModal from "./AlertsModal";
 import BugReportModal from "./BugReportModal";
-import ConnectionsModal from "./ConnectionsModal";
+import ConnectionsPanel from "./ConnectionsPanel";
 import TeamModal from "./TeamModal";
 import {
   fetchChats,
@@ -111,8 +111,10 @@ export default function Chat() {
     return () => { cancelled = true; };
   }, [(session as { userId?: string } | null)?.userId]);
 
-  // Fetch connected data sources when property changes
-  useEffect(() => {
+  // Fetch connected data sources when property changes or connections modal closes
+  const [connectionsVersion, setConnectionsVersion] = useState(0);
+
+  const fetchConnectedSources = useCallback(() => {
     if (!propertyId) { setConnectedSources([]); return; }
     const url = `/api/user/connections?propertyId=${propertyId}`;
     fetch(url)
@@ -133,6 +135,10 @@ export default function Chat() {
       })
       .catch(() => setConnectedSources([]));
   }, [propertyId]);
+
+  useEffect(() => {
+    fetchConnectedSources();
+  }, [propertyId, connectionsVersion, fetchConnectedSources]);
 
   useEffect(() => {
     // Keep the top of the latest answer in view instead of scrolling to the bottom
@@ -603,6 +609,14 @@ export default function Chat() {
           </div>
         </header>
 
+        {/* Connections panel (replaces messages area) */}
+        {connectionsOpen ? (
+          <ConnectionsPanel
+            onClose={() => { setConnectionsOpen(false); setConnectionsVersion((v) => v + 1); }}
+            propertyId={propertyId}
+            propertyName={propertyName}
+          />
+        ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading ? (
@@ -737,11 +751,11 @@ export default function Chat() {
         )}
 
         <ChatInput onSend={sendMessage} disabled={loading || !propertyId} dataSources={connectedSources} />
+      </>}
       </div>
 
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
       <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
-      <ConnectionsModal open={connectionsOpen} onClose={() => setConnectionsOpen(false)} propertyId={propertyId} propertyName={propertyName} />
       <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />
     </div>
   );
