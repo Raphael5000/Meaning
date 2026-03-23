@@ -9,6 +9,7 @@ import {
   Mail,
   X,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,39 +22,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface TeamMember {
+interface OrgMember {
   id: string;
   userId: string;
   role: string;
-  properties: string[];
   user: { id: string; name: string | null; email: string; image: string | null };
 }
 
-interface TeamInvite {
+interface OrgInvite {
   id: string;
   email: string;
-  properties: string[];
   expiresAt: string;
 }
 
-interface TeamData {
+interface OrgData {
   id: string;
   name: string;
   ownerId: string;
-  memberships: TeamMember[];
-  invites: TeamInvite[];
+  memberships: OrgMember[];
+  invites: OrgInvite[];
 }
 
-interface SeatData {
-  total: number;
-  activeMembers: number;
-  pendingInvites: number;
-}
-
-interface GA4Property {
-  propertyId: string;
-  displayName: string;
-  account: string;
+interface OrgListItem {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  ownerId: string;
+  role: string;
 }
 
 export default function TeamModal({
@@ -64,46 +59,48 @@ export default function TeamModal({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"members" | "invite">("members");
-  const [team, setTeam] = useState<TeamData | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [seats, setSeats] = useState<SeatData | null>(null);
-  const [properties, setProperties] = useState<GA4Property[]>([]);
+  const [orgs, setOrgs] = useState<OrgListItem[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [orgDetail, setOrgDetail] = useState<OrgData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
-  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
-
-  const fetchTeam = useCallback(async () => {
+  const fetchOrgs = useCallback(async () => {
     try {
-      const [teamRes, seatsRes, propsRes] = await Promise.all([
-        fetch("/api/team"),
-        fetch("/api/team/seats"),
-        fetch("/api/analytics/properties"),
-      ]);
-
-      if (teamRes.ok) {
-        const data = await teamRes.json();
-        setTeam(data.team);
-        setRole(data.role);
-      }
-
-      if (seatsRes.ok) {
-        setSeats(await seatsRes.json());
-      }
-
-      if (propsRes.ok) {
-        const data = await propsRes.json();
-        setProperties(data.properties || []);
+      const res = await fetch("/api/organizations");
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.organizations || [];
+        setOrgs(list);
+        if (list.length > 0 && !selectedOrgId) {
+          setSelectedOrgId(list[0].id);
+        }
       }
     } catch {
-      setError("Failed to load team data");
+      setError("Failed to load accounts");
     } finally {
       setLoading(false);
+    }
+  }, [selectedOrgId]);
+
+  const fetchOrgDetail = useCallback(async (orgId: string) => {
+    setLoadingDetail(true);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrgDetail(data.organization);
+      }
+    } catch {
+      setError("Failed to load account details");
+    } finally {
+      setLoadingDetail(false);
     }
   }, []);
 
@@ -111,44 +108,26 @@ export default function TeamModal({
     if (open) {
       setLoading(true);
       setError(null);
-      fetchTeam();
+      fetchOrgs();
     }
-  }, [open, fetchTeam]);
+  }, [open, fetchOrgs]);
 
-  async function createTeam() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/team", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "My Team" }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create team");
-        return;
-      }
-      await fetchTeam();
-    } catch {
-      setError("Failed to create team");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (selectedOrgId) {
+      fetchOrgDetail(selectedOrgId);
     }
-  }
+  }, [selectedOrgId, fetchOrgDetail]);
 
   async function sendInvite() {
-    if (!inviteEmail.trim()) return;
+    if (!inviteEmail.trim() || !selectedOrgId) return;
     setInviting(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/team/invite", {
+      const res = await fetch(`/api/organizations/${selectedOrgId}/invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          properties: selectedProperties,
-        }),
+        body: JSON.stringify({ email: inviteEmail.trim() }),
       });
 
       if (!res.ok) {
@@ -158,10 +137,9 @@ export default function TeamModal({
       }
 
       setInviteEmail("");
-      setSelectedProperties([]);
       setInviteSuccess(true);
       setTimeout(() => setInviteSuccess(false), 3000);
-      await fetchTeam();
+      await fetchOrgDetail(selectedOrgId);
     } catch {
       setError("Failed to send invite");
     } finally {
@@ -169,48 +147,20 @@ export default function TeamModal({
     }
   }
 
-  async function revokeInvite(inviteId: string) {
-    try {
-      await fetch("/api/team/invite", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteId }),
-      });
-      await fetchTeam();
-    } catch {
-      setError("Failed to revoke invite");
-    }
-  }
-
   async function removeMember(memberId: string) {
+    if (!selectedOrgId) return;
     try {
-      await fetch(`/api/team/members/${memberId}`, { method: "DELETE" });
-      await fetchTeam();
+      await fetch(`/api/organizations/${selectedOrgId}/members/${memberId}`, {
+        method: "DELETE",
+      });
+      await fetchOrgDetail(selectedOrgId);
     } catch {
       setError("Failed to remove member");
     }
   }
 
-  async function updateMemberProperties(memberId: string, props: string[]) {
-    try {
-      await fetch(`/api/team/members/${memberId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ properties: props }),
-      });
-      await fetchTeam();
-    } catch {
-      setError("Failed to update member properties");
-    }
-  }
-
-  function toggleProperty(propId: string) {
-    setSelectedProperties((prev) =>
-      prev.includes(propId) ? prev.filter((p) => p !== propId) : [...prev, propId]
-    );
-  }
-
-  const isAdmin = role === "admin";
+  const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
+  const isAdmin = selectedOrg?.role === "admin";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -221,7 +171,7 @@ export default function TeamModal({
             Team
           </DialogTitle>
           <DialogDescription>
-            Manage your team members and seat allocation.
+            Manage members for your accounts.
           </DialogDescription>
         </DialogHeader>
 
@@ -229,27 +179,38 @@ export default function TeamModal({
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : !team ? (
+        ) : orgs.length === 0 ? (
           <div className="py-8 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">
-              Create a team to invite members and share analytics access.
+            <p className="text-sm text-muted-foreground">
+              No accounts found. Create an account first.
             </p>
-            <Button onClick={createTeam}>Create Team</Button>
           </div>
         ) : (
           <>
-            {/* Seats summary */}
-            {seats && isAdmin && (
-              <div
-                className="rounded-lg border p-3"
-                style={{ borderColor: "var(--border-color)" }}
-              >
-                <p className="text-sm font-medium text-foreground">
-                  {seats.total} seat{seats.total !== 1 ? "s" : ""}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {seats.activeMembers} member{seats.activeMembers !== 1 ? "s" : ""}, {seats.pendingInvites} pending invite{seats.pendingInvites !== 1 ? "s" : ""}
-                </p>
+            {/* Account selector */}
+            {orgs.length > 1 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Account</Label>
+                <div className="relative">
+                  <select
+                    value={selectedOrgId || ""}
+                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                    className="w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-8 text-sm text-foreground outline-none focus:border-[var(--accent)]"
+                  >
+                    {orgs.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {orgs.length === 1 && (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-sm font-medium text-foreground">{selectedOrg?.name}</p>
               </div>
             )}
 
@@ -291,161 +252,124 @@ export default function TeamModal({
               </div>
             )}
 
-            {/* Members tab */}
-            {tab === "members" && (
-              <div className="space-y-2">
-                {/* Team members */}
-                {team.memberships?.length === 0 && (
-                  <p className="py-4 text-center text-sm text-muted-foreground">
-                    No team members yet. Send an invite to get started.
-                  </p>
-                )}
-                {team.memberships?.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center gap-3 rounded-lg border p-3"
-                    style={{ borderColor: "var(--border-color)" }}
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                      {(m.user.name || m.user.email).slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {m.user.name || m.user.email}
+            {loadingDetail ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* Members tab */}
+                {tab === "members" && (
+                  <div className="space-y-2">
+                    {orgDetail?.memberships?.length === 0 && (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        No members yet. Send an invite to get started.
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {m.user.email}
-                      </p>
-                      {m.properties.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {m.properties.map((pid) => {
-                            const prop = properties.find((p) => p.propertyId === pid);
-                            return (
-                              <span
-                                key={pid}
-                                className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                              >
-                                {prop?.displayName || pid}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeMember(m.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
                     )}
-                  </div>
-                ))}
-
-                {/* Pending invites */}
-                {isAdmin && team.invites && team.invites.length > 0 && (
-                  <>
-                    <p className="pt-2 text-xs font-medium text-muted-foreground">
-                      Pending Invites
-                    </p>
-                    {team.invites.map((inv) => (
+                    {orgDetail?.memberships?.map((m) => (
                       <div
-                        key={inv.id}
-                        className="flex items-center gap-3 rounded-lg border border-dashed p-3"
+                        key={m.id}
+                        className="flex items-center gap-3 rounded-lg border p-3"
                         style={{ borderColor: "var(--border-color)" }}
                       >
-                        <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        {m.user.image ? (
+                          <img src={m.user.image} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                            {(m.user.name || m.user.email).slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm text-foreground">
-                            {inv.email}
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {m.user.name || m.user.email}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Expires {new Date(inv.expiresAt).toLocaleDateString()}
+                          <p className="truncate text-xs text-muted-foreground">
+                            {m.user.email}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => revokeInvite(inv.id)}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {m.role}
+                        </span>
+                        {isAdmin && m.userId !== orgDetail?.ownerId && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeMember(m.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     ))}
-                  </>
-                )}
-              </div>
-            )}
 
-            {/* Invite tab */}
-            {tab === "invite" && isAdmin && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email address</Label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    placeholder="teammate@company.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
-                </div>
-
-                {properties.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>GA4 Properties (optional)</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Select which properties this member can access. Leave empty for no access until updated.
-                    </p>
-                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: "var(--border-color)" }}>
-                      {properties.map((prop) => (
-                        <button
-                          key={prop.propertyId}
-                          type="button"
-                          onClick={() => toggleProperty(prop.propertyId)}
-                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                        >
+                    {/* Pending invites */}
+                    {isAdmin && orgDetail?.invites && orgDetail.invites.length > 0 && (
+                      <>
+                        <p className="pt-2 text-xs font-medium text-muted-foreground">
+                          Pending Invites
+                        </p>
+                        {orgDetail.invites.map((inv) => (
                           <div
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                              selectedProperties.includes(prop.propertyId)
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-muted-foreground/30"
-                            }`}
+                            key={inv.id}
+                            className="flex items-center gap-3 rounded-lg border border-dashed p-3"
+                            style={{ borderColor: "var(--border-color)" }}
                           >
-                            {selectedProperties.includes(prop.propertyId) && (
-                              <Check className="h-3 w-3" />
-                            )}
+                            <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm text-foreground">{inv.email}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Expires {new Date(inv.expiresAt).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <span className="truncate">{prop.displayName}</span>
-                        </button>
-                      ))}
-                    </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 
-                {inviteSuccess && (
-                  <p className="text-sm" style={{ color: "var(--accent)" }}>
-                    Invite sent successfully!
-                  </p>
-                )}
+                {/* Invite tab */}
+                {tab === "invite" && isAdmin && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-email">Email address</Label>
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        placeholder="teammate@company.com"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && sendInvite()}
+                      />
+                    </div>
 
-                <Button
-                  onClick={sendInvite}
-                  disabled={inviting || !inviteEmail.trim()}
-                  className="w-full"
-                >
-                  {inviting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  Send Invite
-                </Button>
-              </div>
+                    <p className="text-xs text-muted-foreground">
+                      This person will get access to <span className="font-medium text-foreground">{selectedOrg?.name}</span> and all its connected data sources.
+                    </p>
+
+                    {inviteSuccess && (
+                      <p className="flex items-center gap-1 text-sm" style={{ color: "var(--accent)" }}>
+                        <Check className="h-3.5 w-3.5" />
+                        Invite sent successfully!
+                      </p>
+                    )}
+
+                    <Button
+                      onClick={sendInvite}
+                      disabled={inviting || !inviteEmail.trim()}
+                      className="w-full"
+                    >
+                      {inviting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="mr-2 h-4 w-4" />
+                      )}
+                      Send Invite
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
