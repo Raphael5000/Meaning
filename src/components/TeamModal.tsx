@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Loader2,
+  Pencil,
   Trash2,
   Send,
   Users,
@@ -66,6 +67,11 @@ export default function TeamModal({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Edit name
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
   // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
@@ -117,6 +123,28 @@ export default function TeamModal({
       fetchOrgDetail(selectedOrgId);
     }
   }, [selectedOrgId, fetchOrgDetail]);
+
+  async function saveOrgName() {
+    if (!selectedOrgId || !nameValue.trim()) return;
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/organizations/${selectedOrgId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nameValue.trim() }),
+      });
+      if (res.ok) {
+        setOrgs((prev) =>
+          prev.map((o) => (o.id === selectedOrgId ? { ...o, name: nameValue.trim() } : o))
+        );
+        setEditingName(false);
+      }
+    } catch {
+      setError("Failed to rename account");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function sendInvite() {
     if (!inviteEmail.trim() || !selectedOrgId) return;
@@ -211,6 +239,50 @@ export default function TeamModal({
             {orgs.length === 1 && (
               <div className="rounded-lg border border-border p-3">
                 <p className="text-sm font-medium text-foreground">{selectedOrg?.name}</p>
+              </div>
+            )}
+
+            {/* Edit name */}
+            {isAdmin && selectedOrg && (
+              <div>
+                {editingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={nameValue}
+                      onChange={(e) => setNameValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveOrgName()}
+                      placeholder="Account name"
+                      autoFocus
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={saveOrgName}
+                      disabled={savingName || !nameValue.trim()}
+                      className="h-8 shrink-0 text-xs"
+                      style={{ background: "var(--accent)", color: "white" }}
+                    >
+                      {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditingName(false)}
+                      className="h-8 shrink-0 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setNameValue(selectedOrg.name); setEditingName(true); }}
+                    className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Rename account
+                  </button>
+                )}
               </div>
             )}
 
