@@ -24,7 +24,7 @@ import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 import ChartLoadingIndicator from "./ChartLoadingIndicator";
-import AlertsModal from "./AlertsModal";
+import AlertsPanel from "./AlertsPanel";
 import BugReportModal from "./BugReportModal";
 import ConnectionsPanel from "./ConnectionsPanel";
 import AccountPanel from "./AccountPanel";
@@ -627,6 +627,8 @@ export default function Chat() {
           />
         ) : accountOpen ? (
           <AccountPanel onClose={() => setAccountOpen(false)} />
+        ) : alertsOpen ? (
+          <AlertsPanel onClose={() => setAlertsOpen(false)} />
         ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
@@ -736,7 +738,6 @@ export default function Chat() {
       </>}
       </div>
 
-      <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />
       <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
       <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />
     </div>
