@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ synced: 0, failed: 0, total: 0 });
   }
 
-  // Sync last 2 days for each account
+  // Sync last 4 days for each account (covers gaps from missed syncs/deploys)
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - 1);
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 2);
+  startDate.setDate(startDate.getDate() - 4);
   const fmt = (d: Date) => d.toISOString().split("T")[0];
   const start = fmt(startDate);
   const end = fmt(endDate);
