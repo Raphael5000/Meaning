@@ -89,7 +89,7 @@ export default function Chat() {
   // Auto-open Connections modal after OAuth redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("ads_connected") === "true" || params.get("linkedin_connected") === "true") {
+    if (params.get("ads_connected") === "true" || params.get("linkedin_connected") === "true" || params.get("mailchimp_connected") === "true") {
       setConnectionsOpen(true);
       window.history.replaceState({}, "", "/");
     }
@@ -122,6 +122,7 @@ export default function Chat() {
           GA4_BIGQUERY: "Google Analytics",
           GOOGLE_ADS: "Google Ads",
           LINKEDIN: "LinkedIn",
+          MAILCHIMP: "Mailchimp",
         };
         const sources = (data.dataSources ?? []).map((ds: { type: string; status: string }) => ({
           type: ds.type,

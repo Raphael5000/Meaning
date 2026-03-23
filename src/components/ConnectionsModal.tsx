@@ -25,11 +25,19 @@ interface LinkedInOrg {
   vanityName: string | null;
 }
 
+interface MailchimpAudience {
+  id: string;
+  name: string;
+  memberCount: number;
+  campaignCount: number;
+}
+
 interface ConnectionStatus {
   hasGoogleAccount: boolean;
   googleEmail: string | null;
   hasAdsScope: boolean;
   hasLinkedInAccount: boolean;
+  hasMailchimpAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -156,6 +164,13 @@ export default function ConnectionsModal({
   const [linkedInErrors, setLinkedInErrors] = useState<Record<string, string>>({});
   const [linkedInLoadError, setLinkedInLoadError] = useState<string | null>(null);
 
+  // Mailchimp state
+  const [mailchimpAudiences, setMailchimpAudiences] = useState<MailchimpAudience[]>([]);
+  const [loadingMailchimpAudiences, setLoadingMailchimpAudiences] = useState(false);
+  const [enablingMailchimp, setEnablingMailchimp] = useState<Record<string, boolean>>({});
+  const [mailchimpErrors, setMailchimpErrors] = useState<Record<string, string>>({});
+  const [mailchimpLoadError, setMailchimpLoadError] = useState<string | null>(null);
+
   const fetchStatus = useCallback((isPolling = false) => {
     if (!isPolling) {
       setLoading(true);
@@ -179,7 +194,7 @@ export default function ConnectionsModal({
         setMessage({ type: "error", text: `Failed to load connections: ${err.message}` });
         // Still set a default status so UI renders (with error banner above)
         if (!status) {
-          setStatus({ hasGoogleAccount: false, googleEmail: null, hasAdsScope: false, hasLinkedInAccount: false, dataSources: [] });
+          setStatus({ hasGoogleAccount: false, googleEmail: null, hasAdsScope: false, hasLinkedInAccount: false, hasMailchimpAccount: false, dataSources: [] });
         }
       })
       .finally(() => setLoading(false));
@@ -309,6 +324,81 @@ export default function ConnectionsModal({
     }
   }
 
+  // Load Mailchimp audiences when account is connected
+  const loadMailchimpAudiences = useCallback(async () => {
+    setLoadingMailchimpAudiences(true);
+    setMailchimpLoadError(null);
+    try {
+      const res = await fetch("/api/mailchimp/accessible-audiences");
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.needsReconnect) {
+          setStatus((prev) => prev ? { ...prev, hasMailchimpAccount: false } : prev);
+        } else {
+          setMailchimpLoadError(data.detail || data.error || "Failed to load audiences");
+        }
+        return;
+      }
+      setMailchimpAudiences(data.audiences || []);
+    } catch (err) {
+      console.error("[ConnectionsModal] mailchimp audiences error:", err);
+      setMailchimpLoadError("Failed to load audiences");
+    } finally {
+      setLoadingMailchimpAudiences(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open || !status?.hasMailchimpAccount) return;
+    loadMailchimpAudiences();
+  }, [open, status?.hasMailchimpAccount, loadMailchimpAudiences]);
+
+  // Poll while any Mailchimp DataSource is PENDING or BACKFILLING
+  useEffect(() => {
+    if (!status) return;
+    const waiting = status.dataSources.filter(
+      (ds) => ds.type === "MAILCHIMP" && (ds.status === "BACKFILLING" || ds.status === "PENDING")
+    );
+    if (waiting.length === 0) return;
+    const interval = setInterval(() => fetchStatus(true), 15000);
+    return () => clearInterval(interval);
+  }, [status, fetchStatus]);
+
+  function handleConnectMailchimp() {
+    window.location.href = "/api/auth/connect-mailchimp";
+  }
+
+  async function handleEnableMailchimp(listId: string) {
+    setEnablingMailchimp((prev) => ({ ...prev, [listId]: true }));
+    setMailchimpErrors((prev) => ({ ...prev, [listId]: "" }));
+    try {
+      const res = await fetch("/api/mailchimp/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listId, ga4PropertyId: propertyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMailchimpErrors((prev) => ({ ...prev, [listId]: data.message || data.error || "Failed." }));
+        return;
+      }
+      if (data.dataSource?.status === "ACTIVE") {
+        setMessage({ type: "success", text: "Mailchimp connected! Data is ready." });
+      } else {
+        setMessage({ type: "success", text: "Mailchimp audience linked. Syncing data now..." });
+      }
+      fetchStatus();
+    } catch (err) {
+      console.error("[ConnectionsModal] enable-mailchimp error:", err);
+      setMailchimpErrors((prev) => ({
+        ...prev,
+        [listId]: err instanceof Error ? err.message : "Something went wrong.",
+      }));
+    } finally {
+      setEnablingMailchimp((prev) => ({ ...prev, [listId]: false }));
+    }
+  }
+
   async function handleDisconnectGoogle() {
     if (!confirm("Disconnect Google Analytics? You will need to reconnect to use analytics features.")) return;
     setDisconnecting(true);
@@ -376,6 +466,8 @@ export default function ConnectionsModal({
   const connectedAdsCids = new Set(adsDataSources.map((ds) => ds.adsCustomerId).filter(Boolean));
   const linkedInDataSources = status?.dataSources.filter((ds) => ds.type === "LINKEDIN") ?? [];
   const connectedLinkedInOrgIds = new Set(linkedInDataSources.map((ds) => ds.propertyId));
+  const mailchimpDataSources = status?.dataSources.filter((ds) => ds.type === "MAILCHIMP") ?? [];
+  const connectedMailchimpListIds = new Set(mailchimpDataSources.map((ds) => ds.propertyId));
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -620,22 +712,6 @@ export default function ConnectionsModal({
               </div>
             </ConnectionCard>
 
-            {/* ─── Meta — coming soon ─── */}
-            <ConnectionCard dimmed>
-              <div className="flex items-start gap-3">
-                <img src="/Meta.svg" alt="Meta" className="h-10 w-10 shrink-0" style={logoStyle} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Meta</h3>
-                    <ComingSoonBadge />
-                  </div>
-                  <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                    Connect Facebook & Instagram ad campaigns and insights.
-                  </p>
-                </div>
-              </div>
-            </ConnectionCard>
-
             {/* ─── LinkedIn ─── */}
             <ConnectionCard>
               <div className="flex items-start gap-3">
@@ -743,6 +819,135 @@ export default function ConnectionsModal({
                     })}
                   </div>
                 )}
+              </div>
+            </ConnectionCard>
+
+            {/* ─── Mailchimp ─── */}
+            <ConnectionCard>
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg font-bold"
+                  style={{ ...logoStyle, background: "#ffe01b", color: "#241c15" }}
+                >
+                  M
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Mailchimp</h3>
+                    {mailchimpDataSources.some((ds) => ds.status === "ACTIVE") ? (
+                      <ConnectedBadge />
+                    ) : mailchimpDataSources.some((ds) => ds.status === "BACKFILLING") ? (
+                      <StatusBadge status="BACKFILLING" />
+                    ) : status?.hasMailchimpAccount ? (
+                      <NotConnectedBadge />
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                    Email campaign performance, audience growth, and engagement.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                {!status?.hasMailchimpAccount ? (
+                  <button
+                    onClick={handleConnectMailchimp}
+                    className="btn-primary-gradient px-4 py-1.5 text-xs"
+                  >
+                    Connect Mailchimp
+                  </button>
+                ) : loadingMailchimpAudiences ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--accent)" }} />
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Loading audiences...</span>
+                  </div>
+                ) : mailchimpLoadError || mailchimpAudiences.length === 0 ? (
+                  <div>
+                    {mailchimpLoadError && (
+                      <p className="text-xs mb-2" style={{ color: "var(--error)" }}>
+                        {mailchimpLoadError}
+                      </p>
+                    )}
+                    <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                      No audiences found in your Mailchimp account.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={loadMailchimpAudiences}
+                        className="text-xs font-medium"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={handleConnectMailchimp}
+                        className="text-xs font-medium"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Reconnect
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {mailchimpAudiences.map((aud) => {
+                      const ds = mailchimpDataSources.find((d) => d.propertyId === aud.id);
+                      const isConnected = connectedMailchimpListIds.has(aud.id);
+
+                      return (
+                        <div
+                          key={aud.id}
+                          className="flex items-center justify-between rounded-lg px-3 py-2"
+                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)" }}
+                        >
+                          <div>
+                            <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                              {aud.name}
+                            </p>
+                            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                              {aud.memberCount.toLocaleString()} subscribers
+                            </p>
+                            {ds && <StatusBadge status={ds.status} />}
+                          </div>
+                          {!isConnected && (
+                            <button
+                              onClick={() => handleEnableMailchimp(aud.id)}
+                              disabled={enablingMailchimp[aud.id]}
+                              className="text-xs font-medium transition-opacity"
+                              style={{
+                                color: "var(--accent)",
+                                opacity: enablingMailchimp[aud.id] ? 0.5 : 1,
+                              }}
+                            >
+                              {enablingMailchimp[aud.id] ? "Enabling..." : "Enable"}
+                            </button>
+                          )}
+                          {mailchimpErrors[aud.id] && (
+                            <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>
+                              {mailchimpErrors[aud.id]}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </ConnectionCard>
+
+            {/* ─── Meta — coming soon ─── */}
+            <ConnectionCard dimmed>
+              <div className="flex items-start gap-3">
+                <img src="/Meta.svg" alt="Meta" className="h-10 w-10 shrink-0" style={logoStyle} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Meta</h3>
+                    <ComingSoonBadge />
+                  </div>
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                    Connect Facebook & Instagram ad campaigns and insights.
+                  </p>
+                </div>
               </div>
             </ConnectionCard>
           </div>

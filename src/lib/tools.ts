@@ -120,7 +120,8 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           enum: [
             "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
             "campaign_performance", "keyword_performance", "click_attribution", "account_info",
-            "post_performance", "follower_stats", "follower_demographics", "page_stats", "org_info"
+            "post_performance", "follower_stats", "follower_demographics", "page_stats", "org_info",
+            "campaign_reports", "audience_stats", "audience_growth", "mc_account_info"
           ],
           description:
             "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'campaign_performance' (daily campaign metrics with cost, clicks, impressions, conversions), 'keyword_performance' (daily keyword/ad-group metrics), 'click_attribution' (per-click data with gclid for attribution), 'account_info' (account currency and name).",
@@ -198,6 +199,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description:
             "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT cl.campaign_name, e.page_location FROM `{dataset}.click_attribution` cl JOIN `{dataset}.stg_events` e ON cl.gclid = e.gclid",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
+    name: "run_mailchimp_query",
+    description:
+      "Run a custom SQL query against Mailchimp email marketing data. Use this to answer questions about email campaign performance, audience growth, open rates, click rates, bounces, unsubscribes, and revenue. Use {dataset}.tableName for table references. Mailchimp tables: campaign_reports (per-campaign: send_date, campaign_title, subject_line, emails_sent, opens_total, unique_opens, open_rate, proxy_excluded_open_rate, clicks_total, unique_clicks, click_rate, hard_bounces, soft_bounces, unsubscribed, total_revenue), audience_stats (daily snapshot: member_count, total_contacts, unsubscribe_count, cleaned_count, campaign_count, open_rate, click_rate), audience_growth (monthly: subscribed, unsubscribed, cleaned, pending, deleted), mc_account_info (account/list name, dc, last sync).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT campaign_title, emails_sent, unique_opens, open_rate, click_rate FROM `{dataset}.campaign_reports` ORDER BY send_date DESC LIMIT 10",
         },
         description: {
           type: "string",

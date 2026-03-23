@@ -51,7 +51,7 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  // LinkedIn sync: run on startup, then daily at ~06:30 UTC (staggered from Ads)
+  // LinkedIn sync: run on startup, then daily at ~06:00 UTC
   setTimeout(() => callLocal("/api/linkedin/sync"), 60 * 1000); // 60s after boot
   setInterval(() => {
     if (new Date().getUTCHours() === 6) {
@@ -59,7 +59,15 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily + startup), linkedin sync (daily + startup)");
+  // Mailchimp sync: run on startup, then daily at ~06:00 UTC
+  setTimeout(() => callLocal("/api/mailchimp/sync"), 90 * 1000); // 90s after boot
+  setInterval(() => {
+    if (new Date().getUTCHours() === 6) {
+      callLocal("/api/mailchimp/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  console.log("[cron] Scheduled: alerts (hourly), ads/linkedin/mailchimp sync (daily + startup)");
 }
 
 // ---------------------------------------------------------------------------

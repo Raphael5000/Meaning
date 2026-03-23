@@ -21,6 +21,7 @@ const SOURCE_ICONS: Record<string, string> = {
   GA4_BIGQUERY: "/Google Analytics.svg",
   GOOGLE_ADS: "/Google Ads.svg",
   LINKEDIN: "/Linkedin.svg",
+  MAILCHIMP: "",
 };
 
 export default function ChatInput({ onSend, disabled, placeholder, dataSources }: ChatInputProps) {
@@ -79,11 +80,11 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
                 key={`${ds.type}-${i}`}
                 className="flex items-center gap-2.5 px-3 py-1.5"
               >
-                <img
-                  src={SOURCE_ICONS[ds.type] ?? ""}
-                  alt=""
-                  className="h-3.5 w-3.5 shrink-0"
-                />
+                {SOURCE_ICONS[ds.type] ? (
+                  <img src={SOURCE_ICONS[ds.type]} alt="" className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded text-[8px] font-bold" style={{ background: "#ffe01b", color: "#241c15" }}>M</span>
+                )}
                 <span className="text-[13px] text-popover-foreground">{ds.label}</span>
               </div>
             ))}

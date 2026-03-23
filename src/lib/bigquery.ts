@@ -105,6 +105,14 @@ const LINKEDIN_TABLES = new Set([
   "org_info",
 ]);
 
+/** Mailchimp tables — these live in mailchimp_{listId} dataset. */
+const MAILCHIMP_TABLES = new Set([
+  "campaign_reports",
+  "audience_stats",
+  "audience_growth",
+  "mc_account_info",
+]);
+
 /**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
@@ -113,20 +121,24 @@ const LINKEDIN_TABLES = new Set([
  *   - raw event tables -> `analytics_{propertyId}`
  *   - ads tables -> `ads_{adsCustomerId}` (no suffix on table name)
  *   - linkedin tables -> `linkedin_{orgId}`
+ *   - mailchimp tables -> `mailchimp_{listId}`
  *
  * @param adsCustomerId - Optional Google Ads customer ID for routing Ads queries
  * @param linkedInOrgId - Optional LinkedIn organization ID for routing LinkedIn queries
+ * @param mailchimpListId - Optional Mailchimp list ID for routing Mailchimp queries
  */
 export async function runPropertyQuery(
   propertyId: string,
   sql: string,
   params?: Record<string, unknown>,
   adsCustomerId?: string | null,
-  linkedInOrgId?: string | null
+  linkedInOrgId?: string | null,
+  mailchimpListId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
   const linkedInDataset = linkedInOrgId ? `linkedin_${linkedInOrgId}` : null;
+  const mailchimpDataset = mailchimpListId ? `mailchimp_${mailchimpListId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   const scopedSql = sql.replace(
@@ -137,6 +149,9 @@ export async function runPropertyQuery(
       }
       if (LINKEDIN_TABLES.has(tableName) && linkedInDataset) {
         return `${linkedInDataset}.${tableName}`;
+      }
+      if (MAILCHIMP_TABLES.has(tableName) && mailchimpDataset) {
+        return `${mailchimpDataset}.${tableName}`;
       }
       const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
       return `${dataset}.${tableName}`;
