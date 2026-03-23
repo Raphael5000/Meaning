@@ -73,6 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     # Only run validation on daily builds, not full refresh
     if: github.event.schedule != '0 7 * * 0'
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -89,5 +91,4 @@ jobs:
           GOOGLE_BIGQUERY_CREDENTIALS: ${{ secrets.GOOGLE_BIGQUERY_CREDENTIALS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx tsx scripts/validate-bq-vs-ga4.ts 1
