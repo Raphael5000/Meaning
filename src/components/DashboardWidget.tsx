@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { GripVertical, Trash2, MoreVertical, RefreshCw } from "lucide-react";
 import ChartRenderer from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
@@ -24,11 +24,24 @@ interface DashboardWidgetProps {
 
 /**
  * Rebuild chart option with fresh data from cachedData rows.
- * Handles pie (name/value pairs), bar/line (xAxis categories + series data).
+ * Produces clean, properly configured ECharts options.
  */
 function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown): Record<string, unknown> {
   if (!Array.isArray(cachedData) || cachedData.length === 0) return displayConfig;
-  const rows = cachedData as Record<string, unknown>[];
+
+  // Unwrap BigQuery value objects: {value: "2025-12-23"} → "2025-12-23"
+  const rows = (cachedData as Record<string, unknown>[]).map((row) => {
+    const unwrapped: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
+        unwrapped[k] = (v as Record<string, unknown>).value;
+      } else {
+        unwrapped[k] = v;
+      }
+    }
+    return unwrapped;
+  });
+
   const keys = Object.keys(rows[0]);
   if (keys.length < 2) return displayConfig;
 
@@ -38,6 +51,21 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
 
   const chartType = series[0].type as string;
 
+  // Remove title — it's shown in the widget header
+  delete option.title;
+
+  // Legend: always top-right, compact table style
+  const legendConfig = {
+    top: 4,
+    right: 8,
+    orient: "vertical" as const,
+    type: "scroll" as const,
+    textStyle: { fontSize: 11 },
+    itemWidth: 10,
+    itemHeight: 10,
+    itemGap: 6,
+  };
+
   if (chartType === "pie") {
     const nameKey = keys.find((k) => typeof rows[0][k] === "string") || keys[0];
     const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[1];
@@ -45,31 +73,128 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       name: String(r[nameKey] ?? ""),
       value: Number(r[valueKey] ?? 0),
     }));
-    // Improve pie defaults
-    if (!series[0].radius) series[0].radius = ["40%", "70%"];
-    if (!series[0].itemStyle) series[0].itemStyle = { borderRadius: 6, borderColor: "transparent", borderWidth: 2 };
-    if (!series[0].label) series[0].label = { show: false };
-    if (!series[0].emphasis) series[0].emphasis = { label: { show: true, fontSize: 13, fontWeight: "bold" } };
+    series[0].type = "pie";
+    series[0].radius = ["40%", "65%"];
+    series[0].center = ["35%", "50%"];
+    series[0].itemStyle = { borderRadius: 4, borderColor: "transparent", borderWidth: 2 };
+    series[0].label = { show: false };
+    series[0].emphasis = {
+      label: { show: true, fontSize: 12, fontWeight: "bold" },
+      itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.2)" },
+    };
+    option.legend = { ...legendConfig, top: 8, right: 12 };
+    option.tooltip = { trigger: "item", formatter: "{b}: {c} ({d}%)" };
   } else if (chartType === "bar" || chartType === "line") {
-    const dimKey = keys.find((k) => typeof rows[0][k] === "string" || k === "date" || k.includes("date")) || keys[0];
+    const dimKey = keys.find((k) => {
+      const v = rows[0][k];
+      return typeof v === "string" || k === "date" || k.includes("date");
+    }) || keys[0];
     const metricKeys = keys.filter((k) => k !== dimKey);
 
-    const xAxis = option.xAxis as Record<string, unknown> | Array<Record<string, unknown>> | undefined;
-    const categories = rows.map((r) => String(r[dimKey] ?? ""));
-    if (Array.isArray(xAxis)) {
-      if (xAxis[0]) xAxis[0].data = categories;
-    } else if (xAxis) {
-      xAxis.data = categories;
-    }
+    const categories = rows.map((r) => {
+      const v = String(r[dimKey] ?? "");
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const d = new Date(v + "T00:00:00");
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }
+      return v.length > 20 ? v.slice(0, 18) + "..." : v;
+    });
+
+    option.xAxis = {
+      type: "category",
+      data: categories,
+      axisLabel: {
+        fontSize: 10,
+        rotate: categories.length > 10 ? 45 : 0,
+        hideOverlap: true,
+      },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "rgba(128,128,128,0.2)" } },
+      boundaryGap: chartType === "bar",
+    };
+
+    option.yAxis = {
+      type: "value",
+      splitLine: { lineStyle: { color: "rgba(128,128,128,0.1)" } },
+      axisLabel: { fontSize: 10 },
+    };
 
     for (let i = 0; i < series.length && i < metricKeys.length; i++) {
       series[i].data = rows.map((r) => Number(r[metricKeys[i]] ?? 0));
-      // Smooth line charts
-      if (chartType === "line" && series[i].smooth === undefined) series[i].smooth = true;
+      if (chartType === "line") {
+        series[i].smooth = true;
+        series[i].symbol = "circle";
+        series[i].symbolSize = 4;
+        series[i].areaStyle = { opacity: 0.06 };
+        series[i].lineStyle = { width: 2 };
+      }
+      if (chartType === "bar") {
+        series[i].barMaxWidth = 36;
+        series[i].itemStyle = { borderRadius: [3, 3, 0, 0] };
+      }
+    }
+
+    option.tooltip = {
+      trigger: "axis",
+      axisPointer: { type: chartType === "bar" ? "shadow" : "line" },
+    };
+
+    option.grid = {
+      left: 8,
+      right: 12,
+      top: series.length > 1 ? 32 : 12,
+      bottom: 24,
+      containLabel: true,
+    };
+
+    if (series.length > 1) {
+      option.legend = { ...legendConfig, orient: "horizontal", top: 4, right: undefined, left: "center" };
+    } else {
+      option.legend = { show: false };
     }
   }
 
   return option;
+}
+
+/** Wrapper that measures its container and renders chart at exact size */
+function ResizableChart({ option }: { option: Record<string, unknown> }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const measure = () => {
+      if (!containerRef.current) return;
+      const { width, height } = containerRef.current.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setSize((prev) => {
+          if (prev && Math.abs(prev.w - width) < 2 && Math.abs(prev.h - height) < 2) return prev;
+          return { w: width, h: height };
+        });
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(measure, 100);
+    });
+    observer.observe(containerRef.current);
+    return () => { observer.disconnect(); if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="h-full w-full">
+      {size && (
+        <ChartRenderer
+          key={`${size.w}-${size.h}`}
+          option={option}
+          styleOverride={{ width: size.w, height: size.h }}
+        />
+      )}
+    </div>
+  );
 }
 
 export default function DashboardWidget({ widget, onDelete, refreshing }: DashboardWidgetProps) {
@@ -121,7 +246,7 @@ export default function DashboardWidget({ widget, onDelete, refreshing }: Dashbo
       </div>
 
       {/* Body */}
-      <div className="relative flex-1 overflow-hidden p-3">
+      <div className="relative flex-1 overflow-hidden">
         {/* Loading overlay */}
         {refreshing && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
@@ -130,12 +255,16 @@ export default function DashboardWidget({ widget, onDelete, refreshing }: Dashbo
         )}
 
         {widget.widgetType === "chart" && widget.displayConfig ? (
-          <ChartRenderer option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData)} />
+          <div className="h-full w-full p-2">
+            <ResizableChart option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData)} />
+          </div>
         ) : widget.widgetType === "scorecard" ? (
-          <ScorecardWidget
-            config={widget.displayConfig as { label?: string; format?: string }}
-            data={widget.cachedData}
-          />
+          <div className="h-full p-3">
+            <ScorecardWidget
+              config={widget.displayConfig as { label?: string; value?: string; format?: string }}
+              data={widget.cachedData}
+            />
+          </div>
         ) : widget.widgetType === "table" ? (
           <TableWidget
             config={widget.displayConfig as { columns?: Array<{ key: string; label: string }> }}

@@ -5,8 +5,21 @@ interface TableWidgetProps {
   data: unknown;
 }
 
+// Unwrap BigQuery value objects: {value: "x"} → "x"
+function unwrapRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
+      out[k] = (v as Record<string, unknown>).value;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export default function TableWidget({ config, data }: TableWidgetProps) {
-  const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+  const rows = Array.isArray(data) ? (data as Record<string, unknown>[]).map(unwrapRow) : [];
 
   if (rows.length === 0) {
     return (
@@ -20,21 +33,17 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
     ? config.columns
     : Object.keys(rows[0]).map((key) => ({ key, label: key.replace(/_/g, " ") }));
 
+  // Detect which columns are numeric vs text for alignment
+  const numericCols = new Set<string>();
+  for (const col of columns) {
+    if (rows.some((r) => typeof r[col.key] === "number")) {
+      numericCols.add(col.key);
+    }
+  }
+
   return (
     <div className="h-full overflow-auto">
       <table className="w-full text-xs">
-        <thead className="sticky top-0" style={{ background: "var(--card-bg, var(--bg-secondary))" }}>
-          <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className="px-2.5 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr
@@ -44,12 +53,26 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
             >
               {columns.map((col) => {
                 const val = row[col.key];
-                const display = typeof val === "number"
-                  ? val.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                  : String(val ?? "");
+                const isNum = numericCols.has(col.key);
+                let display: string;
+
+                if (typeof val === "number") {
+                  display = val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                } else {
+                  const s = String(val ?? "");
+                  // Clean up URLs: strip protocol but keep the path
+                  display = s.replace(/^https?:\/\//, "").replace(/\/$/, "") || s;
+                }
+
                 return (
-                  <td key={col.key} className="px-2.5 py-2 text-foreground">
-                    {display}
+                  <td
+                    key={col.key}
+                    className={`px-3 py-2.5 text-foreground ${isNum ? "text-right font-medium tabular-nums" : "text-left"}`}
+                    title={typeof val === "string" ? val : undefined}
+                  >
+                    <span className={isNum ? "" : "block truncate"} style={{ maxWidth: isNum ? undefined : 280 }}>
+                      {display || "—"}
+                    </span>
                   </td>
                 );
               })}

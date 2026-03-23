@@ -452,10 +452,12 @@ export interface ChartRendererHandle {
 
 interface ChartRendererProps {
   option: Record<string, unknown>;
+  /** Optional CSS style override (e.g. for dashboard widgets that control their own size) */
+  styleOverride?: React.CSSProperties;
 }
 
 const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
-  function ChartRenderer({ option }, ref) {
+  function ChartRenderer({ option, styleOverride }, ref) {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === "dark";
     const [error, setError] = useState<string | null>(null);
@@ -519,7 +521,7 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
         ref={chartRef}
         echarts={echarts}
         option={themedOption}
-        style={{ width: "100%", height: chartHeight }}
+        style={styleOverride ?? { width: "100%", height: chartHeight }}
         notMerge
         lazyUpdate
       />

@@ -14,7 +14,11 @@ export default function ScorecardWidget({ config, data }: ScorecardWidgetProps) 
     const row = data[0] as Record<string, unknown>;
     const keys = Object.keys(row);
     for (const key of keys) {
-      const v = row[key];
+      let v = row[key];
+      // Unwrap BigQuery value objects
+      if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
+        v = (v as Record<string, unknown>).value;
+      }
       if (typeof v === "number") {
         value = v;
         break;

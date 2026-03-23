@@ -352,6 +352,89 @@ body {
   animation: chartBar 1.2s ease-in-out infinite;
 }
 
+/* Sidebar icon hover animations — animate individual SVG elements */
+
+/* ── Bell: body stays, clapper (first path) swings ── */
+.sidebar-icon-bell path:first-child {
+  transform-origin: 50% 0%;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-btn:hover .sidebar-icon-bell path:first-child {
+  animation: clapper-swing 0.6s ease-in-out;
+  transform-origin: 50% 0%;
+}
+
+@keyframes clapper-swing {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(2px); }
+  30% { transform: translateX(-2px); }
+  45% { transform: translateX(1.5px); }
+  60% { transform: translateX(-1px); }
+  75% { transform: translateX(0.5px); }
+  100% { transform: translateX(0); }
+}
+
+/* ── SquarePen: square stays, pen (last path) wiggles like writing ── */
+.sidebar-icon-write path:last-child {
+  transform-origin: 85% 15%;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-btn:hover .sidebar-icon-write path:last-child {
+  animation: pen-scribble 0.5s ease-in-out;
+  transform-origin: 85% 15%;
+}
+
+@keyframes pen-scribble {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(6deg); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* ── LayoutDashboard: each rect moves independently ── */
+/* 4 rects: top-left, top-right, bottom-right, bottom-left */
+.sidebar-icon-dashboard rect {
+  transition: transform 0.3s ease;
+}
+
+.sidebar-btn:hover .sidebar-icon-dashboard rect:nth-child(1) {
+  animation: rect-drift-tl 0.5s ease-in-out;
+}
+.sidebar-btn:hover .sidebar-icon-dashboard rect:nth-child(2) {
+  animation: rect-drift-tr 0.5s ease-in-out 0.05s;
+}
+.sidebar-btn:hover .sidebar-icon-dashboard rect:nth-child(3) {
+  animation: rect-drift-br 0.5s ease-in-out 0.1s;
+}
+.sidebar-btn:hover .sidebar-icon-dashboard rect:nth-child(4) {
+  animation: rect-drift-bl 0.5s ease-in-out 0.15s;
+}
+
+@keyframes rect-drift-tl {
+  0% { transform: translate(0, 0); }
+  40% { transform: translate(-2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes rect-drift-tr {
+  0% { transform: translate(0, 0); }
+  40% { transform: translate(2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes rect-drift-br {
+  0% { transform: translate(0, 0); }
+  40% { transform: translate(2px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes rect-drift-bl {
+  0% { transform: translate(0, 0); }
+  40% { transform: translate(-2px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
 /* Dashboard grid overrides */
 .dashboard-grid .react-grid-item {
   transition: none;
@@ -379,6 +462,7 @@ body {
 .dashboard-grid .react-resizable-handle::after {
   border-color: var(--text-muted) !important;
 }
+
 
 @keyframes ellipsis {
   0% { content: ""; }

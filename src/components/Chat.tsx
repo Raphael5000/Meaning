@@ -463,28 +463,28 @@ export default function Chat() {
         <div className="px-3 py-2 pt-4 space-y-0.5">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2"
+            className="sidebar-btn w-full justify-start gap-2"
             onClick={handleNewChat}
           >
-            <SquarePen className="h-4 w-4" />
+            <SquarePen className="sidebar-icon-write h-4 w-4" />
             New chat
           </Button>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2"
+            className="sidebar-btn w-full justify-start gap-2"
             onClick={() => { closeAllPanels(); setAlertsOpen(true); }}
             aria-label="Email alerts"
           >
-            <Bell className="h-4 w-4" />
+            <Bell className="sidebar-icon-bell h-4 w-4" />
             Alerts
           </Button>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2"
+            className="sidebar-btn w-full justify-start gap-2"
             onClick={() => { closeAllPanels(); setDashboardListOpen(true); }}
             aria-label="Dashboards"
           >
-            <LayoutDashboard className="h-4 w-4" />
+            <LayoutDashboard className="sidebar-icon-dashboard h-4 w-4" />
             Dashboards
           </Button>
         </div>
