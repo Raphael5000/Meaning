@@ -7,7 +7,7 @@ import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
-import { shouldUseBigQuery, getGoogleAdsCustomerId } from "@/lib/rollout";
+import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -149,7 +149,7 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(includeAds = false): string {
+function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
@@ -157,6 +157,23 @@ function getBigQuerySystemPrompt(includeAds = false): string {
   - keyword_performance: Daily keyword/ad-group metrics — stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions
   - click_attribution: Per-click data with gclid — click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text
   - account_info: Account metadata (single row) — customer_id, currency_code, descriptive_name, last_synced_at` : "";
+
+  const linkedInTablesPrompt = includeLinkedIn ? `
+  - post_performance: Daily LinkedIn post metrics — post_date, post_urn, post_text, impressions, clicks, comments, likes, shares, engagements
+  - follower_stats: Daily follower gains — stats_date, total_followers, organic_gains, paid_gains
+  - follower_demographics: Follower breakdowns — stats_date, dimension (country/industry/seniority/function/company_size), dimension_value, follower_count
+  - page_stats: Daily page engagement — stats_date, page_views, unique_visitors, clicks
+  - org_info: Organization metadata (single row) — organization_id, organization_name, vanity_name, last_synced_at` : "";
+
+  const linkedInQueryGuidance = includeLinkedIn ? `
+
+LINKEDIN QUERIES:
+- Use the run_linkedin_query tool for all LinkedIn data questions.
+- Date columns: post_date for post_performance, stats_date for follower_stats/follower_demographics/page_stats.
+- Follower demographics uses a dimension/dimension_value pattern. Filter by dimension to get breakdowns: WHERE dimension = 'country', 'industry', 'seniority', 'function', or 'company_size'.
+- org_info has a single row with the organization name and last sync timestamp.
+- Always use {dataset}.tableName format — the system routes LinkedIn tables to the correct dataset automatically.
+- Engagement rate = engagements / impressions.` : "";
 
   const adsQueryGuidance = includeAds ? `
 
@@ -192,9 +209,10 @@ You have access to these tools:
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${linkedInTablesPrompt}
+- run_linkedin_query: Query LinkedIn company page analytics (post performance, follower growth, demographics, page engagement). Use {dataset}.tableName for all table references.
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
-- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${linkedInQueryGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: You CAN build page-to-page transition data for sankey diagrams by querying the pageviews table. Each row has ga_session_id, event_timestamp, and page_location. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, append the step number to each node label so every position is unique. Use this query pattern:
   WITH ordered AS (SELECT ga_session_id, REGEXP_EXTRACT(page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY ga_session_id ORDER BY event_timestamp) AS step FROM \`{dataset}.pageviews\` WHERE event_date >= @startDate AND page_location IS NOT NULL), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page, 1 AS cnt FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, SUM(cnt) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30
@@ -431,9 +449,11 @@ export async function POST(request: NextRequest) {
   const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
   const usesBigQuery = rollout.useBigQuery;
   const adsCustomerId = usesBigQuery && userId ? await getGoogleAdsCustomerId(userId, propertyId) : null;
+  const linkedInOrgId = usesBigQuery && userId ? await getLinkedInOrgId(userId, propertyId) : null;
   const hasAds = !!adsCustomerId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} adsCustomer=${adsCustomerId} reason=${rollout.reason}`);
-  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds) : GA4_SYSTEM_PROMPT;
+  const hasLinkedIn = !!linkedInOrgId;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} adsCustomer=${adsCustomerId} linkedin=${hasLinkedIn} linkedInOrg=${linkedInOrgId} reason=${rollout.reason}`);
+  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   // Helper: describe a tool call for the progress stream
@@ -446,6 +466,8 @@ export async function POST(request: NextRequest) {
       }
       case "run_ads_query":
         return (input.description as string) || "Running Ads query";
+      case "run_linkedin_query":
+        return (input.description as string) || "Querying LinkedIn data";
       case "run_report":
         return `Querying GA4 report`;
       case "run_realtime_report":
@@ -520,14 +542,21 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId);
+                    break;
+                  }
+                  case "run_linkedin_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] LinkedIn query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId);
                     break;
                   }
                   case "get_realtime_data": {

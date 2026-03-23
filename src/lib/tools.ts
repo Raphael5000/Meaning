@@ -119,7 +119,8 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           enum: [
             "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
-            "campaign_performance", "keyword_performance", "click_attribution", "account_info"
+            "campaign_performance", "keyword_performance", "click_attribution", "account_info",
+            "post_performance", "follower_stats", "follower_demographics", "page_stats", "org_info"
           ],
           description:
             "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'campaign_performance' (daily campaign metrics with cost, clicks, impressions, conversions), 'keyword_performance' (daily keyword/ad-group metrics), 'click_attribution' (per-click data with gclid for attribution), 'account_info' (account currency and name).",
@@ -197,6 +198,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description:
             "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT cl.campaign_name, e.page_location FROM `{dataset}.click_attribution` cl JOIN `{dataset}.stg_events` e ON cl.gclid = e.gclid",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
+    name: "run_linkedin_query",
+    description:
+      "Run a custom SQL query against LinkedIn company page analytics data. Use this to answer questions about LinkedIn post performance, follower growth, follower demographics, and page engagement. Use {dataset}.tableName for table references. LinkedIn tables: post_performance (daily post metrics: impressions, clicks, comments, likes, shares, engagements), follower_stats (daily follower gains: organic_gains, paid_gains), follower_demographics (follower breakdowns by country, industry, seniority, function, company_size), page_stats (daily page views, unique visitors, clicks), org_info (organization name and last sync time).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT stats_date, organic_gains, paid_gains FROM `{dataset}.follower_stats` ORDER BY stats_date DESC LIMIT 30",
         },
         description: {
           type: "string",

@@ -13,10 +13,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const googleAccount = await prisma.account.findFirst({
-      where: { userId, provider: "google" },
-      select: { id: true, providerAccountId: true, refresh_token: true, scope: true },
-    });
+    const [googleAccount, linkedinAccount] = await Promise.all([
+      prisma.account.findFirst({
+        where: { userId, provider: "google" },
+        select: { id: true, providerAccountId: true, refresh_token: true, scope: true },
+      }),
+      prisma.account.findFirst({
+        where: { userId, provider: "linkedin" },
+        select: { id: true, providerAccountId: true, scope: true },
+      }),
+    ]);
 
     // Try to get the Google email from the user record
     let googleEmail: string | null = null;
@@ -53,7 +59,7 @@ export async function GET(req: NextRequest) {
       ? dataSources.filter(
           (ds) =>
             ds.propertyId === propertyId ||
-            (ds.type === "GOOGLE_ADS" && ds.ga4PropertyId === propertyId)
+            ds.ga4PropertyId === propertyId
         )
       : dataSources;
 
@@ -61,6 +67,7 @@ export async function GET(req: NextRequest) {
       hasGoogleAccount: !!googleAccount,
       googleEmail,
       hasAdsScope,
+      hasLinkedInAccount: !!linkedinAccount,
       dataSources: propertyDataSources,
     });
   } catch (err) {

@@ -127,6 +127,51 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  events: {
+    // Preserve elevated scopes on re-login. The PrismaAdapter overwrites the
+    // Account record with the narrow login scope ("openid email profile"),
+    // wiping the broader scope granted by /api/auth/connect-google-ads.
+    // This event fires after the adapter write, so we restore the stored scope.
+    async signIn({ account: signInAccount }) {
+      if (signInAccount?.provider === "google" && signInAccount.scope) {
+        // The adapter already wrote the narrow scope. Check if it was broader before.
+        // We can't read the "before" state, so we always re-merge adwords if the
+        // new scope doesn't include it. The connect-google-ads flow stores the
+        // broad scope, so if adwords was there, the refresh_token proves it.
+        try {
+          const existing = await prisma.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: "google",
+                providerAccountId: signInAccount.providerAccountId,
+              },
+            },
+            select: { id: true, scope: true, refresh_token: true },
+          });
+          // If there's a refresh_token (from connect-google-ads) but the scope
+          // was just overwritten without adwords, restore the full scope
+          if (
+            existing &&
+            existing.refresh_token &&
+            existing.scope &&
+            !existing.scope.includes("adwords")
+          ) {
+            // The scope was narrowed by the adapter. We can't recover the exact
+            // broad scope, but we know it should include adwords + analytics scopes.
+            const broadScope =
+              "openid email profile https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/analytics.edit https://www.googleapis.com/auth/adwords";
+            await prisma.account.update({
+              where: { id: existing.id },
+              data: { scope: broadScope },
+            });
+            console.log("[auth] Restored elevated Google scope after re-login");
+          }
+        } catch (err) {
+          console.error("[auth] scope restoration failed:", err);
+        }
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, account, user }) {
       // On initial sign-in, persist user id

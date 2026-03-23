@@ -56,6 +56,26 @@ export async function getGoogleAdsCustomerId(
   return ds?.adsCustomerId ?? null;
 }
 
+/**
+ * Check if a user has an active LinkedIn DataSource.
+ * Returns the orgId (propertyId on the DataSource) if found, null otherwise.
+ */
+export async function getLinkedInOrgId(
+  userId: string,
+  ga4PropertyId?: string
+): Promise<string | null> {
+  const ds = await prisma.dataSource.findFirst({
+    where: {
+      userId,
+      type: "LINKEDIN",
+      status: { in: ["ACTIVE", "BACKFILLING"] },
+      ...(ga4PropertyId ? { ga4PropertyId } : {}),
+    },
+    select: { propertyId: true },
+  });
+  return ds?.propertyId ?? null;
+}
+
 export async function shouldUseBigQuery(
   propertyId: string,
   userId: string

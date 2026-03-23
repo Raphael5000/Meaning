@@ -51,7 +51,15 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily ~06:00 UTC + on startup)");
+  // LinkedIn sync: run on startup, then daily at ~06:30 UTC (staggered from Ads)
+  setTimeout(() => callLocal("/api/linkedin/sync"), 60 * 1000); // 60s after boot
+  setInterval(() => {
+    if (new Date().getUTCHours() === 6) {
+      callLocal("/api/linkedin/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily + startup), linkedin sync (daily + startup)");
 }
 
 // ---------------------------------------------------------------------------

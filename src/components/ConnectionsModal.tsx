@@ -19,10 +19,17 @@ interface DataSourceInfo {
   status: string;
 }
 
+interface LinkedInOrg {
+  id: string;
+  name: string;
+  vanityName: string | null;
+}
+
 interface ConnectionStatus {
   hasGoogleAccount: boolean;
   googleEmail: string | null;
   hasAdsScope: boolean;
+  hasLinkedInAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -142,6 +149,13 @@ export default function ConnectionsModal({
   const [adsErrors, setAdsErrors] = useState<Record<string, string>>({});
   const [manualCid, setManualCid] = useState("");
 
+  // LinkedIn state
+  const [linkedInOrgs, setLinkedInOrgs] = useState<LinkedInOrg[]>([]);
+  const [loadingLinkedInOrgs, setLoadingLinkedInOrgs] = useState(false);
+  const [enablingLinkedIn, setEnablingLinkedIn] = useState<Record<string, boolean>>({});
+  const [linkedInErrors, setLinkedInErrors] = useState<Record<string, string>>({});
+  const [linkedInLoadError, setLinkedInLoadError] = useState<string | null>(null);
+
   const fetchStatus = useCallback((isPolling = false) => {
     if (!isPolling) {
       setLoading(true);
@@ -165,7 +179,7 @@ export default function ConnectionsModal({
         setMessage({ type: "error", text: `Failed to load connections: ${err.message}` });
         // Still set a default status so UI renders (with error banner above)
         if (!status) {
-          setStatus({ hasGoogleAccount: false, googleEmail: null, hasAdsScope: false, dataSources: [] });
+          setStatus({ hasGoogleAccount: false, googleEmail: null, hasAdsScope: false, hasLinkedInAccount: false, dataSources: [] });
         }
       })
       .finally(() => setLoading(false));
@@ -219,6 +233,81 @@ export default function ConnectionsModal({
     const interval = setInterval(() => fetchStatus(true), 15000);
     return () => clearInterval(interval);
   }, [status, fetchStatus]);
+
+  // Load LinkedIn organizations when account is connected
+  const loadLinkedInOrgs = useCallback(async () => {
+    setLoadingLinkedInOrgs(true);
+    setLinkedInLoadError(null);
+    try {
+      const res = await fetch("/api/linkedin/accessible-organizations");
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.needsReconnect) {
+          setStatus((prev) => prev ? { ...prev, hasLinkedInAccount: false } : prev);
+        } else {
+          setLinkedInLoadError(data.detail || data.error || "Failed to load organizations");
+        }
+        return;
+      }
+      setLinkedInOrgs(data.organizations || []);
+    } catch (err) {
+      console.error("[ConnectionsModal] linkedin orgs error:", err);
+      setLinkedInLoadError("Failed to load organizations");
+    } finally {
+      setLoadingLinkedInOrgs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open || !status?.hasLinkedInAccount) return;
+    loadLinkedInOrgs();
+  }, [open, status?.hasLinkedInAccount, loadLinkedInOrgs]);
+
+  // Poll while any LinkedIn DataSource is PENDING or BACKFILLING
+  useEffect(() => {
+    if (!status) return;
+    const waiting = status.dataSources.filter(
+      (ds) => ds.type === "LINKEDIN" && (ds.status === "BACKFILLING" || ds.status === "PENDING")
+    );
+    if (waiting.length === 0) return;
+    const interval = setInterval(() => fetchStatus(true), 15000);
+    return () => clearInterval(interval);
+  }, [status, fetchStatus]);
+
+  function handleConnectLinkedIn() {
+    window.location.href = "/api/auth/connect-linkedin";
+  }
+
+  async function handleEnableLinkedIn(orgId: string) {
+    setEnablingLinkedIn((prev) => ({ ...prev, [orgId]: true }));
+    setLinkedInErrors((prev) => ({ ...prev, [orgId]: "" }));
+    try {
+      const res = await fetch("/api/linkedin/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, ga4PropertyId: propertyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLinkedInErrors((prev) => ({ ...prev, [orgId]: data.message || data.error || "Failed." }));
+        return;
+      }
+      if (data.dataSource?.status === "ACTIVE") {
+        setMessage({ type: "success", text: "LinkedIn connected! Data is ready." });
+      } else {
+        setMessage({ type: "success", text: "LinkedIn page linked. Syncing data now..." });
+      }
+      fetchStatus();
+    } catch (err) {
+      console.error("[ConnectionsModal] enable-linkedin error:", err);
+      setLinkedInErrors((prev) => ({
+        ...prev,
+        [orgId]: err instanceof Error ? err.message : "Something went wrong.",
+      }));
+    } finally {
+      setEnablingLinkedIn((prev) => ({ ...prev, [orgId]: false }));
+    }
+  }
 
   async function handleDisconnectGoogle() {
     if (!confirm("Disconnect Google Analytics? You will need to reconnect to use analytics features.")) return;
@@ -285,6 +374,8 @@ export default function ConnectionsModal({
   );
   const adsDataSources = status?.dataSources.filter((ds) => ds.type === "GOOGLE_ADS") ?? [];
   const connectedAdsCids = new Set(adsDataSources.map((ds) => ds.adsCustomerId).filter(Boolean));
+  const linkedInDataSources = status?.dataSources.filter((ds) => ds.type === "LINKEDIN") ?? [];
+  const connectedLinkedInOrgIds = new Set(linkedInDataSources.map((ds) => ds.propertyId));
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -541,19 +632,113 @@ export default function ConnectionsModal({
               </div>
             </ConnectionCard>
 
-            {/* ─── LinkedIn — coming soon ─── */}
-            <ConnectionCard dimmed>
+            {/* ─── LinkedIn ─── */}
+            <ConnectionCard>
               <div className="flex items-start gap-3">
                 <img src="/Linkedin.svg" alt="LinkedIn" className="h-10 w-10 shrink-0" style={logoStyle} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>LinkedIn</h3>
-                    <ComingSoonBadge />
+                    {linkedInDataSources.some((ds) => ds.status === "ACTIVE") ? (
+                      <ConnectedBadge />
+                    ) : linkedInDataSources.some((ds) => ds.status === "BACKFILLING") ? (
+                      <StatusBadge status="BACKFILLING" />
+                    ) : status?.hasLinkedInAccount ? (
+                      <NotConnectedBadge />
+                    ) : null}
                   </div>
                   <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                    Track LinkedIn page analytics and ad performance.
+                    Track company page analytics — posts, followers, and engagement.
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-3">
+                {!status?.hasLinkedInAccount ? (
+                  <button
+                    onClick={handleConnectLinkedIn}
+                    className="btn-primary-gradient px-4 py-1.5 text-xs"
+                  >
+                    Connect LinkedIn
+                  </button>
+                ) : loadingLinkedInOrgs ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--accent)" }} />
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Loading organizations...</span>
+                  </div>
+                ) : linkedInLoadError || linkedInOrgs.length === 0 ? (
+                  <div>
+                    {linkedInLoadError && (
+                      <p className="text-xs mb-2" style={{ color: "var(--error)" }}>
+                        {linkedInLoadError}
+                      </p>
+                    )}
+                    <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                      No organizations found. Make sure you are an admin on the LinkedIn company page.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={loadLinkedInOrgs}
+                        className="text-xs font-medium"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={handleConnectLinkedIn}
+                        className="text-xs font-medium"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Reconnect
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {linkedInOrgs.map((org) => {
+                      const ds = linkedInDataSources.find((d) => d.propertyId === org.id);
+                      const isConnected = connectedLinkedInOrgIds.has(org.id);
+
+                      return (
+                        <div
+                          key={org.id}
+                          className="flex items-center justify-between rounded-lg px-3 py-2"
+                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)" }}
+                        >
+                          <div>
+                            <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                              {org.name}
+                            </p>
+                            {org.vanityName && (
+                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                linkedin.com/company/{org.vanityName}
+                              </p>
+                            )}
+                            {ds && <StatusBadge status={ds.status} />}
+                          </div>
+                          {!isConnected && (
+                            <button
+                              onClick={() => handleEnableLinkedIn(org.id)}
+                              disabled={enablingLinkedIn[org.id]}
+                              className="text-xs font-medium transition-opacity"
+                              style={{
+                                color: "var(--accent)",
+                                opacity: enablingLinkedIn[org.id] ? 0.5 : 1,
+                              }}
+                            >
+                              {enablingLinkedIn[org.id] ? "Enabling..." : "Enable"}
+                            </button>
+                          )}
+                          {linkedInErrors[org.id] && (
+                            <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>
+                              {linkedInErrors[org.id]}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </ConnectionCard>
           </div>
