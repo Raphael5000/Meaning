@@ -221,8 +221,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.orgOwnerId = org.ownerId;
             }
           } else {
-            // Fallback: find org user owns
-            const owned = await prisma.organization.findUnique({
+            // Fallback: find first org user owns
+            const owned = await prisma.organization.findFirst({
               where: { ownerId: token.userId as string },
               select: { id: true, ownerId: true },
             });

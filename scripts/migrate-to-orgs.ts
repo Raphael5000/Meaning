@@ -44,7 +44,7 @@ async function main() {
 
   for (const team of teams) {
     // Check if org already exists for this owner (idempotent)
-    const existing = await prisma.organization.findUnique({
+    const existing = await prisma.organization.findFirst({
       where: { ownerId: team.ownerId },
     });
 
@@ -128,7 +128,7 @@ async function main() {
   let soloCount = 0;
   for (const user of allUsers) {
     // Skip if user already has an org (as owner)
-    const existingOrg = await prisma.organization.findUnique({
+    const existingOrg = await prisma.organization.findFirst({
       where: { ownerId: user.id },
     });
     if (existingOrg) continue;
@@ -177,7 +177,7 @@ async function main() {
     }
 
     if (!orgId) {
-      const userOrg = await prisma.organization.findUnique({
+      const userOrg = await prisma.organization.findFirst({
         where: { ownerId: ds.userId },
         select: { id: true },
       });
@@ -213,7 +213,7 @@ async function main() {
 
   let chatUpdated = 0;
   for (const chat of chats) {
-    const userOrg = await prisma.organization.findUnique({
+    const userOrg = await prisma.organization.findFirst({
       where: { ownerId: chat.userId },
       select: { id: true },
     });
@@ -245,7 +245,7 @@ async function main() {
 
   let alertUpdated = 0;
   for (const alert of alerts) {
-    const userOrg = await prisma.organization.findUnique({
+    const userOrg = await prisma.organization.findFirst({
       where: { ownerId: alert.userId },
       select: { id: true },
     });
@@ -277,7 +277,7 @@ async function main() {
 
   let userUpdated = 0;
   for (const user of usersWithoutActiveOrg) {
-    const ownedOrg = await prisma.organization.findUnique({
+    const ownedOrg = await prisma.organization.findFirst({
       where: { ownerId: user.id },
       select: { id: true },
     });

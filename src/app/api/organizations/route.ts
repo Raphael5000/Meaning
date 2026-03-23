@@ -25,17 +25,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Check if user already owns an org
-  const existing = await prisma.organization.findUnique({
-    where: { ownerId: userId },
-  });
-  if (existing) {
-    return NextResponse.json(
-      { error: "You already own an account" },
-      { status: 400 }
-    );
-  }
-
   const { name, imageUrl } = (await request.json()) as {
     name?: string;
     imageUrl?: string;

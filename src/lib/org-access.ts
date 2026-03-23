@@ -16,7 +16,7 @@ export async function getActiveOrg(userId: string) {
   }
 
   // Fallback: first org user owns or is a member of
-  const owned = await prisma.organization.findUnique({
+  const owned = await prisma.organization.findFirst({
     where: { ownerId: userId },
     select: { id: true, name: true, imageUrl: true, ownerId: true },
   });
@@ -33,8 +33,8 @@ export async function getActiveOrg(userId: string) {
 
 /** Get all organizations a user belongs to (owned + member) */
 export async function getUserOrgs(userId: string) {
-  const [owned, memberships] = await Promise.all([
-    prisma.organization.findUnique({
+  const [ownedOrgs, memberships] = await Promise.all([
+    prisma.organization.findMany({
       where: { ownerId: userId },
       select: { id: true, name: true, imageUrl: true, ownerId: true },
     }),
@@ -55,7 +55,7 @@ export async function getUserOrgs(userId: string) {
     role: string;
   }> = [];
 
-  if (owned) {
+  for (const owned of ownedOrgs) {
     orgs.push({ ...owned, role: "admin" });
   }
 
