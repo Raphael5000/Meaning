@@ -81,10 +81,15 @@ export default function Chat() {
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
 
-  // Auto-open Connections modal after Google Ads OAuth redirect
+  // Connected data sources for the current property
+  const [connectedSources, setConnectedSources] = useState<
+    Array<{ type: string; status: string; label: string }>
+  >([]);
+
+  // Auto-open Connections modal after OAuth redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("ads_connected") === "true") {
+    if (params.get("ads_connected") === "true" || params.get("linkedin_connected") === "true") {
       setConnectionsOpen(true);
       window.history.replaceState({}, "", "/");
     }
@@ -105,6 +110,28 @@ export default function Chat() {
     });
     return () => { cancelled = true; };
   }, [(session as { userId?: string } | null)?.userId]);
+
+  // Fetch connected data sources when property changes
+  useEffect(() => {
+    if (!propertyId) { setConnectedSources([]); return; }
+    const url = `/api/user/connections?propertyId=${propertyId}`;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        const TYPE_LABELS: Record<string, string> = {
+          GA4_BIGQUERY: "Google Analytics",
+          GOOGLE_ADS: "Google Ads",
+          LINKEDIN: "LinkedIn",
+        };
+        const sources = (data.dataSources ?? []).map((ds: { type: string; status: string }) => ({
+          type: ds.type,
+          status: ds.status,
+          label: TYPE_LABELS[ds.type] ?? ds.type,
+        }));
+        setConnectedSources(sources);
+      })
+      .catch(() => setConnectedSources([]));
+  }, [propertyId]);
 
   useEffect(() => {
     // Keep the top of the latest answer in view instead of scrolling to the bottom
@@ -708,7 +735,7 @@ export default function Chat() {
           </div>
         )}
 
-        <ChatInput onSend={sendMessage} disabled={loading || !propertyId} />
+        <ChatInput onSend={sendMessage} disabled={loading || !propertyId} dataSources={connectedSources} />
       </div>
 
       <AlertsModal open={alertsOpen} onClose={() => setAlertsOpen(false)} />

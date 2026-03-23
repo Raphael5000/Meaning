@@ -88,7 +88,42 @@ export async function GET() {
       rn.replace("customers/", "")
     );
 
-    return NextResponse.json({ customerIds });
+    // Fetch account names for each customer ID
+    const customers: Array<{ id: string; name: string }> = [];
+    await Promise.all(
+      customerIds.map(async (cid: string) => {
+        try {
+          const queryHeaders: Record<string, string> = {
+            Authorization: `Bearer ${accessToken}`,
+            "developer-token": developerToken,
+            "Content-Type": "application/json",
+          };
+          if (loginCustomerId) {
+            queryHeaders["login-customer-id"] = loginCustomerId.replace(/-/g, "");
+          }
+          const queryRes = await fetch(
+            `https://googleads.googleapis.com/v20/customers/${cid}/googleAds:searchStream`,
+            {
+              method: "POST",
+              headers: queryHeaders,
+              body: JSON.stringify({ query: "SELECT customer.descriptive_name, customer.id FROM customer LIMIT 1" }),
+            }
+          );
+          if (queryRes.ok) {
+            const batches = (await queryRes.json()) as Array<{ results?: Array<{ customer?: { descriptiveName?: string } }> }>;
+            const name = batches?.[0]?.results?.[0]?.customer?.descriptiveName;
+            customers.push({ id: cid, name: name || `Account ${cid}` });
+          } else {
+            customers.push({ id: cid, name: `Account ${cid}` });
+          }
+        } catch {
+          customers.push({ id: cid, name: `Account ${cid}` });
+        }
+      })
+    );
+
+    // Return both formats for backwards compatibility
+    return NextResponse.json({ customerIds, customers });
   } catch (err) {
     console.error("[accessible-customers] Error:", err);
     return NextResponse.json(

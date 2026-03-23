@@ -143,7 +143,7 @@ export default function ConnectionsModal({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Google Ads state
-  const [adsCustomerIds, setAdsCustomerIds] = useState<string[]>([]);
+  const [adsCustomers, setAdsCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingAdsAccounts, setLoadingAdsAccounts] = useState(false);
   const [enablingAds, setEnablingAds] = useState<Record<string, boolean>>({});
   const [adsErrors, setAdsErrors] = useState<Record<string, string>>({});
@@ -209,7 +209,7 @@ export default function ConnectionsModal({
         }
         return;
       }
-      setAdsCustomerIds(data.customerIds || []);
+      setAdsCustomers(data.customers || (data.customerIds || []).map((id: string) => ({ id, name: `Account ${id}` })));
     } catch (err) {
       console.error("[ConnectionsModal] ads accounts error:", err);
       setAdsLoadError("Failed to load Ads accounts");
@@ -506,7 +506,7 @@ export default function ConnectionsModal({
                     <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--accent)" }} />
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>Loading accounts...</span>
                   </div>
-                ) : adsLoadError || adsCustomerIds.length === 0 ? (
+                ) : adsLoadError || adsCustomers.length === 0 ? (
                   <div>
                     {adsLoadError && (
                       <p className="text-xs mb-2" style={{ color: "var(--error)" }}>
@@ -534,8 +534,8 @@ export default function ConnectionsModal({
                         onClick={() => {
                           const cleaned = manualCid.replace(/-/g, "").trim();
                           if (cleaned.length >= 7) {
-                            setAdsCustomerIds((prev) =>
-                              prev.includes(cleaned) ? prev : [...prev, cleaned]
+                            setAdsCustomers((prev) =>
+                              prev.some((c) => c.id === cleaned) ? prev : [...prev, { id: cleaned, name: `Account ${cleaned}` }]
                             );
                             setAdsLoadError(null);
                             setManualCid("");
@@ -574,7 +574,8 @@ export default function ConnectionsModal({
                 ) : (
                   /* Step 2: List Ads accounts with enable/status */
                   <div className="flex flex-col gap-2">
-                    {adsCustomerIds.map((cid) => {
+                    {adsCustomers.map((customer) => {
+                      const cid = customer.id;
                       const ds = adsDataSources.find((d) => d.adsCustomerId === cid);
                       const isConnected = connectedAdsCids.has(cid);
 
@@ -586,7 +587,10 @@ export default function ConnectionsModal({
                         >
                           <div>
                             <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-                              Account {cid.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")}
+                              {customer.name}
+                            </p>
+                            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                              {cid.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")}
                             </p>
                             {ds && <StatusBadge status={ds.status} />}
                           </div>
