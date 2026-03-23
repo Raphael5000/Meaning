@@ -27,6 +27,7 @@ import ChartLoadingIndicator from "./ChartLoadingIndicator";
 import AlertsModal from "./AlertsModal";
 import BugReportModal from "./BugReportModal";
 import ConnectionsPanel from "./ConnectionsPanel";
+import AccountPanel from "./AccountPanel";
 import TeamModal from "./TeamModal";
 import {
   fetchChats,
@@ -82,6 +83,7 @@ export default function Chat() {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   // Connected data sources for the current property
   const [connectedSources, setConnectedSources] = useState<
@@ -533,14 +535,17 @@ export default function Chat() {
 
             {accountMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
-                <Link
-                  href="/account"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    setAccountOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
                   <User className="h-4 w-4" />
                   Account
-                </Link>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -616,13 +621,15 @@ export default function Chat() {
           </div>
         </header>
 
-        {/* Connections panel (replaces messages area) */}
+        {/* Panels (replace messages area) */}
         {connectionsOpen ? (
           <ConnectionsPanel
             onClose={() => { setConnectionsOpen(false); setConnectionsVersion((v) => v + 1); }}
             orgId={activeOrgId}
             orgName={activeOrgName}
           />
+        ) : accountOpen ? (
+          <AccountPanel onClose={() => setAccountOpen(false)} />
         ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
