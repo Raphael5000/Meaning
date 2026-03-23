@@ -9,6 +9,8 @@ declare module "next-auth" {
     teamId?: string;
     teamRole?: string;
     teamAdminId?: string;
+    activeOrgId?: string;
+    orgOwnerId?: string;
   }
 }
 
@@ -23,5 +25,7 @@ declare module "next-auth/jwt" {
     teamId?: string;
     teamRole?: string;
     teamAdminId?: string;
+    activeOrgId?: string;
+    orgOwnerId?: string;
   }
 }

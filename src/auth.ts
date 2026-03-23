@@ -204,11 +204,54 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
+      // Detect org membership for this user (alongside team, for backward compat)
+      if (token.userId && !token.activeOrgId) {
+        try {
+          const orgUser = await prisma.user.findUnique({
+            where: { id: token.userId as string },
+            select: { activeOrgId: true },
+          });
+          if (orgUser?.activeOrgId) {
+            const org = await prisma.organization.findUnique({
+              where: { id: orgUser.activeOrgId },
+              select: { id: true, ownerId: true },
+            });
+            if (org) {
+              token.activeOrgId = org.id;
+              token.orgOwnerId = org.ownerId;
+            }
+          } else {
+            // Fallback: find org user owns
+            const owned = await prisma.organization.findUnique({
+              where: { ownerId: token.userId as string },
+              select: { id: true, ownerId: true },
+            });
+            if (owned) {
+              token.activeOrgId = owned.id;
+              token.orgOwnerId = owned.ownerId;
+            } else {
+              // Fallback: find org user is a member of
+              const membership = await prisma.orgMembership.findFirst({
+                where: { userId: token.userId as string },
+                select: { org: { select: { id: true, ownerId: true } } },
+              });
+              if (membership) {
+                token.activeOrgId = membership.org.id;
+                token.orgOwnerId = membership.org.ownerId;
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[auth] Org membership lookup failed:", err);
+        }
+      }
+
       // Load Google Analytics tokens from the Account table.
       // For team members, load the admin's Google tokens instead.
+      // For org members, load the org owner's Google tokens.
       // Only load when a refresh_token is present — that indicates the
       // user completed the analytics connection flow (not just login).
-      const tokenOwnerId = token.teamAdminId || (token.userId as string);
+      const tokenOwnerId = token.orgOwnerId || token.teamAdminId || (token.userId as string);
       if (!token.accessToken && tokenOwnerId) {
         try {
           const googleAccount = await prisma.account.findFirst({
@@ -293,6 +336,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       (session as any).teamId = token.teamId;
       (session as any).teamRole = token.teamRole;
       (session as any).teamAdminId = token.teamAdminId;
+      (session as any).activeOrgId = token.activeOrgId;
+      (session as any).orgOwnerId = token.orgOwnerId;
       return session;
     },
   },

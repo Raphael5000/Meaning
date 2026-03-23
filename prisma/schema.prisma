@@ -27,16 +27,20 @@ model User {
   paystackCustomerCode        String?
   paystackAuthorizationCode   String?
 
+  activeOrgId  String?
+
   // Relations
-  accounts     Account[]
-  sessions     Session[]
-  subscription Subscription?
-  payments     Payment[]
-  chats        Chat[]
-  emailAlerts  EmailAlert[]
-  teamOwned    Team?            @relation("TeamOwner")
-  memberships  TeamMembership[]
-  dataSources  DataSource[]
+  accounts       Account[]
+  sessions       Session[]
+  subscription   Subscription?
+  payments       Payment[]
+  chats          Chat[]
+  emailAlerts    EmailAlert[]
+  teamOwned      Team?            @relation("TeamOwner")
+  memberships    TeamMembership[]
+  dataSources    DataSource[]
+  orgOwned       Organization?    @relation("OrgOwner")
+  orgMemberships OrgMembership[]
 }
 
 model Account {
@@ -114,11 +118,15 @@ model Chat {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  orgId        String?
+
   messages ChatMessage[]
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization? @relation(fields: [orgId], references: [id])
 
   @@index([userId])
+  @@index([orgId])
 }
 
 model ChatMessage {
@@ -161,12 +169,16 @@ model EmailAlert {
   sendMinute    Int      @default(0)          // 0 or 30
   intervalWeeks Int      @default(1)          // 1 = every week, 2 = biweekly, 4 = monthly
 
+  orgId         String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization? @relation(fields: [orgId], references: [id])
 
   @@index([userId])
+  @@index([orgId])
   @@index([enabled, sendHour])
 }
 
@@ -264,6 +276,7 @@ model DataSource {
   id         String   @id @default(cuid())
   userId     String
   teamId     String?
+  orgId      String?
   type       String   @default("GA4_BIGQUERY") // GA4_BIGQUERY | GOOGLE_ADS | STRIPE | SEARCH_CONSOLE | HUBSPOT
   propertyId String                            // GA4 property ID (or Ads customer ID for GOOGLE_ADS)
   bigqueryDataset String?                      // e.g. "analytics_123456789" or "ads_1234567890"
@@ -275,10 +288,62 @@ model DataSource {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  org  Organization? @relation(fields: [orgId], references: [id])
 
   @@unique([userId, propertyId, type])
   @@index([userId])
   @@index([propertyId])
+  @@index([orgId])
+}
+
+// ──────────────────────────────────────────────
+// Organizations (account-centric model)
+// ──────────────────────────────────────────────
+
+model Organization {
+  id       String  @id @default(cuid())
+  name     String
+  imageUrl String?
+  ownerId  String  @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User            @relation("OrgOwner", fields: [ownerId], references: [id])
+  memberships OrgMembership[]
+  invites     OrgInvite[]
+  dataSources DataSource[]
+  chats       Chat[]
+  emailAlerts EmailAlert[]
+}
+
+model OrgMembership {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+  role   String @default("member") // "admin" | "member"
+
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+model OrgInvite {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  token      String    @unique @default(cuid())
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
 }

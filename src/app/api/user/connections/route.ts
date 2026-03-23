@@ -42,9 +42,10 @@ export async function GET(req: NextRequest) {
     const hasAdsScope = googleAccount?.scope?.includes("adwords") ?? false;
     console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope);
 
-    // Get all DataSources for this user
+    // Get all DataSources — prefer orgId filter, fall back to userId
+    const orgId = req.nextUrl.searchParams.get("orgId");
     const dataSources = await prisma.dataSource.findMany({
-      where: { userId },
+      where: orgId ? { orgId } : { userId },
       select: {
         id: true,
         type: true,
