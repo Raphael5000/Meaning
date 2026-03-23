@@ -46,6 +46,15 @@ export default function AccountSelector({
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Refetch orgs when dropdown opens (picks up renames)
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/organizations")
+      .then((r) => r.json())
+      .then((data) => { if (data.organizations) setOrgs(data.organizations); })
+      .catch(() => {});
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
