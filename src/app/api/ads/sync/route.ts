@@ -56,6 +56,11 @@ export async function POST(request: NextRequest) {
     try {
       const result = await syncAdsData(ds.userId, ds.adsCustomerId, start, end);
       console.log(`[ads-sync-cron] Synced ${ds.adsCustomerId}:`, result);
+      // Touch updatedAt so we can monitor last successful sync
+      await prisma.dataSource.update({
+        where: { id: ds.id },
+        data: { updatedAt: new Date() },
+      });
       synced++;
     } catch (err) {
       console.error(`[ads-sync-cron] Failed ${ds.adsCustomerId}:`, err);

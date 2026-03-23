@@ -43,15 +43,15 @@ function startCronJobs() {
   // Alerts: check every hour
   setInterval(() => callLocal("/api/alerts/send"), 60 * 60 * 1000);
 
-  // Ads sync: once daily at ~06:00 UTC
-  // Run check every hour; only fire when the hour matches
+  // Ads sync: run on startup (catch up after restarts), then daily at ~06:00 UTC
+  setTimeout(() => callLocal("/api/ads/sync"), 30 * 1000); // 30s after boot
   setInterval(() => {
     if (new Date().getUTCHours() === 6) {
       callLocal("/api/ads/sync");
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily ~06:00 UTC)");
+  console.log("[cron] Scheduled: alerts (hourly), ads sync (daily ~06:00 UTC + on startup)");
 }
 
 // ---------------------------------------------------------------------------
