@@ -8,7 +8,7 @@ import {
   Bell,
   Bug,
   ChevronLeft,
-
+  LayoutDashboard,
   Link2,
   LogOut,
   Menu,
@@ -28,6 +28,8 @@ import BugReportModal from "./BugReportModal";
 import ConnectionsPanel from "./ConnectionsPanel";
 import AccountPanel from "./AccountPanel";
 import TeamPanel from "./TeamPanel";
+import DashboardListPanel from "./DashboardListPanel";
+import DashboardPanel from "./DashboardPanel";
 import {
   fetchChats,
   createChat,
@@ -98,6 +100,8 @@ export default function Chat() {
     }
   }, []);
   const [teamOpen, setTeamOpen] = useState(false);
+  const [dashboardListOpen, setDashboardListOpen] = useState(false);
+  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState<string>("Free");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -185,6 +189,7 @@ export default function Chat() {
   }, [accountMenuOpen]);
 
   function selectChat(chat: StoredChat) {
+    closeAllPanels();
     setCurrentChatId(chat.id);
     setMessages(chat.messages);
     setError(null);
@@ -194,7 +199,17 @@ export default function Chat() {
     }
   }
 
+  function closeAllPanels() {
+    setAlertsOpen(false);
+    setConnectionsOpen(false);
+    setAccountOpen(false);
+    setTeamOpen(false);
+    setDashboardListOpen(false);
+    setActiveDashboardId(null);
+  }
+
   function handleNewChat() {
+    closeAllPanels();
     setCurrentChatId(null);
     setMessages([]);
     setError(null);
@@ -457,11 +472,20 @@ export default function Chat() {
           <Button
             variant="ghost"
             className="w-full justify-start gap-2"
-            onClick={() => setAlertsOpen(true)}
+            onClick={() => { closeAllPanels(); setAlertsOpen(true); }}
             aria-label="Email alerts"
           >
             <Bell className="h-4 w-4" />
             Alerts
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={() => { closeAllPanels(); setDashboardListOpen(true); }}
+            aria-label="Dashboards"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboards
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 pt-6">
@@ -543,6 +567,7 @@ export default function Chat() {
                   type="button"
                   onClick={() => {
                     setAccountMenuOpen(false);
+                    closeAllPanels();
                     setAccountOpen(true);
                   }}
                   className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
@@ -554,6 +579,7 @@ export default function Chat() {
                   type="button"
                   onClick={() => {
                     setAccountMenuOpen(false);
+                    closeAllPanels();
                     setConnectionsOpen(true);
                   }}
                   className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
@@ -566,6 +592,7 @@ export default function Chat() {
                     type="button"
                     onClick={() => {
                       setAccountMenuOpen(false);
+                      closeAllPanels();
                       setTeamOpen(true);
                     }}
                     className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
@@ -635,6 +662,18 @@ export default function Chat() {
           <AlertsPanel onClose={() => setAlertsOpen(false)} />
         ) : teamOpen ? (
           <TeamPanel onClose={() => setTeamOpen(false)} />
+        ) : activeDashboardId ? (
+          <DashboardPanel
+            dashboardId={activeDashboardId}
+            onClose={() => { setActiveDashboardId(null); setDashboardListOpen(true); }}
+          />
+        ) : dashboardListOpen ? (
+          <DashboardListPanel
+            onClose={() => setDashboardListOpen(false)}
+            onOpenDashboard={(id) => { setDashboardListOpen(false); setActiveDashboardId(id); }}
+            orgId={activeOrgId}
+            orgName={activeOrgName}
+          />
         ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">

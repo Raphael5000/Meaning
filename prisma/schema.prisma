@@ -41,6 +41,7 @@ model User {
   dataSources    DataSource[]
   orgOwned       Organization[]   @relation("OrgOwner")
   orgMemberships OrgMembership[]
+  dashboards     Dashboard[]      @relation("DashboardCreator")
 }
 
 model Account {
@@ -317,6 +318,52 @@ model Organization {
   dataSources DataSource[]
   chats       Chat[]
   emailAlerts EmailAlert[]
+  dashboards  Dashboard[]
+}
+
+// ──────────────────────────────────────────────
+// Dashboards
+// ──────────────────────────────────────────────
+
+model Dashboard {
+  id        String   @id @default(cuid())
+  orgId     String
+  createdBy String
+  title     String
+  layout    Json     @default("[]") // react-grid-layout Layout[] → {i,x,y,w,h}[]
+  dateRange String   @default("28d") // "7d" | "28d" | "90d" | "custom"
+  dateFrom  String?  // YYYY-MM-DD, only when dateRange="custom"
+  dateTo    String?  // YYYY-MM-DD, only when dateRange="custom"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator User         @relation("DashboardCreator", fields: [createdBy], references: [id])
+  widgets Widget[]
+
+  @@index([orgId])
+  @@index([createdBy])
+}
+
+model Widget {
+  id          String @id @default(cuid())
+  dashboardId String
+
+  prompt      String   // What the user originally asked
+  widgetType  String   @default("chart") // "chart" | "scorecard" | "table"
+  queryConfig Json     // { tool, input, source } — everything needed to re-run the query
+  displayConfig Json   // ECharts option template (chart), { label, format } (scorecard), { columns } (table)
+  cachedData  Json?    // Last fetched query result rows
+  cachedAt    DateTime?
+  title       String   @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
 }
 
 model OrgMembership {

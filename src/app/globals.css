@@ -352,6 +352,34 @@ body {
   animation: chartBar 1.2s ease-in-out infinite;
 }
 
+/* Dashboard grid overrides */
+.dashboard-grid .react-grid-item {
+  transition: none;
+}
+
+.dashboard-grid .react-grid-item.cssTransforms {
+  transition: transform 200ms ease;
+}
+
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: var(--accent) !important;
+  opacity: 0.1 !important;
+  border-radius: 12px !important;
+}
+
+.dashboard-grid .react-resizable-handle {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.dashboard-grid .react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+.dashboard-grid .react-resizable-handle::after {
+  border-color: var(--text-muted) !important;
+}
+
 @keyframes ellipsis {
   0% { content: ""; }
   25% { content: "."; }
