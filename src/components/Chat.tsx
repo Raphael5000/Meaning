@@ -615,9 +615,6 @@ export default function Chat() {
                 <Menu className="h-5 w-5" />
               )}
             </Button>
-            {activeOrgName && (
-              <span className="truncate text-sm font-medium text-foreground">{activeOrgName}</span>
-            )}
           </div>
         </header>
 
