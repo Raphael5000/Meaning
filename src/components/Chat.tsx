@@ -410,8 +410,8 @@ export default function Chat() {
           background: "var(--bg-secondary)",
         }}
       >
-        {/* Top row: logo */}
-        <div className="flex items-center pl-[18px] pr-3 pt-[18px]">
+        {/* Top row: logo + account selector */}
+        <div className="flex items-center gap-2 pl-[18px] pr-3 pt-[18px]">
           <Link href="/" className="flex shrink-0 items-center" aria-label="Home">
             <Image
               src="/Hivory icon.svg"
@@ -422,8 +422,24 @@ export default function Chat() {
             />
           </Link>
         </div>
+        {/* Account selector */}
+        <div className="px-3 pt-4">
+          <AccountSelector
+            activeOrgId={activeOrgId}
+            onSelect={(org) => {
+              setActiveOrgId(org.id);
+              setActiveOrgName(org.name);
+              fetch("/api/user/active-org", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orgId: org.id }),
+              }).catch(() => {});
+            }}
+            onOpenConnections={() => setConnectionsOpen(true)}
+          />
+        </div>
         {/* New chat button */}
-        <div className="px-3 py-2 pt-8 space-y-0.5">
+        <div className="px-3 py-2 pt-4 space-y-0.5">
           <Button
             variant="ghost"
             className="w-full justify-start gap-2"
@@ -594,22 +610,9 @@ export default function Chat() {
                 <Menu className="h-5 w-5" />
               )}
             </Button>
-            <div className="w-48 md:w-64">
-              <AccountSelector
-                activeOrgId={activeOrgId}
-                onSelect={(org) => {
-                  setActiveOrgId(org.id);
-                  setActiveOrgName(org.name);
-                  // Persist active org switch
-                  fetch("/api/user/active-org", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ orgId: org.id }),
-                  }).catch(() => {});
-                }}
-                onOpenConnections={() => setConnectionsOpen(true)}
-              />
-            </div>
+            {activeOrgName && (
+              <span className="truncate text-sm font-medium text-foreground">{activeOrgName}</span>
+            )}
           </div>
         </header>
 

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  let body: { propertyId?: string };
+  let body: { propertyId?: string; orgId?: string };
   try {
     body = await request.json();
   } catch {
@@ -41,6 +41,13 @@ export async function POST(request: NextRequest) {
   }
 
   const { propertyId } = body;
+
+  // Resolve orgId: use provided or fall back to user's active org
+  let resolvedOrgId = body.orgId;
+  if (!resolvedOrgId) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { activeOrgId: true } });
+    resolvedOrgId = user?.activeOrgId ?? undefined;
+  }
   if (!propertyId) {
     return NextResponse.json(
       { error: "propertyId is required" },
@@ -75,10 +82,12 @@ export async function POST(request: NextRequest) {
       },
       update: {
         bigqueryDataset,
+        orgId: resolvedOrgId || undefined,
         status: "BACKFILLING",
       },
       create: {
         userId,
+        orgId: resolvedOrgId || undefined,
         type: "GA4_BIGQUERY",
         propertyId,
         bigqueryDataset,

@@ -138,6 +138,11 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   const [expanded, setExpanded] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // GA4 properties
+  const [ga4Properties, setGa4Properties] = useState<Array<{ propertyId: string; displayName: string; account: string; bigquery?: { status: string | null } | null }>>([]);
+  const [loadingGa4, setLoadingGa4] = useState(false);
+  const [enablingGa4, setEnablingGa4] = useState<Record<string, boolean>>({});
+
   // Google Ads
   const [adsCustomers, setAdsCustomers] = useState<AdsCustomer[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
@@ -178,6 +183,17 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   }, [status, fetchStatus]);
 
   // ── Load sub-accounts when expanding ──
+  useEffect(() => {
+    if (expanded === "GA4_BIGQUERY" && status?.hasGoogleAccount && ga4Properties.length === 0) {
+      setLoadingGa4(true);
+      fetch("/api/analytics/properties")
+        .then((r) => r.json())
+        .then((data) => setGa4Properties(data.properties || []))
+        .catch(() => {})
+        .finally(() => setLoadingGa4(false));
+    }
+  }, [expanded, status?.hasGoogleAccount, ga4Properties.length]);
+
   useEffect(() => {
     if (expanded === "GOOGLE_ADS" && status?.hasAdsScope && adsCustomers.length === 0) {
       setLoadingAds(true);
@@ -242,11 +258,12 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   }
 
   async function handleEnable(type: string, id: string) {
-    const setEnabling = type === "GOOGLE_ADS" ? setEnablingAds : type === "LINKEDIN" ? setEnablingLinkedIn : setEnablingMailchimp;
+    const setEnabling = type === "GA4_BIGQUERY" ? setEnablingGa4 : type === "GOOGLE_ADS" ? setEnablingAds : type === "LINKEDIN" ? setEnablingLinkedIn : setEnablingMailchimp;
     setEnabling((prev) => ({ ...prev, [id]: true }));
     setMessage(null);
 
     const endpoints: Record<string, { url: string; body: Record<string, string | undefined> }> = {
+      GA4_BIGQUERY: { url: "/api/analytics/enable-bigquery-export", body: { propertyId: id, orgId: orgId ?? undefined } },
       GOOGLE_ADS: { url: "/api/ads/enable-export", body: { customerId: id, orgId: orgId ?? undefined } },
       LINKEDIN: { url: "/api/linkedin/enable-export", body: { orgId: id, organizationOrgId: orgId ?? undefined } },
       MAILCHIMP: { url: "/api/mailchimp/enable-export", body: { listId: id, orgId: orgId ?? undefined } },
@@ -385,14 +402,6 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                           Connect
                         </Button>
                       </div>
-                    ) : source.type === "GA4_BIGQUERY" ? (
-                      /* GA4 — already managed via property selector */
-                      <p className="text-xs text-muted-foreground">
-                        Managed automatically via your GA4 property selection.
-                        {status?.googleEmail && (
-                          <span className="ml-1 text-foreground">{status.googleEmail}</span>
-                        )}
-                      </p>
                     ) : (
                       /* Step 2: Account/audience selection */
                       <div>
@@ -411,7 +420,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
 
   // ── Account list renderers ──
   function renderAccountList(type: string) {
-    const isLoading = type === "GOOGLE_ADS" ? loadingAds : type === "LINKEDIN" ? loadingLinkedIn : loadingMailchimp;
+    const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "LINKEDIN" ? loadingLinkedIn : loadingMailchimp;
 
     if (isLoading) {
       return (
@@ -423,6 +432,8 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     }
 
     switch (type) {
+      case "GA4_BIGQUERY":
+        return renderGa4Properties();
       case "GOOGLE_ADS":
         return renderAdsAccounts();
       case "LINKEDIN":
@@ -432,6 +443,49 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       default:
         return null;
     }
+  }
+
+  function renderGa4Properties() {
+    const dataSources = getSourceDataSources("GA4_BIGQUERY");
+    const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+
+    if (ga4Properties.length === 0) {
+      return <p className="text-xs text-muted-foreground">No GA4 properties found. Make sure your Google account has access to a GA4 property.</p>;
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {ga4Properties.map((prop) => {
+          const ds = dataSources.find((d) => d.propertyId === prop.propertyId);
+          const connected = connectedIds.has(prop.propertyId);
+          return (
+            <div key={prop.propertyId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-xs font-medium text-foreground">{prop.displayName}</p>
+                <p className="text-[10px] text-muted-foreground">{prop.account} &middot; {prop.propertyId}</p>
+              </div>
+              {ds ? (
+                <div className="flex items-center gap-1.5">
+                  <StatusDot status={ds.status} />
+                  <StatusLabel status={ds.status} />
+                </div>
+              ) : !connected ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  style={{ color: "var(--accent)" }}
+                  disabled={enablingGa4[prop.propertyId]}
+                  onClick={() => handleEnable("GA4_BIGQUERY", prop.propertyId)}
+                >
+                  {enablingGa4[prop.propertyId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
   }
 
   function renderAdsAccounts() {
