@@ -9,6 +9,7 @@ import {
   Bug,
   ChevronLeft,
 
+  Link2,
   LogOut,
   Menu,
   SquarePen,
@@ -435,7 +436,6 @@ export default function Chat() {
                 body: JSON.stringify({ orgId: org.id }),
               }).catch(() => {});
             }}
-            onOpenConnections={() => setConnectionsOpen(true)}
           />
         </div>
         {/* New chat button */}
@@ -541,6 +541,17 @@ export default function Chat() {
                   <User className="h-4 w-4" />
                   Account
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    setConnectionsOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                >
+                  <Link2 className="h-4 w-4" />
+                  Connections
+                </button>
                 {userPlan !== "Free" && (
                   <button
                     type="button"

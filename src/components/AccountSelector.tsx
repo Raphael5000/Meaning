@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Check, ChevronDown, Loader2, Plus, Settings } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Org {
@@ -15,13 +15,11 @@ interface Org {
 interface AccountSelectorProps {
   activeOrgId: string | null;
   onSelect: (org: Org) => void;
-  onOpenConnections: () => void;
 }
 
 export default function AccountSelector({
   activeOrgId,
   onSelect,
-  onOpenConnections,
 }: AccountSelectorProps) {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,19 +156,6 @@ export default function AccountSelector({
           </div>
 
           <div className="border-t border-border p-1">
-            {/* Settings */}
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onOpenConnections();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Connections
-            </button>
-
             {/* Create new */}
             <div className="flex items-center gap-1 px-2 py-1">
               <input
