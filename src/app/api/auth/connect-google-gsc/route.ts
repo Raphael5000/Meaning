@@ -6,11 +6,11 @@ import crypto from "crypto";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/auth/connect-google-ads
+ * GET /api/auth/connect-google-gsc
  *
- * Initiates a Google OAuth flow that requests the `adwords` scope.
- * This elevated permission is needed to access the Google Ads API
- * for listing accessible customer accounts and setting up DTS.
+ * Initiates a Google OAuth flow that requests the `webmasters.readonly` scope.
+ * This elevated permission is needed to access the Google Search Console API
+ * for listing verified properties and syncing search performance data.
  */
 export async function GET() {
   const session = await auth();
@@ -23,7 +23,7 @@ export async function GET() {
   const state = crypto.randomBytes(32).toString("hex");
 
   const cookieStore = await cookies();
-  cookieStore.set("ga_ads_state", state, {
+  cookieStore.set("gsc_connect_state", state, {
     httpOnly: true,
     secure: baseUrl.startsWith("https://"),
     sameSite: "lax",
@@ -33,7 +33,7 @@ export async function GET() {
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
-    redirect_uri: `${baseUrl}/api/auth/connect-google-ads/callback`,
+    redirect_uri: `${baseUrl}/api/auth/connect-google-gsc/callback`,
     response_type: "code",
     scope:
       "openid email profile https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/analytics.edit https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/webmasters.readonly",

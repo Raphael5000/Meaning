@@ -35,10 +35,16 @@ interface AdsCustomer {
   name: string;
 }
 
+interface GscSite {
+  siteUrl: string;
+  permissionLevel: string;
+}
+
 interface ConnectionStatus {
   hasGoogleAccount: boolean;
   googleEmail: string | null;
   hasAdsScope: boolean;
+  hasGscScope: boolean;
   hasLinkedInAccount: boolean;
   hasMailchimpAccount: boolean;
   dataSources: DataSourceInfo[];
@@ -69,6 +75,7 @@ const SOURCES: SourceDef[] = [
   { type: "GOOGLE_ADS", label: "Google Ads", description: "Campaign performance, keywords, and ad spend", icon: "/Google Ads.svg" },
   { type: "LINKEDIN", label: "LinkedIn", description: "Company page analytics and follower growth", icon: "/Linkedin.svg" },
   { type: "MAILCHIMP", label: "Mailchimp", description: "Email campaigns, open rates, and audience growth", icon: null, iconBg: "#ffe01b", iconColor: "#241c15", iconLetter: "M" },
+  { type: "SEARCH_CONSOLE", label: "Search Console", description: "Search queries, impressions, clicks, and rankings", icon: null, iconBg: "#4285F4", iconColor: "#ffffff", iconLetter: "S" },
   { type: "META", label: "Meta", description: "Facebook & Instagram campaigns and insights", icon: "/Meta.svg" },
 ];
 
@@ -158,6 +165,11 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   const [loadingMailchimp, setLoadingMailchimp] = useState(false);
   const [enablingMailchimp, setEnablingMailchimp] = useState<Record<string, boolean>>({});
 
+  // Search Console
+  const [gscSites, setGscSites] = useState<GscSite[]>([]);
+  const [loadingGsc, setLoadingGsc] = useState(false);
+  const [enablingGsc, setEnablingGsc] = useState<Record<string, boolean>>({});
+
   // ── Fetch connection status ──
   const fetchStatus = useCallback((silent = false) => {
     if (!silent) setLoading(true);
@@ -227,6 +239,17 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     }
   }, [expanded, status?.hasMailchimpAccount, mailchimpAudiences.length]);
 
+  useEffect(() => {
+    if (expanded === "SEARCH_CONSOLE" && status?.hasGscScope && gscSites.length === 0) {
+      setLoadingGsc(true);
+      fetch("/api/gsc/accessible-sites")
+        .then((r) => r.json())
+        .then((data) => setGscSites(data.sites || []))
+        .catch(() => {})
+        .finally(() => setLoadingGsc(false));
+    }
+  }, [expanded, status?.hasGscScope, gscSites.length]);
+
   // ── Helpers ──
   function getSourceStatus(type: string): string | null {
     const ds = status?.dataSources.find((d) => d.type === type);
@@ -241,6 +264,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     switch (type) {
       case "GA4_BIGQUERY": return !!status?.hasGoogleAccount;
       case "GOOGLE_ADS": return !!status?.hasAdsScope;
+      case "SEARCH_CONSOLE": return !!status?.hasGscScope;
       case "LINKEDIN": return !!status?.hasLinkedInAccount;
       case "MAILCHIMP": return !!status?.hasMailchimpAccount;
       default: return false;
@@ -251,6 +275,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     switch (type) {
       case "GA4_BIGQUERY": return "/api/auth/connect-google";
       case "GOOGLE_ADS": return "/api/auth/connect-google-ads";
+      case "SEARCH_CONSOLE": return "/api/auth/connect-google-gsc";
       case "LINKEDIN": return "/api/auth/connect-linkedin";
       case "MAILCHIMP": return "/api/auth/connect-mailchimp";
       default: return "#";
@@ -258,13 +283,14 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   }
 
   async function handleEnable(type: string, id: string) {
-    const setEnabling = type === "GA4_BIGQUERY" ? setEnablingGa4 : type === "GOOGLE_ADS" ? setEnablingAds : type === "LINKEDIN" ? setEnablingLinkedIn : setEnablingMailchimp;
+    const setEnabling = type === "GA4_BIGQUERY" ? setEnablingGa4 : type === "GOOGLE_ADS" ? setEnablingAds : type === "SEARCH_CONSOLE" ? setEnablingGsc : type === "LINKEDIN" ? setEnablingLinkedIn : setEnablingMailchimp;
     setEnabling((prev) => ({ ...prev, [id]: true }));
     setMessage(null);
 
     const endpoints: Record<string, { url: string; body: Record<string, string | undefined> }> = {
       GA4_BIGQUERY: { url: "/api/analytics/enable-bigquery-export", body: { propertyId: id, orgId: orgId ?? undefined } },
       GOOGLE_ADS: { url: "/api/ads/enable-export", body: { customerId: id, orgId: orgId ?? undefined } },
+      SEARCH_CONSOLE: { url: "/api/gsc/enable-export", body: { siteUrl: id, orgId: orgId ?? undefined } },
       LINKEDIN: { url: "/api/linkedin/enable-export", body: { orgId: id, organizationOrgId: orgId ?? undefined } },
       MAILCHIMP: { url: "/api/mailchimp/enable-export", body: { listId: id, orgId: orgId ?? undefined } },
     };
@@ -420,7 +446,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
 
   // ── Account list renderers ──
   function renderAccountList(type: string) {
-    const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "LINKEDIN" ? loadingLinkedIn : loadingMailchimp;
+    const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "SEARCH_CONSOLE" ? loadingGsc : type === "LINKEDIN" ? loadingLinkedIn : loadingMailchimp;
 
     if (isLoading) {
       return (
@@ -436,6 +462,8 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
         return renderGa4Properties();
       case "GOOGLE_ADS":
         return renderAdsAccounts();
+      case "SEARCH_CONSOLE":
+        return renderGscSites();
       case "LINKEDIN":
         return renderLinkedInOrgs();
       case "MAILCHIMP":
@@ -522,6 +550,49 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                   onClick={() => handleEnable("GOOGLE_ADS", c.id)}
                 >
                   {enablingAds[c.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderGscSites() {
+    const dataSources = getSourceDataSources("SEARCH_CONSOLE");
+    const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+
+    if (gscSites.length === 0) {
+      return <p className="text-xs text-muted-foreground">No verified sites found. Make sure your Google account has owner or full user access to a Search Console property.</p>;
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {gscSites.map((site) => {
+          const ds = dataSources.find((d) => d.propertyId === site.siteUrl);
+          const connected = connectedIds.has(site.siteUrl);
+          return (
+            <div key={site.siteUrl} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-xs font-medium text-foreground">{site.siteUrl}</p>
+                <p className="text-[10px] text-muted-foreground">{site.permissionLevel === "siteOwner" ? "Owner" : "Full user"}</p>
+              </div>
+              {ds ? (
+                <div className="flex items-center gap-1.5">
+                  <StatusDot status={ds.status} />
+                  <StatusLabel status={ds.status} />
+                </div>
+              ) : !connected ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  style={{ color: "var(--accent)" }}
+                  disabled={enablingGsc[site.siteUrl]}
+                  onClick={() => handleEnable("SEARCH_CONSOLE", site.siteUrl)}
+                >
+                  {enablingGsc[site.siteUrl] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
                 </Button>
               ) : null}
             </div>

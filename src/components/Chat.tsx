@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import AccountSelector from "./AccountSelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
-import TypingIndicator from "./TypingIndicator";
 import ChartLoadingIndicator from "./ChartLoadingIndicator";
 import AlertsPanel from "./AlertsPanel";
 import BugReportModal from "./BugReportModal";
@@ -104,16 +103,21 @@ export default function Chat() {
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load chats from the database when the session is available
+  // Load chats from the database when the session or active org changes
   useEffect(() => {
     const sessionUserId = (session as { userId?: string } | null)?.userId;
     if (!sessionUserId) return;
     let cancelled = false;
-    fetchChats().then((loaded) => {
-      if (!cancelled) setChats(loaded);
+    fetchChats(activeOrgId).then((loaded) => {
+      if (!cancelled) {
+        setChats(loaded);
+        // Reset to new chat when switching orgs
+        setCurrentChatId(null);
+        setMessages([]);
+      }
     });
     return () => { cancelled = true; };
-  }, [(session as { userId?: string } | null)?.userId]);
+  }, [(session as { userId?: string } | null)?.userId, activeOrgId]);
 
   // Fetch connected data sources when property changes or connections modal closes
   const [connectionsVersion, setConnectionsVersion] = useState(0);
@@ -703,15 +707,15 @@ export default function Chat() {
                 ) : (
                   <div className="flex w-full justify-center px-4 py-6">
                     <div className="flex w-full max-w-3xl">
-                      <div className="min-w-0 flex-1">
-                        <TypingIndicator />
+                      <div className="flex items-center gap-2">
+                        <span className="thinking-cursor" />
                         {toolStatus && (
-                          <p
-                            className="mt-2 text-xs animate-pulse"
+                          <span
+                            className="text-xs"
                             style={{ color: "var(--text-secondary)" }}
                           >
                             {toolStatus}
-                          </p>
+                          </span>
                         )}
                       </div>
                     </div>

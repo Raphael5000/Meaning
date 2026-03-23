@@ -96,6 +96,26 @@ export async function getMailchimpListId(
   return ds?.propertyId ?? null;
 }
 
+/**
+ * Check if a user has an active Search Console DataSource.
+ * Returns the siteUrl (propertyId on the DataSource) if found, null otherwise.
+ */
+export async function getGscSiteUrl(
+  userId: string,
+  ga4PropertyId?: string
+): Promise<string | null> {
+  const ds = await prisma.dataSource.findFirst({
+    where: {
+      userId,
+      type: "SEARCH_CONSOLE",
+      status: { in: ["ACTIVE", "BACKFILLING"] },
+      ...(ga4PropertyId ? { ga4PropertyId } : {}),
+    },
+    select: { propertyId: true },
+  });
+  return ds?.propertyId ?? null;
+}
+
 export async function shouldUseBigQuery(
   propertyId: string,
   userId: string

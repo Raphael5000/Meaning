@@ -87,10 +87,11 @@ function messagesToPayload(messages: Message[]) {
   }));
 }
 
-/** Fetch all chats for the current user from the database */
-export async function fetchChats(): Promise<StoredChat[]> {
+/** Fetch chats for the current user, optionally filtered by orgId */
+export async function fetchChats(orgId?: string | null): Promise<StoredChat[]> {
   try {
-    const res = await fetch("/api/chats");
+    const url = orgId ? `/api/chats?orgId=${orgId}` : "/api/chats";
+    const res = await fetch(url);
     if (!res.ok) {
       console.error("[chatHistory] fetchChats failed:", res.status, await res.text().catch(() => ""));
       return [];

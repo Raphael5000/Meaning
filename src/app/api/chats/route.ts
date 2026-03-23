@@ -5,17 +5,19 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/chats – list all chats (with messages) for the authenticated user */
-export async function GET() {
+/** GET /api/chats – list chats for the authenticated user, optionally filtered by orgId */
+export async function GET(request: NextRequest) {
   const session = await auth();
   const userId = (session as { userId?: string })?.userId;
   if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const orgId = request.nextUrl.searchParams.get("orgId");
+
   try {
     const chats = await prisma.chat.findMany({
-      where: { userId },
+      where: { userId, ...(orgId ? { orgId } : {}) },
       orderBy: { createdAt: "desc" },
       include: {
         messages: { orderBy: { sortOrder: "asc" } },

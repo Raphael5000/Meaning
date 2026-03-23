@@ -15,19 +15,8 @@ export default function TypingIndicator() {
             className="h-6 w-6 object-contain"
           />
         </div>
-        <div className="flex items-center gap-1 pt-2">
-          <div
-            className="typing-dot h-2 w-2 rounded-full"
-            style={{ background: "var(--text-muted)" }}
-          />
-          <div
-            className="typing-dot h-2 w-2 rounded-full"
-            style={{ background: "var(--text-muted)" }}
-          />
-          <div
-            className="typing-dot h-2 w-2 rounded-full"
-            style={{ background: "var(--text-muted)" }}
-          />
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="thinking-cursor" />
         </div>
       </div>
     </div>

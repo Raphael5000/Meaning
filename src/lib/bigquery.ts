@@ -113,6 +113,12 @@ const MAILCHIMP_TABLES = new Set([
   "mc_account_info",
 ]);
 
+/** GSC tables — these live in gsc_{sanitizedSiteUrl} dataset. */
+const GSC_TABLES = new Set([
+  "search_performance",
+  "site_info",
+]);
+
 /**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
@@ -122,10 +128,12 @@ const MAILCHIMP_TABLES = new Set([
  *   - ads tables -> `ads_{adsCustomerId}` (no suffix on table name)
  *   - linkedin tables -> `linkedin_{orgId}`
  *   - mailchimp tables -> `mailchimp_{listId}`
+ *   - gsc tables -> `gsc_{sanitizedSiteUrl}`
  *
  * @param adsCustomerId - Optional Google Ads customer ID for routing Ads queries
  * @param linkedInOrgId - Optional LinkedIn organization ID for routing LinkedIn queries
  * @param mailchimpListId - Optional Mailchimp list ID for routing Mailchimp queries
+ * @param gscSiteUrl - Optional GSC site URL for routing Search Console queries
  */
 export async function runPropertyQuery(
   propertyId: string,
@@ -133,12 +141,14 @@ export async function runPropertyQuery(
   params?: Record<string, unknown>,
   adsCustomerId?: string | null,
   linkedInOrgId?: string | null,
-  mailchimpListId?: string | null
+  mailchimpListId?: string | null,
+  gscSiteUrl?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
   const linkedInDataset = linkedInOrgId ? `linkedin_${linkedInOrgId}` : null;
   const mailchimpDataset = mailchimpListId ? `mailchimp_${mailchimpListId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
+  const gscDataset = gscSiteUrl ? `gsc_${gscSiteUrl.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   const scopedSql = sql.replace(
@@ -152,6 +162,9 @@ export async function runPropertyQuery(
       }
       if (MAILCHIMP_TABLES.has(tableName) && mailchimpDataset) {
         return `${mailchimpDataset}.${tableName}`;
+      }
+      if (GSC_TABLES.has(tableName) && gscDataset) {
+        return `${gscDataset}.${tableName}`;
       }
       const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
       return `${dataset}.${tableName}`;

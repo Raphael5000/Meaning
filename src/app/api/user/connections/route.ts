@@ -40,7 +40,9 @@ export async function GET(req: NextRequest) {
 
     // Check if adwords scope is granted
     const hasAdsScope = googleAccount?.scope?.includes("adwords") ?? false;
-    console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope);
+    // Check if webmasters scope is granted (Search Console)
+    const hasGscScope = googleAccount?.scope?.includes("webmasters") ?? false;
+    console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope, "hasGscScope:", hasGscScope);
 
     // Get all DataSources — prefer orgId filter, fall back to userId
     const orgId = req.nextUrl.searchParams.get("orgId");
@@ -72,6 +74,7 @@ export async function GET(req: NextRequest) {
       hasGoogleAccount: !!googleAccount,
       googleEmail,
       hasAdsScope,
+      hasGscScope,
       hasLinkedInAccount: !!linkedinAccount,
       hasMailchimpAccount: !!mailchimpAccount,
       dataSources: propertyDataSources,

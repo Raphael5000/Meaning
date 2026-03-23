@@ -7,7 +7,7 @@ import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
-import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId } from "@/lib/rollout";
+import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId, getGscSiteUrl } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
 import { getOrgDataSources } from "@/lib/org-access";
 
@@ -150,7 +150,7 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false): string {
+function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
@@ -171,6 +171,21 @@ function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, in
   - audience_stats: Daily audience snapshot — stats_date, list_id, list_name, member_count, total_contacts, unsubscribe_count, cleaned_count, campaign_count, open_rate, click_rate
   - audience_growth: Monthly subscriber growth — month_date, list_id, subscribed, unsubscribed, cleaned, pending, deleted
   - mc_account_info: Account metadata (single row) — account_name, list_id, list_name, dc, last_synced_at` : "";
+
+  const gscTablesPrompt = includeGsc ? `
+  - search_performance: Daily search metrics — query_date, query (search term), page (URL), country (3-letter ISO code e.g. USA, GBR), device (DESKTOP, MOBILE, TABLET), clicks, impressions, ctr (0-1 decimal), position (average ranking, lower is better)
+  - site_info: Site metadata (single row) — site_url, permission_level, last_synced_at` : "";
+
+  const gscQueryGuidance = includeGsc ? `
+
+GSC QUERIES:
+- Use the run_gsc_query tool for all organic search performance questions.
+- Date column: query_date for search_performance. site_info has no date column.
+- Metrics: clicks, impressions, ctr (0-1 decimal, multiply by 100 for percentage), position (lower is better, 1.0 = top result).
+- Country codes are 3-letter ISO (e.g. USA, GBR, ZAF, DEU).
+- Device values: DESKTOP, MOBILE, TABLET.
+- Common queries: top search queries by clicks, pages with most impressions, average position trends, CTR by device/country.
+- Always use {dataset}.tableName format — the system routes GSC tables to the correct dataset automatically.` : "";
 
   const mailchimpQueryGuidance = includeMailchimp ? `
 
@@ -226,11 +241,12 @@ You have access to these tools:
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}
 - run_mailchimp_query: Query Mailchimp email marketing data (campaign performance, audience growth, open/click rates, bounces, revenue). Use {dataset}.tableName for all table references.
 - run_linkedin_query: Query LinkedIn company page analytics (post performance, follower growth, demographics, page engagement). Use {dataset}.tableName for all table references.
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
-- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}
+- run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: You CAN build page-to-page transition data for sankey diagrams by querying the pageviews table. Each row has ga_session_id, event_timestamp, and page_location. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, append the step number to each node label so every position is unique. Use this query pattern:
   WITH ordered AS (SELECT ga_session_id, REGEXP_EXTRACT(page_location, r'https?://[^/]+(/[^?]*)') AS page_path, ROW_NUMBER() OVER (PARTITION BY ga_session_id ORDER BY event_timestamp) AS step FROM \`{dataset}.pageviews\` WHERE event_date >= @startDate AND page_location IS NOT NULL), pairs AS (SELECT CONCAT('Step ', a.step, ': ', a.page_path) AS from_page, CONCAT('Step ', b.step, ': ', b.page_path) AS to_page, 1 AS cnt FROM ordered a JOIN ordered b ON a.ga_session_id = b.ga_session_id AND b.step = a.step + 1 WHERE a.step <= 5) SELECT from_page, to_page, SUM(cnt) AS transitions FROM pairs GROUP BY 1, 2 ORDER BY transitions DESC LIMIT 30
@@ -345,11 +361,12 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 
   // Date filtering
   const isAdsTable = ["campaign_performance", "keyword_performance", "click_attribution", "account_info"].includes(table);
-  const isAccountInfo = table === "account_info";
+  const isAccountInfo = table === "account_info" || table === "site_info";
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
     table === "campaign_performance" || table === "keyword_performance" ? "stats_date" :
     table === "click_attribution" ? "click_date" :
+    table === "search_performance" ? "query_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
 
@@ -445,6 +462,7 @@ export async function POST(request: NextRequest) {
   let adsCustomerIdFromOrg: string | null = null;
   let linkedInOrgIdFromOrg: string | null = null;
   let mailchimpListIdFromOrg: string | null = null;
+  let gscSiteUrlFromOrg: string | null = null;
 
   if (body.orgId) {
     // Org-based: fetch all org data sources and pick the first GA4 property
@@ -464,6 +482,10 @@ export async function POST(request: NextRequest) {
     const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
     if (mailchimpDsList.length > 0) {
       mailchimpListIdFromOrg = mailchimpDsList[0].propertyId;
+    }
+    const gscDsList = orgDataSources.filter((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    if (gscDsList.length > 0) {
+      gscSiteUrlFromOrg = gscDsList[0].propertyId;
     }
   }
 
@@ -498,11 +520,13 @@ export async function POST(request: NextRequest) {
   const adsCustomerId = body.orgId ? adsCustomerIdFromOrg : (usesBigQuery && userId ? await getGoogleAdsCustomerId(userId, propertyId) : null);
   const linkedInOrgId = body.orgId ? linkedInOrgIdFromOrg : (usesBigQuery && userId ? await getLinkedInOrgId(userId, propertyId) : null);
   const mailchimpListId = body.orgId ? mailchimpListIdFromOrg : (usesBigQuery && userId ? await getMailchimpListId(userId, propertyId) : null);
+  const gscSiteUrl = body.orgId ? gscSiteUrlFromOrg : (usesBigQuery && userId ? await getGscSiteUrl(userId, propertyId) : null);
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
   const hasMailchimp = !!mailchimpListId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} reason=${rollout.reason}`);
-  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp) : GA4_SYSTEM_PROMPT;
+  const hasGsc = !!gscSiteUrl;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} reason=${rollout.reason}`);
+  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   // Helper: describe a tool call for the progress stream
@@ -519,6 +543,8 @@ export async function POST(request: NextRequest) {
         return (input.description as string) || "Querying LinkedIn data";
       case "run_mailchimp_query":
         return (input.description as string) || "Querying Mailchimp data";
+      case "run_gsc_query":
+        return (input.description as string) || "Querying Search Console data";
       case "run_report":
         return `Querying GA4 report`;
       case "run_realtime_report":
@@ -593,28 +619,35 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
                     break;
                   }
                   case "run_linkedin_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] LinkedIn query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
                     break;
                   }
                   case "run_mailchimp_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Mailchimp query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
+                    break;
+                  }
+                  case "run_gsc_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] GSC query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
                     break;
                   }
                   case "get_realtime_data": {

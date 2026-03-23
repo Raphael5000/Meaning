@@ -121,7 +121,8 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
             "sessions", "pageviews", "users", "conversions", "traffic_sources", "events",
             "campaign_performance", "keyword_performance", "click_attribution", "account_info",
             "post_performance", "follower_stats", "follower_demographics", "page_stats", "org_info",
-            "campaign_reports", "audience_stats", "audience_growth", "mc_account_info"
+            "campaign_reports", "audience_stats", "audience_growth", "mc_account_info",
+            "search_performance", "site_info"
           ],
           description:
             "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'campaign_performance' (daily campaign metrics with cost, clicks, impressions, conversions), 'keyword_performance' (daily keyword/ad-group metrics), 'click_attribution' (per-click data with gclid for attribution), 'account_info' (account currency and name).",
@@ -239,6 +240,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description:
             "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT stats_date, organic_gains, paid_gains FROM `{dataset}.follower_stats` ORDER BY stats_date DESC LIMIT 30",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
+    name: "run_gsc_query",
+    description:
+      "Run a custom SQL query against Google Search Console data. Use this to answer questions about organic search performance: queries, impressions, clicks, CTR, and average position. Use {dataset}.tableName for table references. GSC tables: search_performance (daily search metrics: query_date, query, page, country, device, clicks, impressions, ctr (0-1 decimal), position (lower is better)), site_info (site metadata: site_url, permission_level, last_synced_at).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT query, SUM(clicks) as clicks, SUM(impressions) as impressions, AVG(position) as avg_position FROM `{dataset}.search_performance` WHERE query_date >= '2024-01-01' GROUP BY query ORDER BY clicks DESC LIMIT 20",
         },
         description: {
           type: "string",
