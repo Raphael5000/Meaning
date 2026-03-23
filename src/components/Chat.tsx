@@ -28,7 +28,7 @@ import AlertsPanel from "./AlertsPanel";
 import BugReportModal from "./BugReportModal";
 import ConnectionsPanel from "./ConnectionsPanel";
 import AccountPanel from "./AccountPanel";
-import TeamModal from "./TeamModal";
+import TeamPanel from "./TeamPanel";
 import {
   fetchChats,
   createChat,
@@ -629,6 +629,8 @@ export default function Chat() {
           <AccountPanel onClose={() => setAccountOpen(false)} />
         ) : alertsOpen ? (
           <AlertsPanel onClose={() => setAlertsOpen(false)} />
+        ) : teamOpen ? (
+          <TeamPanel onClose={() => setTeamOpen(false)} />
         ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
@@ -739,7 +741,6 @@ export default function Chat() {
       </div>
 
       <BugReportModal open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
-      <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />
     </div>
   );
 }
