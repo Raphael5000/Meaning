@@ -9,6 +9,7 @@ import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
 import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId } from "@/lib/rollout";
 import { prisma } from "@/lib/prisma";
+import { getOrgDataSources } from "@/lib/org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -432,20 +433,49 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { messages, propertyId } = (await request.json()) as {
+  const body = (await request.json()) as {
     messages: ChatMessage[];
-    propertyId: string;
+    propertyId?: string;
+    orgId?: string;
   };
+  const { messages } = body;
 
-  if (!propertyId) {
+  // Resolve propertyId: prefer orgId (new path), fall back to propertyId (backward compat)
+  let propertyId = body.propertyId ?? "";
+  let adsCustomerIdFromOrg: string | null = null;
+  let linkedInOrgIdFromOrg: string | null = null;
+  let mailchimpListIdFromOrg: string | null = null;
+
+  if (body.orgId) {
+    // Org-based: fetch all org data sources and pick the first GA4 property
+    const orgDataSources = await getOrgDataSources(body.orgId);
+    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    if (ga4Ds) {
+      propertyId = ga4Ds.propertyId;
+    }
+    const adsDsList = orgDataSources.filter((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    if (adsDsList.length > 0) {
+      adsCustomerIdFromOrg = adsDsList[0].adsCustomerId ?? null;
+    }
+    const linkedInDsList = orgDataSources.filter((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    if (linkedInDsList.length > 0) {
+      linkedInOrgIdFromOrg = linkedInDsList[0].propertyId;
+    }
+    const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    if (mailchimpDsList.length > 0) {
+      mailchimpListIdFromOrg = mailchimpDsList[0].propertyId;
+    }
+  }
+
+  if (!propertyId && !body.orgId) {
     return NextResponse.json(
-      { error: "No GA4 property selected" },
+      { error: "No GA4 property or account selected" },
       { status: 400 }
     );
   }
 
-  // Validate property access for team members
-  if (userId) {
+  // Validate property access for team members (legacy path only)
+  if (userId && !body.orgId && propertyId) {
     const allowed = await getAllowedPropertyIds(userId);
     if (allowed !== "all" && !allowed.includes(propertyId)) {
       return NextResponse.json(
@@ -463,11 +493,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Determine data path: BigQuery or GA4
-  const rollout = userId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: false, reason: "no_user" };
+  const rollout = userId && propertyId ? await shouldUseBigQuery(propertyId, userId) : { useBigQuery: !!body.orgId, reason: body.orgId ? "org_mode" : "no_user" };
   const usesBigQuery = rollout.useBigQuery;
-  const adsCustomerId = usesBigQuery && userId ? await getGoogleAdsCustomerId(userId, propertyId) : null;
-  const linkedInOrgId = usesBigQuery && userId ? await getLinkedInOrgId(userId, propertyId) : null;
-  const mailchimpListId = usesBigQuery && userId ? await getMailchimpListId(userId, propertyId) : null;
+  const adsCustomerId = body.orgId ? adsCustomerIdFromOrg : (usesBigQuery && userId ? await getGoogleAdsCustomerId(userId, propertyId) : null);
+  const linkedInOrgId = body.orgId ? linkedInOrgIdFromOrg : (usesBigQuery && userId ? await getLinkedInOrgId(userId, propertyId) : null);
+  const mailchimpListId = body.orgId ? mailchimpListIdFromOrg : (usesBigQuery && userId ? await getMailchimpListId(userId, propertyId) : null);
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
   const hasMailchimp = !!mailchimpListId;

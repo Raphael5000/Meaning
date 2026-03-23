@@ -18,7 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import PropertySelector from "./PropertySelector";
+import AccountSelector from "./AccountSelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
@@ -69,9 +69,10 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
-  const [propertyId, setPropertyId] = useState<string | null>(null);
-  const [propertyName, setPropertyName] = useState<string>("");
-  const [propertyBqStatus, setPropertyBqStatus] = useState<string | null>(null);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(
+    (session as { activeOrgId?: string } | null)?.activeOrgId ?? null
+  );
+  const [activeOrgName, setActiveOrgName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 768 : true
@@ -115,8 +116,8 @@ export default function Chat() {
   const [connectionsVersion, setConnectionsVersion] = useState(0);
 
   const fetchConnectedSources = useCallback(() => {
-    if (!propertyId) { setConnectedSources([]); return; }
-    const url = `/api/user/connections?propertyId=${propertyId}`;
+    if (!activeOrgId) { setConnectedSources([]); return; }
+    const url = `/api/user/connections?orgId=${activeOrgId}`;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -134,11 +135,11 @@ export default function Chat() {
         setConnectedSources(sources);
       })
       .catch(() => setConnectedSources([]));
-  }, [propertyId]);
+  }, [activeOrgId]);
 
   useEffect(() => {
     fetchConnectedSources();
-  }, [propertyId, connectionsVersion, fetchConnectedSources]);
+  }, [activeOrgId, connectionsVersion, fetchConnectedSources]);
 
   useEffect(() => {
     // Keep the top of the latest answer in view instead of scrolling to the bottom
@@ -179,8 +180,6 @@ export default function Chat() {
   function selectChat(chat: StoredChat) {
     setCurrentChatId(chat.id);
     setMessages(chat.messages);
-    setPropertyId(chat.propertyId ?? null);
-    setPropertyName(chat.propertyName ?? "");
     setError(null);
     // Close sidebar on mobile after selecting a chat
     if (window.innerWidth < 768) {
@@ -238,8 +237,8 @@ export default function Chat() {
   }
 
   async function sendMessage(content: string) {
-    if (!propertyId) {
-      setError("Please select a GA4 property first.");
+    if (!activeOrgId) {
+      setError("Please select an account first.");
       return;
     }
 
@@ -265,8 +264,8 @@ export default function Chat() {
         title: titleFromFirstMessage(content),
         messages: [userMessage],
         createdAt: Date.now(),
-        propertyId: propertyId ?? undefined,
-        propertyName: propertyName || undefined,
+        propertyId: undefined,
+        propertyName: undefined,
       };
       chatIdToUpdate = newChat.id;
       setChats((prev) => [newChat, ...prev]);
@@ -297,7 +296,7 @@ export default function Chat() {
             role: m.role,
             content: m.content,
           })),
-          propertyId,
+          orgId: activeOrgId,
         }),
       });
 
@@ -596,14 +595,19 @@ export default function Chat() {
               )}
             </Button>
             <div className="w-48 md:w-64">
-              <PropertySelector
-                selectedPropertyId={propertyId}
-                disabled={messages.length > 0}
-                onSelect={(id, name, bqStatus) => {
-                  setPropertyId(id);
-                  setPropertyName(name);
-                  setPropertyBqStatus(bqStatus);
+              <AccountSelector
+                activeOrgId={activeOrgId}
+                onSelect={(org) => {
+                  setActiveOrgId(org.id);
+                  setActiveOrgName(org.name);
+                  // Persist active org switch
+                  fetch("/api/user/active-org", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orgId: org.id }),
+                  }).catch(() => {});
                 }}
+                onOpenConnections={() => setConnectionsOpen(true)}
               />
             </div>
           </div>
@@ -613,8 +617,8 @@ export default function Chat() {
         {connectionsOpen ? (
           <ConnectionsPanel
             onClose={() => { setConnectionsOpen(false); setConnectionsVersion((v) => v + 1); }}
-            propertyId={propertyId}
-            propertyName={propertyName}
+            orgId={activeOrgId}
+            orgName={activeOrgName}
           />
         ) : <>
         {/* Messages area */}
@@ -622,17 +626,17 @@ export default function Chat() {
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
               <h2 className="mb-2 text-xl text-foreground">
-                {propertyName
-                  ? `Ask about ${propertyName}`
+                {activeOrgName
+                  ? `Ask about ${activeOrgName}`
                   : "Chat with your Analytics"}
               </h2>
               <p className="mb-8 max-w-md text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-                {propertyId
+                {activeOrgId
                   ? "Ask any question about your website analytics in plain English."
-                  : "Select a GA4 property above to get started."}
+                  : "Select an account above to get started."}
               </p>
 
-              {propertyId && (
+              {activeOrgId && (
                 <div className="flex max-w-2xl flex-wrap justify-center gap-3">
                   {EXAMPLE_QUESTIONS.map((q) => (
                     <button
@@ -707,35 +711,6 @@ export default function Chat() {
           )}
         </div>
 
-        {/* BigQuery enablement banner */}
-        {propertyId && propertyBqStatus !== "ACTIVE" && messages.length === 0 && (
-          <div
-            className="mx-auto flex max-w-3xl items-center gap-3 rounded-lg px-4 py-3 text-sm"
-            style={{
-              background: "rgba(16, 163, 127, 0.08)",
-              border: "1px solid rgba(16, 163, 127, 0.2)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="shrink-0">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-            <div className="flex-1">
-              <span className="font-medium" style={{ color: "var(--text-primary)" }}>
-                Enable enhanced analytics
-              </span>
-              {" "}for faster, richer insights powered by BigQuery.
-            </div>
-            <a
-              href="/connect-analytics"
-              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
-              style={{ background: "var(--accent)", color: "white" }}
-            >
-              Enable
-            </a>
-          </div>
-        )}
-
         {/* Error banner */}
         {error && (
           <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2 text-sm text-destructive">
@@ -750,7 +725,7 @@ export default function Chat() {
           </div>
         )}
 
-        <ChatInput onSend={sendMessage} disabled={loading || !propertyId} dataSources={connectedSources} />
+        <ChatInput onSend={sendMessage} disabled={loading || !activeOrgId} dataSources={connectedSources} />
       </>}
       </div>
 

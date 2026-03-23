@@ -46,8 +46,8 @@ interface ConnectionStatus {
 
 interface ConnectionsPanelProps {
   onClose: () => void;
-  propertyId?: string | null;
-  propertyName?: string;
+  orgId?: string | null;
+  orgName?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +132,7 @@ function SourceIcon({ source }: { source: SourceDef }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function ConnectionsPanel({ onClose, propertyId, propertyName }: ConnectionsPanelProps) {
+export default function ConnectionsPanel({ onClose, orgId, orgName }: ConnectionsPanelProps) {
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -156,15 +156,15 @@ export default function ConnectionsPanel({ onClose, propertyId, propertyName }: 
   // ── Fetch connection status ──
   const fetchStatus = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    const url = propertyId
-      ? `/api/user/connections?propertyId=${propertyId}`
+    const url = orgId
+      ? `/api/user/connections?orgId=${orgId}`
       : "/api/user/connections";
     fetch(url)
       .then((r) => r.json())
       .then((data) => setStatus(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [propertyId]);
+  }, [orgId]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
@@ -247,9 +247,9 @@ export default function ConnectionsPanel({ onClose, propertyId, propertyName }: 
     setMessage(null);
 
     const endpoints: Record<string, { url: string; body: Record<string, string | undefined> }> = {
-      GOOGLE_ADS: { url: "/api/ads/enable-export", body: { customerId: id, ga4PropertyId: propertyId ?? undefined } },
-      LINKEDIN: { url: "/api/linkedin/enable-export", body: { orgId: id, ga4PropertyId: propertyId ?? undefined } },
-      MAILCHIMP: { url: "/api/mailchimp/enable-export", body: { listId: id, ga4PropertyId: propertyId ?? undefined } },
+      GOOGLE_ADS: { url: "/api/ads/enable-export", body: { customerId: id, orgId: orgId ?? undefined } },
+      LINKEDIN: { url: "/api/linkedin/enable-export", body: { orgId: id, organizationOrgId: orgId ?? undefined } },
+      MAILCHIMP: { url: "/api/mailchimp/enable-export", body: { listId: id, orgId: orgId ?? undefined } },
     };
 
     const endpoint = endpoints[type];
@@ -299,7 +299,7 @@ export default function ConnectionsPanel({ onClose, propertyId, propertyName }: 
         <div>
           <h2 className="text-sm font-semibold text-foreground">Data Sources</h2>
           <p className="text-xs text-muted-foreground">
-            {propertyName ? `Connected to ${propertyName}` : "Manage your data connections"}
+            {orgName ? `Connected to ${orgName}` : "Manage your data connections"}
           </p>
         </div>
       </div>

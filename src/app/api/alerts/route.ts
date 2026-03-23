@@ -143,6 +143,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Resolve orgId from user's active org
+  let orgId: string | null = null;
+  const alertUser = await prisma.user.findUnique({ where: { id: userId }, select: { activeOrgId: true } });
+  orgId = alertUser?.activeOrgId ?? null;
+
   try {
     const alert = await prisma.emailAlert.create({
       data: {
@@ -152,6 +157,7 @@ export async function POST(request: NextRequest) {
         customPrompt,
         propertyId: body.propertyId ?? null,
         propertyName: body.propertyName ?? null,
+        orgId,
         sendDays,
         sendHour,
         sendMinute,

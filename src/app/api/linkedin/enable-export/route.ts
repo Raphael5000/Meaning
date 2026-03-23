@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { orgId: string; ga4PropertyId?: string };
-  const { orgId, ga4PropertyId } = body;
+  const body = (await req.json()) as { orgId: string; ga4PropertyId?: string; organizationOrgId?: string };
+  const { orgId, ga4PropertyId, organizationOrgId } = body;
 
   if (!orgId) {
     return NextResponse.json({ error: "orgId is required" }, { status: 400 });
@@ -42,6 +42,13 @@ export async function POST(req: NextRequest) {
       select: { teamId: true },
     });
 
+    // Resolve org: use provided organizationOrgId, or fall back to user's active org
+    let resolvedOrgId = organizationOrgId;
+    if (!resolvedOrgId) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { activeOrgId: true } });
+      resolvedOrgId = user?.activeOrgId ?? undefined;
+    }
+
     const dataSource = await prisma.dataSource.upsert({
       where: {
         userId_propertyId_type: {
@@ -53,11 +60,13 @@ export async function POST(req: NextRequest) {
       update: {
         bigqueryDataset: datasetId,
         ga4PropertyId: ga4PropertyId || undefined,
+        orgId: resolvedOrgId || undefined,
         status: "BACKFILLING",
       },
       create: {
         userId,
         teamId: teamMembership?.teamId ?? undefined,
+        orgId: resolvedOrgId || undefined,
         type: "LINKEDIN",
         propertyId: orgId,
         bigqueryDataset: datasetId,

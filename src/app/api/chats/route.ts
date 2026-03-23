@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     title: string;
     propertyId?: string | null;
     propertyName?: string;
+    orgId?: string | null;
     messages: {
       id: string;
       role: string;
@@ -53,6 +54,13 @@ export async function POST(request: NextRequest) {
     }[];
   };
 
+  // Resolve orgId: use provided or fall back to user's active org
+  let orgId = body.orgId;
+  if (!orgId) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { activeOrgId: true } });
+    orgId = user?.activeOrgId;
+  }
+
   try {
     const chat = await prisma.chat.create({
       data: {
@@ -61,6 +69,7 @@ export async function POST(request: NextRequest) {
         title: body.title,
         propertyId: body.propertyId ?? null,
         propertyName: body.propertyName ?? null,
+        orgId: orgId ?? null,
         messages: {
           create: body.messages.map((m, i) => ({
             id: m.id,
