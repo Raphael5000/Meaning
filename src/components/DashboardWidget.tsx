@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil } from "lucide-react";
+import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil, Sparkles } from "lucide-react";
 import ChartRenderer from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
 import TableWidget from "./TableWidget";
@@ -243,10 +243,10 @@ export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }
         <span className="flex-1 truncate text-xs font-medium text-foreground">
           {widget.title || widget.prompt}
         </span>
-        {refreshing && (
+        {(refreshing || widget.widgetType === "generating") && (
           <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
         )}
-        <div className="relative">
+        {widget.widgetType !== "generating" && <div className="relative">
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -280,7 +280,7 @@ export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }
               </div>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Body */}
@@ -292,14 +292,31 @@ export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }
           </div>
         )}
 
-        {widget.widgetType === "chart" && widget.displayConfig ? (
+        {widget.widgetType === "generating" ? (
+          <div className="flex h-full flex-col gap-4 p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse" style={{ color: "var(--accent)" }} />
+              <span>Generating widget...</span>
+            </div>
+            <div className="flex flex-1 flex-col gap-3">
+              <div className="h-3 w-3/4 animate-pulse rounded-md bg-muted" />
+              <div className="h-3 w-1/2 animate-pulse rounded-md bg-muted" style={{ animationDelay: "150ms" }} />
+              <div className="flex-1 animate-pulse rounded-lg bg-muted" style={{ animationDelay: "300ms" }} />
+              <div className="flex gap-3">
+                <div className="h-3 w-1/4 animate-pulse rounded-md bg-muted" style={{ animationDelay: "450ms" }} />
+                <div className="h-3 w-1/4 animate-pulse rounded-md bg-muted" style={{ animationDelay: "600ms" }} />
+                <div className="h-3 w-1/4 animate-pulse rounded-md bg-muted" style={{ animationDelay: "750ms" }} />
+              </div>
+            </div>
+          </div>
+        ) : widget.widgetType === "chart" && widget.displayConfig ? (
           <div className="h-full w-full p-2">
             <ResizableChart option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData)} />
           </div>
         ) : widget.widgetType === "scorecard" ? (
           <div className="h-full p-3">
             <ScorecardWidget
-              config={widget.displayConfig as { label?: string; value?: string; format?: string }}
+              config={widget.displayConfig as { label?: string; value?: string; change?: string; format?: string }}
               data={widget.cachedData}
             />
           </div>

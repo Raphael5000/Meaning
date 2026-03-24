@@ -152,7 +152,7 @@ Available tables and their columns:
 
 IMPORTANT column notes:
 - traffic_sources uses "source" and "medium". sessions/pageviews use "session_source" and "session_medium". Do NOT mix them.
-- For page flow / sankey diagrams, use pageviews table with page_location, ga_session_id, event_timestamp.
+- For page flow / sankey diagrams, use pageviews table with page_location, ga_session_id, event_timestamp, session_source, session_medium. Sankey nodes MUST be unique — prefix each layer (e.g. "google / organic" for sources, "Page 1: /path" for landing pages, "Page 2: /path" for second pages). For source→page flows, UNION two layers: source→landing page and landing page→second page. Columns must be from_node, to_node, transitions.
 - For Google Ads: date column is stats_date. cost is already in currency units.
 - For LinkedIn: date column is post_date or stats_date.
 - For Mailchimp: date column is send_date or stats_date.
@@ -164,8 +164,9 @@ You MUST respond with exactly ONE of these formats:
 For CHART widgets — wrap an ECharts option JSON in [[chart]]...[[/chart]]:
 [[chart]]{"title":{"text":"..."},"xAxis":{"data":[...]},"series":[...]}[[/chart]]
 
-For SCORECARD widgets — use [[scorecard]]VALUE|LABEL[[/scorecard]]:
-[[scorecard]]12,847|Total Users[[/scorecard]]
+For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
+[[scorecard]]12,847|Total Users|+12.3%[[/scorecard]]
+The CHANGE is optional but recommended — it shows a comparison vs the previous period (e.g. +12.3%, -5%, +1,234). Include it whenever you can compute a period-over-period comparison. Use + prefix for positive change, - for negative.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
 [[table]][{"column1":"value1","column2":123},...][[/table]]
@@ -206,7 +207,7 @@ function parseWidgetResponse(text: string): ParsedWidget | null {
   if (scorecardMatch) {
     return {
       widgetType: "scorecard",
-      displayConfig: { label: scorecardMatch[2].trim(), value: scorecardMatch[1].trim() },
+      displayConfig: { label: scorecardMatch[2].trim(), value: scorecardMatch[1].trim(), change: scorecardMatch[3]?.trim() || undefined },
       title: scorecardMatch[2].trim(),
     };
   }

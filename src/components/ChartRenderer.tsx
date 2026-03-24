@@ -522,6 +522,7 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
         echarts={echarts}
         option={themedOption}
         style={styleOverride ?? { width: "100%", height: chartHeight }}
+        opts={{ devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio : 2 }}
         notMerge
         lazyUpdate
       />

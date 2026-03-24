@@ -42,6 +42,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
   const [addWidgetOpen, setAddWidgetOpen] = useState(false);
   const [editWidgetId, setEditWidgetId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
+  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const hasRefreshedRef = useRef(false);
 
   const fetchDashboard = useCallback(() => {
@@ -137,16 +138,70 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
   }
 
   async function handleAddWidget(prompt: string) {
-    const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
+    // Optimistic: add a placeholder widget immediately
+    const tempId = `generating-${Date.now()}`;
+    const placeholder: Widget = {
+      id: tempId,
+      widgetType: "generating",
+      title: prompt,
+      prompt,
+      displayConfig: null,
+      cachedData: null,
+      cachedAt: null,
+    };
+    const maxBottom = (dashboard?.layout || []).reduce((max, item) => Math.max(max, item.y + item.h), 0);
+    const placeholderLayout: LayoutItem = { i: tempId, x: 0, y: maxBottom, w: 6, h: 5 };
+
+    setDashboard((d) => {
+      if (!d) return d;
+      return {
+        ...d,
+        widgets: [...d.widgets, placeholder],
+        layout: [...d.layout, placeholderLayout],
+      };
     });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Failed to create widget");
+    setGeneratingIds((s) => new Set(s).add(tempId));
+
+    // Fire API in background
+    try {
+      const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Remove placeholder on error
+        setDashboard((d) => {
+          if (!d) return d;
+          return {
+            ...d,
+            widgets: d.widgets.filter((w) => w.id !== tempId),
+            layout: d.layout.filter((l) => l.i !== tempId),
+          };
+        });
+        throw new Error(data.error || "Failed to create widget");
+      }
+      const data = await res.json();
+      const newWidget = data.widget as Widget;
+      const newLayout = data.layout as LayoutItem[];
+
+      // Swap placeholder with real widget — no full refetch
+      setDashboard((d) => {
+        if (!d) return d;
+        return {
+          ...d,
+          widgets: d.widgets.filter((w) => w.id !== tempId).concat(newWidget),
+          layout: newLayout,
+        };
+      });
+    } finally {
+      setGeneratingIds((s) => {
+        const next = new Set(s);
+        next.delete(tempId);
+        return next;
+      });
     }
-    fetchDashboard();
   }
 
   function handleEditWidget(widgetId: string, prompt: string) {

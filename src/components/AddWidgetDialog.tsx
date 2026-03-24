@@ -23,20 +23,14 @@ export default function AddWidgetDialog({ open, onClose, onSubmit, initialPrompt
 
   if (!open) return null;
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!prompt.trim() || loading) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await onSubmit(prompt.trim());
-      setPrompt("");
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Try rephrasing your request.");
-    } finally {
-      setLoading(false);
-    }
+    const p = prompt.trim();
+    setPrompt("");
+    onClose();
+    // Fire and forget — the parent handles optimistic UI
+    onSubmit(p).catch(() => {});
   }
 
   return (

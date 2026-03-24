@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar } from "lucide-react";
+import { useState, useMemo } from "react";
+import { CalendarIcon } from "lucide-react";
+import { format, subDays, startOfDay } from "date-fns";
+import { DateRange } from "react-day-picker";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface DateRangePickerProps {
   dateRange: string;
@@ -11,79 +22,89 @@ interface DateRangePickerProps {
 }
 
 const PRESETS = [
-  { value: "7d", label: "7 days" },
-  { value: "28d", label: "28 days" },
-  { value: "90d", label: "90 days" },
-  { value: "custom", label: "Custom" },
-];
+  { value: "7d", label: "7 days", days: 7 },
+  { value: "28d", label: "28 days", days: 28 },
+  { value: "90d", label: "90 days", days: 90 },
+] as const;
 
 export default function DateRangePicker({ dateRange, dateFrom, dateTo, onChange }: DateRangePickerProps) {
-  const [showCustom, setShowCustom] = useState(dateRange === "custom");
-  const [localFrom, setLocalFrom] = useState(dateFrom || "");
-  const [localTo, setLocalTo] = useState(dateTo || "");
+  const [open, setOpen] = useState(false);
 
-  function handlePreset(value: string) {
-    if (value === "custom") {
-      setShowCustom(true);
-      return;
+  const selected: DateRange | undefined = useMemo(() => {
+    if (dateRange === "custom" && dateFrom && dateTo) {
+      return { from: new Date(dateFrom), to: new Date(dateTo) };
     }
-    setShowCustom(false);
+    const preset = PRESETS.find((p) => p.value === dateRange);
+    if (preset) {
+      return { from: startOfDay(subDays(new Date(), preset.days)), to: startOfDay(new Date()) };
+    }
+    return { from: startOfDay(subDays(new Date(), 28)), to: startOfDay(new Date()) };
+  }, [dateRange, dateFrom, dateTo]);
+
+  function handlePreset(value: string, days: number) {
     onChange(value, null, null);
+    setOpen(false);
   }
 
-  function handleCustomApply() {
-    if (localFrom && localTo) {
-      onChange("custom", localFrom, localTo);
+  function handleCalendarSelect(range: DateRange | undefined) {
+    if (range?.from && range?.to) {
+      const from = format(range.from, "yyyy-MM-dd");
+      const to = format(range.to, "yyyy-MM-dd");
+      onChange("custom", from, to);
     }
   }
+
+  const label = useMemo(() => {
+    const preset = PRESETS.find((p) => p.value === dateRange);
+    if (preset) return `Last ${preset.label}`;
+    if (dateRange === "custom" && dateFrom && dateTo) {
+      return `${format(new Date(dateFrom), "MMM d, yyyy")} – ${format(new Date(dateTo), "MMM d, yyyy")}`;
+    }
+    return "Pick a date range";
+  }, [dateRange, dateFrom, dateTo]);
 
   return (
-    <div className="flex items-center gap-1.5">
-      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-      <div className="flex items-center gap-1 rounded-lg border px-1 py-0.5" style={{ borderColor: "var(--border-color)" }}>
-        {PRESETS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            onClick={() => handlePreset(p.value)}
-            className="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
-            style={{
-              background: (dateRange === p.value || (p.value === "custom" && showCustom)) ? "var(--accent)" : "transparent",
-              color: (dateRange === p.value || (p.value === "custom" && showCustom)) ? "white" : "var(--text-secondary)",
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-      {showCustom && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            value={localFrom}
-            onChange={(e) => setLocalFrom(e.target.value)}
-            className="h-7 rounded border bg-transparent px-1.5 text-[11px] text-foreground"
-            style={{ borderColor: "var(--border-color)" }}
-          />
-          <span className="text-[11px] text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={localTo}
-            onChange={(e) => setLocalTo(e.target.value)}
-            className="h-7 rounded border bg-transparent px-1.5 text-[11px] text-foreground"
-            style={{ borderColor: "var(--border-color)" }}
-          />
-          <button
-            type="button"
-            onClick={handleCustomApply}
-            disabled={!localFrom || !localTo}
-            className="rounded-md px-2 py-1 text-[11px] font-medium disabled:opacity-40"
-            style={{ background: "var(--accent)", color: "white" }}
-          >
-            Apply
-          </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "justify-start text-left font-normal",
+            !dateRange && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+          <span className="text-xs">{label}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <div className="flex">
+          <div className="flex flex-col gap-1 border-r p-3">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.value}
+                variant={dateRange === p.value ? "default" : "ghost"}
+                size="sm"
+                className="justify-start text-xs"
+                onClick={() => handlePreset(p.value, p.days)}
+              >
+                Last {p.label}
+              </Button>
+            ))}
+          </div>
+          <div className="p-0">
+            <Calendar
+              mode="range"
+              selected={selected}
+              onSelect={handleCalendarSelect}
+              numberOfMonths={2}
+              defaultMonth={selected?.from}
+              disabled={{ after: new Date() }}
+            />
+          </div>
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

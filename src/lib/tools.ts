@@ -192,7 +192,7 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
   {
     name: "run_ads_query",
     description:
-      "Run a custom SQL query that can JOIN Google Ads data with GA4 data. Use this for attribution queries that need to link Ads clicks to website sessions via gclid, or any query that spans both Ads and GA4 tables. Use {dataset}.tableName for table references — the system routes to the correct dataset automatically. Ads tables: campaign_performance, keyword_performance, click_attribution, account_info.",
+      "Run a custom raw SQL query against BigQuery. Use this for any query that needs CTEs, window functions, JOINs, or complex logic that query_analytics cannot express — including sankey/flow queries, attribution queries, and cross-table JOINs. Use {dataset}.tableName for table references — the system routes to the correct dataset automatically. Works with ALL tables: pageviews, sessions, users, traffic_sources, stg_events, conversions, and Ads tables (campaign_performance, keyword_performance, click_attribution, account_info).",
     input_schema: {
       type: "object" as const,
       properties: {
