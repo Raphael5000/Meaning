@@ -151,6 +151,7 @@ export async function runPropertyQuery(
   const gscDataset = gscSiteUrl ? `gsc_${gscSiteUrl.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
+  let usesDbtTable = false;
   const scopedSql = sql.replace(
     /\{dataset\}\.(\w+)/g,
     (_match, tableName: string) => {
@@ -166,12 +167,42 @@ export async function runPropertyQuery(
       if (GSC_TABLES.has(tableName) && gscDataset) {
         return `${gscDataset}.${tableName}`;
       }
-      const dataset = DBT_TABLES.has(tableName) ? DBT_DATASET : rawDataset;
-      return `${dataset}.${tableName}`;
+      if (DBT_TABLES.has(tableName)) {
+        usesDbtTable = true;
+        return `${DBT_DATASET}.${tableName}`;
+      }
+      return `${rawDataset}.${tableName}`;
     }
   );
 
-  return runQuery(scopedSql, params);
+  // Inject property_id filter for dbt tables (shared dataset contains all properties)
+  let filteredSql = scopedSql;
+  const filteredParams = params ? { ...params } : {};
+  if (usesDbtTable && propertyId) {
+    filteredParams._propertyId = propertyId;
+    // If query has WHERE, append AND; otherwise inject WHERE before GROUP BY/ORDER BY/LIMIT
+    if (/\bWHERE\b/i.test(filteredSql)) {
+      // Insert property_id condition after the first WHERE
+      filteredSql = filteredSql.replace(
+        /\bWHERE\b/i,
+        "WHERE property_id = @_propertyId AND"
+      );
+    } else {
+      // No WHERE clause — inject before GROUP BY, ORDER BY, LIMIT, or at end
+      const insertPoint = filteredSql.search(/\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b/i);
+      if (insertPoint > 0) {
+        filteredSql =
+          filteredSql.slice(0, insertPoint) +
+          "WHERE property_id = @_propertyId " +
+          filteredSql.slice(insertPoint);
+      } else {
+        // Append at end (before any trailing semicolon)
+        filteredSql = filteredSql.replace(/;?\s*$/, " WHERE property_id = @_propertyId");
+      }
+    }
+  }
+
+  return runQuery(filteredSql, Object.keys(filteredParams).length > 0 ? filteredParams : undefined);
 }
 
 // ---------------------------------------------------------------------------
