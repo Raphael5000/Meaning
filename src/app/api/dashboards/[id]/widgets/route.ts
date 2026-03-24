@@ -142,13 +142,21 @@ CRITICAL RULES:
 3. NEVER fabricate data. Only use numbers from the tool response.
 4. Default date range is last 28 days unless specified.
 
-Available tables:
-  - sessions, pageviews, users, conversions, traffic_sources, stg_events (GA4)${adsTables}${linkedInTables}${mailchimpTables}${gscTables}
+Available tables and their columns:
+  - sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, geo_country, geo_city, is_first_visit
+  - pageviews: event_date, user_pseudo_id, ga_session_id, event_timestamp, page_location, page_title, session_source, session_medium, device_category, geo_country
+  - users: first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, geo_country, is_new_user
+  - traffic_sources: session_date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate
+  - conversions: event_date, event_name, page_location, session_source, session_medium, geo_country
+  - stg_events: event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, session_source, session_medium${adsTables}${linkedInTables}${mailchimpTables}${gscTables}
 
-For Google Ads: date column is stats_date. cost is already in currency units.
-For LinkedIn: date column is post_date or stats_date.
-For Mailchimp: date column is send_date or stats_date.
-For GSC: date column is query_date. ctr is 0-1 decimal. position: lower is better.
+IMPORTANT column notes:
+- traffic_sources uses "source" and "medium". sessions/pageviews use "session_source" and "session_medium". Do NOT mix them.
+- For page flow / sankey diagrams, use pageviews table with page_location, ga_session_id, event_timestamp.
+- For Google Ads: date column is stats_date. cost is already in currency units.
+- For LinkedIn: date column is post_date or stats_date.
+- For Mailchimp: date column is send_date or stats_date.
+- For GSC: date column is query_date. ctr is 0-1 decimal. position: lower is better.
 
 RESPONSE FORMAT:
 You MUST respond with exactly ONE of these formats:
@@ -284,7 +292,7 @@ export async function POST(
     let capturedQueryConfig: { tool: string; input: unknown } | null = null;
     let capturedData: unknown = null;
 
-    while (response.stop_reason === "tool_use" && toolRound < 3) {
+    while (response.stop_reason === "tool_use" && toolRound < 4) {
       toolRound++;
       const assistantContent = response.content;
       const toolUseBlocks = assistantContent.filter(
