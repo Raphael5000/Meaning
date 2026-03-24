@@ -40,6 +40,8 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [addWidgetOpen, setAddWidgetOpen] = useState(false);
+  const [editWidgetId, setEditWidgetId] = useState<string | null>(null);
+  const [editPrompt, setEditPrompt] = useState("");
   const hasRefreshedRef = useRef(false);
 
   const fetchDashboard = useCallback(() => {
@@ -147,6 +149,24 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
     fetchDashboard();
   }
 
+  function handleEditWidget(widgetId: string, prompt: string) {
+    setEditWidgetId(widgetId);
+    setEditPrompt(prompt);
+    setAddWidgetOpen(true);
+  }
+
+  async function handleEditSubmit(newPrompt: string) {
+    if (!editWidgetId) {
+      // Normal add
+      return handleAddWidget(newPrompt);
+    }
+    // Delete old widget, create new one with updated prompt
+    await handleDeleteWidget(editWidgetId);
+    setEditWidgetId(null);
+    setEditPrompt("");
+    return handleAddWidget(newPrompt);
+  }
+
   async function handleDeleteWidget(widgetId: string) {
     if (!dashboard) return;
     setDashboard((d) => {
@@ -228,7 +248,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
           size="sm"
           className="h-8 text-xs shrink-0"
           style={{ background: "var(--accent)", color: "white" }}
-          onClick={() => setAddWidgetOpen(true)}
+          onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
         >
           <Plus className="mr-1.5 h-3 w-3" />
           Add Widget
@@ -238,8 +258,9 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
       {/* Add Widget Dialog */}
       <AddWidgetDialog
         open={addWidgetOpen}
-        onClose={() => setAddWidgetOpen(false)}
-        onSubmit={handleAddWidget}
+        onClose={() => { setAddWidgetOpen(false); setEditWidgetId(null); setEditPrompt(""); }}
+        onSubmit={handleEditSubmit}
+        initialPrompt={editPrompt}
       />
 
       {/* Grid area */}
@@ -260,7 +281,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
               size="sm"
               className="h-8 text-xs"
               style={{ background: "var(--accent)", color: "white" }}
-              onClick={() => setAddWidgetOpen(true)}
+              onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
             >
               <Plus className="mr-1.5 h-3 w-3" />
               Add your first widget
@@ -272,6 +293,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
             widgets={dashboard.widgets}
             onLayoutChange={handleLayoutChange}
             onDeleteWidget={handleDeleteWidget}
+            onEditWidget={handleEditWidget}
             refreshing={refreshing}
           />
         )}

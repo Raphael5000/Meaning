@@ -435,6 +435,184 @@ body {
   100% { transform: translate(0, 0); }
 }
 
+/* ── Pencil icon animation (global) ── */
+/* Pencil body wiggles at the tip like writing */
+*:hover > .lucide-pencil path:first-child {
+  animation: pencil-write 0.4s ease-in-out;
+  transform-origin: 15% 85%;
+}
+/* Edit mark flicks */
+*:hover > .lucide-pencil path:nth-child(2) {
+  animation: pencil-flick 0.4s ease-in-out;
+  transform-origin: 80% 20%;
+}
+
+@keyframes pencil-write {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  50% { transform: rotate(4deg); }
+  75% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes pencil-flick {
+  0% { transform: scale(1) rotate(0deg); }
+  40% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ── Trash icon animation (global — works everywhere) ── */
+/* Lid (path 4 = horizontal line, path 5 = handle) lifts up */
+*:hover > .lucide-trash-2 path:nth-child(4),
+*:hover > .lucide-trash-2 path:nth-child(5) {
+  animation: trash-lid-lift 0.4s ease-in-out;
+  transform-origin: 50% 50%;
+}
+
+/* Bin body (path 3) wobbles slightly */
+*:hover > .lucide-trash-2 path:nth-child(3) {
+  animation: trash-wobble 0.4s ease-in-out 0.05s;
+  transform-origin: 50% 100%;
+}
+
+@keyframes trash-lid-lift {
+  0% { transform: translateY(0) rotate(0deg); }
+  40% { transform: translateY(-2px) rotate(-8deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes trash-wobble {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(3deg); }
+  60% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* ── Sidebar toggle arrow animation ── */
+@keyframes arrow-loop {
+  0% { transform: translateX(0); opacity: 1; }
+  40% { transform: translateX(-5px); opacity: 0; }
+  41% { transform: translateX(5px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes arrow-loop-reverse {
+  0% { transform: translateX(0) rotate(180deg); opacity: 1; }
+  40% { transform: translateX(5px) rotate(180deg); opacity: 0; }
+  41% { transform: translateX(-5px) rotate(180deg); opacity: 0; }
+  100% { transform: translateX(0) rotate(180deg); opacity: 1; }
+}
+
+.sidebar-toggle:hover .sidebar-toggle-icon-open {
+  animation: arrow-loop 0.45s ease-in-out;
+}
+
+.sidebar-toggle:hover .sidebar-toggle-icon-closed {
+  animation: arrow-loop-reverse 0.45s ease-in-out;
+}
+
+/* ── Account menu icon hover animations ── */
+
+/* User: head (circle) bobs up */
+.menu-btn:hover .menu-icon-user circle {
+  animation: user-nod 0.4s ease-in-out;
+}
+
+@keyframes user-nod {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-1.5px); }
+  100% { transform: translateY(0); }
+}
+
+/* Link2: the two chain ends pull apart then snap back */
+.menu-btn:hover .menu-icon-link path:first-child {
+  animation: link-pull-left 0.5s ease-in-out;
+}
+.menu-btn:hover .menu-icon-link path:nth-child(2) {
+  animation: link-pull-right 0.5s ease-in-out;
+}
+
+@keyframes link-pull-left {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+@keyframes link-pull-right {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+/* Users: second person (path:nth-child(2)) peeks from behind */
+.menu-btn:hover .menu-icon-users path:nth-child(2) {
+  animation: users-peek 0.5s ease-in-out;
+}
+.menu-btn:hover .menu-icon-users path:nth-child(3) {
+  animation: users-peek 0.5s ease-in-out 0.05s;
+}
+
+@keyframes users-peek {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+/* Bug: antennae (paths 3 and 9) wiggle */
+.menu-btn:hover .menu-icon-bug path:nth-child(3) {
+  animation: antenna-wiggle-r 0.4s ease-in-out;
+  transform-origin: 50% 100%;
+}
+.menu-btn:hover .menu-icon-bug path:nth-child(9) {
+  animation: antenna-wiggle-l 0.4s ease-in-out;
+  transform-origin: 50% 100%;
+}
+/* Bug: legs (paths 6,7,8,10) twitch */
+.menu-btn:hover .menu-icon-bug path:nth-child(6),
+.menu-btn:hover .menu-icon-bug path:nth-child(8) {
+  animation: leg-twitch-r 0.3s ease-in-out 0.1s;
+}
+.menu-btn:hover .menu-icon-bug path:nth-child(7),
+.menu-btn:hover .menu-icon-bug path:nth-child(10) {
+  animation: leg-twitch-l 0.3s ease-in-out 0.1s;
+}
+
+@keyframes antenna-wiggle-r {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(12deg); }
+  60% { transform: rotate(-8deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes antenna-wiggle-l {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes leg-twitch-r {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(1.5px); }
+  100% { transform: translateX(0); }
+}
+@keyframes leg-twitch-l {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-1.5px); }
+  100% { transform: translateX(0); }
+}
+
+/* LogOut: arrow (first path) slides right, door stays */
+.menu-btn:hover .menu-icon-logout path:first-child {
+  animation: logout-arrow 0.4s ease-in-out;
+}
+.menu-btn:hover .menu-icon-logout path:nth-child(2) {
+  animation: logout-arrow 0.4s ease-in-out;
+}
+
+@keyframes logout-arrow {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
 /* Dashboard grid overrides */
 .dashboard-grid .react-grid-item {
   transition: none;

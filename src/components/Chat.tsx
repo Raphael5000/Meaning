@@ -2,8 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
-import Link from "next/link";
-import Image from "next/image";
 import {
   Bell,
   Bug,
@@ -135,6 +133,7 @@ export default function Chat() {
         const TYPE_LABELS: Record<string, string> = {
           GA4_BIGQUERY: "Google Analytics",
           GOOGLE_ADS: "Google Ads",
+          SEARCH_CONSOLE: "Search Console",
           LINKEDIN: "LinkedIn",
           MAILCHIMP: "Mailchimp",
         };
@@ -422,76 +421,69 @@ export default function Chat() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r transition-all duration-200 md:relative md:z-auto md:translate-x-0 ${
           sidebarOpen
             ? "w-64 translate-x-0"
-            : "w-64 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden md:border-transparent"
+            : "w-64 -translate-x-full md:w-14 md:translate-x-0"
         }`}
         style={{
           borderColor: "var(--border-color)",
           background: "var(--bg-secondary)",
         }}
       >
-        {/* Top row: logo + account selector */}
-        <div className="flex items-center gap-2 pl-[18px] pr-3 pt-[18px]">
-          <Link href="/" className="flex shrink-0 items-center" aria-label="Home">
-            <Image
-              src="/Hivory icon.svg"
-              alt="Hivory"
-              width={28}
-              height={28}
-              className="h-7 w-7 invert dark:invert-0"
+        {/* Account selector — hidden when collapsed */}
+        {sidebarOpen && (
+          <div className="pl-3 pr-4 pt-4">
+            <AccountSelector
+              activeOrgId={activeOrgId}
+              onSelect={(org) => {
+                setActiveOrgId(org.id);
+                setActiveOrgName(org.name);
+                fetch("/api/user/active-org", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ orgId: org.id }),
+                }).catch(() => {});
+              }}
             />
-          </Link>
-        </div>
-        {/* Account selector */}
-        <div className="px-3 pt-4">
-          <AccountSelector
-            activeOrgId={activeOrgId}
-            onSelect={(org) => {
-              setActiveOrgId(org.id);
-              setActiveOrgName(org.name);
-              fetch("/api/user/active-org", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orgId: org.id }),
-              }).catch(() => {});
-            }}
-          />
-        </div>
-        {/* New chat button */}
-        <div className="px-3 py-2 pt-4 space-y-0.5">
+          </div>
+        )}
+        {/* Nav buttons */}
+        <div className={`space-y-0.5 ${sidebarOpen ? "px-3 py-2 pt-4" : "px-2 py-2 pt-4"}`}>
           <Button
             variant="ghost"
-            className="sidebar-btn w-full justify-start gap-2"
+            className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
             onClick={handleNewChat}
+            title="New chat"
           >
-            <SquarePen className="sidebar-icon-write h-4 w-4" />
-            New chat
+            <SquarePen className="sidebar-icon-write h-4 w-4 shrink-0" />
+            {sidebarOpen && <span>New chat</span>}
           </Button>
           <Button
             variant="ghost"
-            className="sidebar-btn w-full justify-start gap-2"
+            className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
             onClick={() => { closeAllPanels(); setAlertsOpen(true); }}
             aria-label="Email alerts"
+            title="Alerts"
           >
-            <Bell className="sidebar-icon-bell h-4 w-4" />
-            Alerts
+            <Bell className="sidebar-icon-bell h-4 w-4 shrink-0" />
+            {sidebarOpen && <span>Alerts</span>}
           </Button>
           <Button
             variant="ghost"
-            className="sidebar-btn w-full justify-start gap-2"
+            className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
             onClick={() => { closeAllPanels(); setDashboardListOpen(true); }}
             aria-label="Dashboards"
+            title="Dashboards"
           >
-            <LayoutDashboard className="sidebar-icon-dashboard h-4 w-4" />
-            Dashboards
+            <LayoutDashboard className="sidebar-icon-dashboard h-4 w-4 shrink-0" />
+            {sidebarOpen && <span>Dashboards</span>}
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 pt-6">
-          <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
+        <div className={`flex-1 overflow-y-auto p-2 pt-6 ${sidebarOpen ? "" : "hidden md:hidden"}`}>
+          {sidebarOpen && <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
             Chat history
-          </p>
+          </p>}
           {sortedChats.length === 0 ? (
             <p className="px-2 text-sm text-muted-foreground">
               No chats yet
@@ -530,38 +522,41 @@ export default function Chat() {
         {session?.user && (
           <div
             ref={accountMenuRef}
-            className="relative mt-auto border-t p-3"
+            className={`relative mt-auto border-t ${sidebarOpen ? "p-3" : "p-2"}`}
             style={{ borderColor: "var(--border-color)" }}
           >
             <button
               type="button"
-              onClick={() => setAccountMenuOpen((o) => !o)}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-foreground transition-colors hover:bg-accent"
+              onClick={() => sidebarOpen ? setAccountMenuOpen((o) => !o) : setSidebarOpen(true)}
+              className={`flex w-full cursor-pointer items-center rounded-lg text-foreground transition-colors hover:bg-accent ${sidebarOpen ? "gap-3 px-2 py-2" : "justify-center p-1.5"}`}
+              title={sidebarOpen ? undefined : session.user.name ?? "Account"}
             >
               {session.user.image ? (
                 <img
                   src={session.user.image}
                   alt=""
-                  className="h-9 w-9 shrink-0 rounded-full object-cover"
+                  className={`shrink-0 rounded-full object-cover ${sidebarOpen ? "h-9 w-9" : "h-7 w-7"}`}
                 />
               ) : (
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
+                  className={`flex shrink-0 items-center justify-center rounded-full bg-primary font-medium text-primary-foreground ${sidebarOpen ? "h-9 w-9 text-sm" : "h-7 w-7 text-xs"}`}
                 >
                   {getInitials(session.user.name ?? null, session.user.email ?? null)}
                 </div>
               )}
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {session.user.name ?? "Account"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {userPlan}
-                </p>
-              </div>
+              {sidebarOpen && (
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {session.user.name ?? "Account"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {userPlan}
+                  </p>
+                </div>
+              )}
             </button>
 
-            {accountMenuOpen && (
+            {accountMenuOpen && sidebarOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
                 <button
                   type="button"
@@ -570,9 +565,9 @@ export default function Chat() {
                     closeAllPanels();
                     setAccountOpen(true);
                   }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  className="menu-btn flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <User className="h-4 w-4" />
+                  <User className="menu-icon-user h-4 w-4" />
                   Account
                 </button>
                 <button
@@ -582,9 +577,9 @@ export default function Chat() {
                     closeAllPanels();
                     setConnectionsOpen(true);
                   }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  className="menu-btn flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <Link2 className="h-4 w-4" />
+                  <Link2 className="menu-icon-link h-4 w-4" />
                   Connections
                 </button>
                 {userPlan !== "Free" && (
@@ -595,9 +590,9 @@ export default function Chat() {
                       closeAllPanels();
                       setTeamOpen(true);
                     }}
-                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                    className="menu-btn flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="menu-icon-users h-4 w-4" />
                     Team
                   </button>
                 )}
@@ -607,9 +602,9 @@ export default function Chat() {
                     setAccountMenuOpen(false);
                     setBugReportOpen(true);
                   }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  className="menu-btn flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <Bug className="h-4 w-4" />
+                  <Bug className="menu-icon-bug h-4 w-4" />
                   Report a bug
                 </button>
                 <button
@@ -618,9 +613,9 @@ export default function Chat() {
                     setAccountMenuOpen(false);
                     signOut();
                   }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  className="menu-btn flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="menu-icon-logout h-4 w-4" />
                   Log out
                 </button>
               </div>
@@ -629,24 +624,37 @@ export default function Chat() {
         )}
       </aside>
 
+      {/* Sidebar toggle — mounted on the border, vertically centered with account selector */}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen((o) => !o)}
+        className="sidebar-toggle absolute z-[51] hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border bg-background text-muted-foreground shadow-sm transition-all hover:text-foreground md:flex"
+        style={{
+          borderColor: "var(--border-color)",
+          top: "1.55rem",
+          left: sidebarOpen ? "calc(16rem - 10px)" : "calc(3.5rem - 10px)",
+          transition: "left 200ms ease",
+        }}
+        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+      >
+        <ChevronLeft
+          className={`h-3 w-3 ${sidebarOpen ? "sidebar-toggle-icon-open" : "sidebar-toggle-icon-closed"}`}
+          style={{ transform: sidebarOpen ? undefined : "rotate(180deg)" }}
+        />
+      </button>
+
       {/* Main chat area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
-        <header className="flex shrink-0 items-center justify-between px-3 py-2 md:px-4 md:py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen((o) => !o)}
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-            >
-              {sidebarOpen ? (
-                <ChevronLeft className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
+        {/* Mobile-only header toggle */}
+        <header className="flex shrink-0 items-center justify-between px-3 py-2 md:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen((o) => !o)}
+            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
         </header>
 
         {/* Panels (replace messages area) */}

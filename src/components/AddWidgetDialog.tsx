@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -8,12 +8,18 @@ interface AddWidgetDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (prompt: string) => Promise<void>;
+  initialPrompt?: string;
 }
 
-export default function AddWidgetDialog({ open, onClose, onSubmit }: AddWidgetDialogProps) {
-  const [prompt, setPrompt] = useState("");
+export default function AddWidgetDialog({ open, onClose, onSubmit, initialPrompt }: AddWidgetDialogProps) {
+  const [prompt, setPrompt] = useState(initialPrompt || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync prompt when initialPrompt changes (edit mode)
+  useEffect(() => {
+    if (open) setPrompt(initialPrompt || "");
+  }, [open, initialPrompt]);
 
   if (!open) return null;
 
@@ -46,7 +52,7 @@ export default function AddWidgetDialog({ open, onClose, onSubmit }: AddWidgetDi
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" style={{ color: "var(--accent)" }} />
-            <h3 className="text-sm font-semibold text-foreground">Add Widget</h3>
+            <h3 className="text-sm font-semibold text-foreground">{initialPrompt ? "Edit Widget" : "Add Widget"}</h3>
           </div>
           <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />

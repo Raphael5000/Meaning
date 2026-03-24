@@ -114,9 +114,6 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
                 className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-xl border py-2 shadow-xl"
                 style={{ background: "var(--bg-primary)", borderColor: "var(--border-color)" }}
               >
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Connected sources
-                </p>
                 {activeSources.map((ds, i) => {
                   const icon = SOURCE_ICONS[ds.type];
                   const fallback = SOURCE_FALLBACK[ds.type];

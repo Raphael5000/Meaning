@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { GripVertical, Trash2, MoreVertical, RefreshCw } from "lucide-react";
+import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil } from "lucide-react";
 import ChartRenderer from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
 import TableWidget from "./TableWidget";
@@ -19,6 +19,7 @@ interface Widget {
 interface DashboardWidgetProps {
   widget: Widget;
   onDelete: () => void;
+  onEdit: (prompt: string) => void;
   refreshing?: boolean;
 }
 
@@ -197,7 +198,7 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   );
 }
 
-export default function DashboardWidget({ widget, onDelete, refreshing }: DashboardWidgetProps) {
+export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }: DashboardWidgetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -231,6 +232,14 @@ export default function DashboardWidget({ widget, onDelete, refreshing }: Dashbo
                 className="absolute right-0 top-full z-20 mt-1 rounded-lg border py-1 shadow-lg"
                 style={{ background: "var(--bg-primary)", borderColor: "var(--border-color)", minWidth: 120 }}
               >
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onEdit(widget.prompt); }}
+                  className="menu-btn flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </button>
                 <button
                   type="button"
                   onClick={() => { setMenuOpen(false); onDelete(); }}
