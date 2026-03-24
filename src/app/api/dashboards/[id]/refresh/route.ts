@@ -216,6 +216,8 @@ export async function POST(
             // Override dates in the structured input
             const input = { ...queryConfig.input, startDate, endDate } as QueryAnalyticsInput;
             const { sql, params } = buildAnalyticsSQL(input);
+            console.log(`[dashboard-refresh] Widget ${widget.id}: dates=${startDate}→${endDate}, SQL=${sql.slice(0, 200)}`);
+            console.log(`[dashboard-refresh] Params:`, JSON.stringify(params));
             const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
             rows = result.rows;
           } else {

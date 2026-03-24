@@ -153,6 +153,35 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
     } else {
       option.legend = { show: false };
     }
+  } else if (chartType === "sankey") {
+    // Sankey: rows have from_page, to_page, transitions
+    // Rebuild nodes and links from the data
+    const fromKey = keys.find((k) => k.includes("from")) || keys[0];
+    const toKey = keys.find((k) => k.includes("to")) || keys[1];
+    const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[2];
+
+    if (fromKey && toKey && valueKey) {
+      const nodeSet = new Set<string>();
+      const links: Array<{ source: string; target: string; value: number }> = [];
+
+      for (const row of rows) {
+        const source = String(row[fromKey] ?? "");
+        const target = String(row[toKey] ?? "");
+        const value = Number(row[valueKey] ?? 0);
+        if (source && target && source !== target) {
+          nodeSet.add(source);
+          nodeSet.add(target);
+          links.push({ source, target, value });
+        }
+      }
+
+      series[0].data = Array.from(nodeSet).map((name) => ({ name }));
+      series[0].links = links;
+      series[0].emphasis = { focus: "adjacency" };
+      series[0].lineStyle = { color: "gradient", curveness: 0.5 };
+    }
+
+    option.tooltip = { trigger: "item", triggerOn: "mousemove" };
   }
 
   return option;
