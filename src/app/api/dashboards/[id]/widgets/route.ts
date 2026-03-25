@@ -190,7 +190,7 @@ interface ParsedWidget {
   title: string;
 }
 
-function parseWidgetResponse(text: string): ParsedWidget | null {
+function parseWidgetResponse(text: string, prompt: string): ParsedWidget | null {
   // Try chart
   const chartMatch = text.match(CHART_REGEX);
   if (chartMatch) {
@@ -225,7 +225,7 @@ function parseWidgetResponse(text: string): ParsedWidget | null {
       return {
         widgetType: "table",
         displayConfig: { columns, inlineData: Array.isArray(rows) ? rows : undefined },
-        title: "Table",
+        title: prompt.slice(0, 60),
       };
     } catch { /* fall through */ }
   }
@@ -410,7 +410,7 @@ export async function POST(
     console.log("[widget-gen] capturedData:", capturedData ? `array=${Array.isArray(capturedData)} length=${Array.isArray(capturedData) ? (capturedData as unknown[]).length : "n/a"}` : "null");
     console.log("[widget-gen] capturedQueryConfig:", capturedQueryConfig ? capturedQueryConfig.tool : "null");
     console.log("[widget-gen] stop_reason:", response.stop_reason);
-    let parsed = parseWidgetResponse(rawText);
+    let parsed = parseWidgetResponse(rawText, body.prompt);
 
     // Fallback: if Claude didn't use widget blocks but returned data, try to create a table widget
     if (!parsed && capturedData && Array.isArray(capturedData) && (capturedData as unknown[]).length > 0) {
