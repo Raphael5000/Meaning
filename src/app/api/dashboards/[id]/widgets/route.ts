@@ -130,7 +130,7 @@ function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchi
   const adsTables = hasAds ? "\n  - campaign_performance, keyword_performance, click_attribution, account_info (Google Ads)" : "";
   const linkedInTables = hasLinkedIn ? "\n  - post_performance, follower_stats, follower_demographics, page_stats, org_info (LinkedIn)" : "";
   const mailchimpTables = hasMailchimp ? "\n  - campaign_reports, audience_stats, audience_growth, mc_account_info (Mailchimp)" : "";
-  const gscTables = hasGsc ? "\n  - search_performance, site_info (Google Search Console)" : "";
+  const gscTables = hasGsc ? "\n  - search_performance, url_inspection, site_info (Google Search Console)" : "";
 
   return `You are a data visualization assistant. Your job is to generate a single dashboard widget from a user's natural language request.
 

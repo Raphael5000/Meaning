@@ -174,17 +174,19 @@ function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, in
 
   const gscTablesPrompt = includeGsc ? `
   - search_performance: Daily search metrics — query_date, query (search term), page (URL), country (3-letter ISO code e.g. USA, GBR), device (DESKTOP, MOBILE, TABLET), clicks, impressions, ctr (0-1 decimal), position (average ranking, lower is better)
+  - url_inspection: Per-URL crawl/index status — inspected_date, url, index_verdict (PASS=indexed, FAIL=not indexed, NEUTRAL=unclear), coverage_state (e.g. "Submitted and indexed", "Crawled - currently not indexed"), robotstxt_state (ALLOWED/DISALLOWED), indexing_state, page_fetch_state (SUCCESSFUL, SOFT_404, BLOCKED_ROBOTS_TXT, NOT_FOUND, SERVER_ERROR), last_crawl_time, crawled_as (DESKTOP/MOBILE), google_canonical, user_canonical, mobile_verdict, rich_results_verdict
   - site_info: Site metadata (single row) — site_url, permission_level, last_synced_at` : "";
 
   const gscQueryGuidance = includeGsc ? `
 
 GSC QUERIES:
-- Use the run_gsc_query tool for all organic search performance questions.
-- Date column: query_date for search_performance. site_info has no date column.
+- Use the run_gsc_query tool for all organic search performance and indexing questions.
+- Date column: query_date for search_performance, inspected_date for url_inspection. site_info has no date column.
 - Metrics: clicks, impressions, ctr (0-1 decimal, multiply by 100 for percentage), position (lower is better, 1.0 = top result).
 - Country codes are 3-letter ISO (e.g. USA, GBR, ZAF, DEU).
 - Device values: DESKTOP, MOBILE, TABLET.
 - Common queries: top search queries by clicks, pages with most impressions, average position trends, CTR by device/country.
+- INDEXING / CRAWL QUERIES: Use url_inspection table for questions about indexing status, crawl issues, canonical problems, or page fetch errors. Key columns: index_verdict (PASS/FAIL/NEUTRAL), coverage_state, page_fetch_state, last_crawl_time, google_canonical vs user_canonical. Example: "how many pages are indexed?" → COUNT by index_verdict. "which pages have crawl errors?" → WHERE page_fetch_state != 'SUCCESSFUL'.
 - Always use {dataset}.tableName format — the system routes GSC tables to the correct dataset automatically.` : "";
 
   const mailchimpQueryGuidance = includeMailchimp ? `

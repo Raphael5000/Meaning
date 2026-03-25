@@ -77,6 +77,24 @@ const TABLE_SCHEMAS: Record<string, { fields: { name: string; type: string }[]; 
       { name: "position", type: "FLOAT64" },
     ],
   },
+  url_inspection: {
+    partition: "inspected_date",
+    fields: [
+      { name: "inspected_date", type: "DATE" },
+      { name: "url", type: "STRING" },
+      { name: "index_verdict", type: "STRING" },
+      { name: "coverage_state", type: "STRING" },
+      { name: "robotstxt_state", type: "STRING" },
+      { name: "indexing_state", type: "STRING" },
+      { name: "page_fetch_state", type: "STRING" },
+      { name: "last_crawl_time", type: "TIMESTAMP" },
+      { name: "crawled_as", type: "STRING" },
+      { name: "google_canonical", type: "STRING" },
+      { name: "user_canonical", type: "STRING" },
+      { name: "mobile_verdict", type: "STRING" },
+      { name: "rich_results_verdict", type: "STRING" },
+    ],
+  },
   site_info: {
     fields: [
       { name: "site_url", type: "STRING" },
@@ -212,6 +230,166 @@ function flattenGscRow(row: GscRow): Record<string, unknown> {
 
 export interface GscSyncResult {
   searchRows: number;
+  inspectedUrls?: number;
+}
+
+// ---------------------------------------------------------------------------
+// URL Inspection API
+// ---------------------------------------------------------------------------
+
+interface InspectionResult {
+  inspectionResult?: {
+    indexStatusResult?: {
+      verdict?: string;
+      coverageState?: string;
+      robotsTxtState?: string;
+      indexingState?: string;
+      pageFetchState?: string;
+      lastCrawlTime?: string;
+      crawledAs?: string;
+      googleCanonical?: string;
+      userCanonical?: string;
+    };
+    mobileUsabilityResult?: {
+      verdict?: string;
+    };
+    richResultsResult?: {
+      verdict?: string;
+    };
+  };
+}
+
+async function inspectUrl(
+  accessToken: string,
+  siteUrl: string,
+  inspectionUrl: string,
+): Promise<InspectionResult> {
+  const res = await fetch(
+    "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inspectionUrl, siteUrl }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`URL Inspection API ${res.status}: ${body.slice(0, 300)}`);
+  }
+
+  return res.json() as Promise<InspectionResult>;
+}
+
+function flattenInspectionResult(
+  url: string,
+  result: InspectionResult,
+): Record<string, unknown> {
+  const idx = result.inspectionResult?.indexStatusResult;
+  const mobile = result.inspectionResult?.mobileUsabilityResult;
+  const rich = result.inspectionResult?.richResultsResult;
+
+  return {
+    inspected_date: new Date().toISOString().split("T")[0],
+    url,
+    index_verdict: idx?.verdict ?? null,
+    coverage_state: idx?.coverageState ?? null,
+    robotstxt_state: idx?.robotsTxtState ?? null,
+    indexing_state: idx?.indexingState ?? null,
+    page_fetch_state: idx?.pageFetchState ?? null,
+    last_crawl_time: idx?.lastCrawlTime ?? null,
+    crawled_as: idx?.crawledAs ?? null,
+    google_canonical: idx?.googleCanonical ?? null,
+    user_canonical: idx?.userCanonical ?? null,
+    mobile_verdict: mobile?.verdict ?? null,
+    rich_results_verdict: rich?.verdict ?? null,
+  };
+}
+
+/**
+ * Inspect a batch of URLs using the URL Inspection API.
+ * Caps at maxUrls to stay within the 2,000/day rate limit.
+ * Runs requests with limited concurrency to avoid overwhelming the API.
+ */
+export async function syncUrlInspection(
+  userId: string,
+  siteUrl: string,
+  maxUrls = 500,
+): Promise<number> {
+  const accessToken = await getValidGoogleTokenForUser(userId, true);
+  if (!accessToken) throw new Error(`No Google token for user ${userId}`);
+
+  const datasetId = getGscDataset(siteUrl);
+  const bq = getBqClient();
+  const projectId = getProjectId();
+
+  // Ensure url_inspection table exists
+  await ensureGscTables(datasetId);
+
+  // Get top URLs by impressions from search_performance (most important pages first)
+  const fqDataset = `\`${projectId}.${datasetId}\``;
+  let urls: string[] = [];
+  try {
+    const [rows] = await bq.query({
+      query: `SELECT page, SUM(impressions) as total_impressions
+              FROM ${fqDataset}.search_performance
+              WHERE query_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+              GROUP BY page
+              ORDER BY total_impressions DESC
+              LIMIT ${maxUrls}`,
+    });
+    urls = rows.map((r: Record<string, unknown>) => String(r.page));
+  } catch {
+    console.log("[url-inspection] No search_performance data yet, skipping");
+    return 0;
+  }
+
+  if (urls.length === 0) {
+    console.log("[url-inspection] No URLs to inspect");
+    return 0;
+  }
+
+  console.log(`[url-inspection] Inspecting ${urls.length} URLs for ${siteUrl}`);
+
+  // Inspect URLs with limited concurrency (5 at a time)
+  const CONCURRENCY = 5;
+  const results: Record<string, unknown>[] = [];
+
+  for (let i = 0; i < urls.length; i += CONCURRENCY) {
+    const batch = urls.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.allSettled(
+      batch.map((url) => inspectUrl(accessToken, siteUrl, url)),
+    );
+
+    for (let j = 0; j < batchResults.length; j++) {
+      const r = batchResults[j];
+      if (r.status === "fulfilled") {
+        results.push(flattenInspectionResult(batch[j], r.value));
+      } else {
+        console.error(`[url-inspection] Failed for ${batch[j]}: ${r.reason}`);
+      }
+    }
+  }
+
+  if (results.length === 0) return 0;
+
+  // Delete today's existing inspection data (idempotent re-run)
+  const today = new Date().toISOString().split("T")[0];
+  await bq.query({
+    query: `DELETE FROM ${fqDataset}.url_inspection WHERE inspected_date = '${today}'`,
+  }).catch(() => {});
+
+  // Insert results
+  const BATCH = 500;
+  for (let i = 0; i < results.length; i += BATCH) {
+    await bq.dataset(datasetId).table("url_inspection").insert(results.slice(i, i + BATCH));
+  }
+
+  console.log(`[url-inspection] Inserted ${results.length} inspection results`);
+  return results.length;
 }
 
 /**

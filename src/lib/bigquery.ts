@@ -117,6 +117,7 @@ const MAILCHIMP_TABLES = new Set([
 const GSC_TABLES = new Set([
   "search_performance",
   "site_info",
+  "url_inspection",
 ]);
 
 /**

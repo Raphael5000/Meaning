@@ -122,7 +122,7 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
             "campaign_performance", "keyword_performance", "click_attribution", "account_info",
             "post_performance", "follower_stats", "follower_demographics", "page_stats", "org_info",
             "campaign_reports", "audience_stats", "audience_growth", "mc_account_info",
-            "search_performance", "site_info"
+            "search_performance", "site_info", "url_inspection"
           ],
           description:
             "Which table to query. GA4 tables: 'sessions', 'pageviews', 'users', 'conversions', 'traffic_sources', 'events'. Google Ads tables (if connected): 'campaign_performance' (daily campaign metrics with cost, clicks, impressions, conversions), 'keyword_performance' (daily keyword/ad-group metrics), 'click_attribution' (per-click data with gclid for attribution), 'account_info' (account currency and name).",
