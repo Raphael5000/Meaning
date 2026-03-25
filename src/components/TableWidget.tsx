@@ -29,8 +29,11 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
     );
   }
 
-  const columns = config.columns && config.columns.length > 0
-    ? config.columns
+  const dataKeys = new Set(Object.keys(rows[0]));
+  const configColumnsMatch = config.columns && config.columns.length > 0
+    && config.columns.some((c) => dataKeys.has(c.key));
+  const columns = configColumnsMatch
+    ? config.columns!
     : Object.keys(rows[0]).map((key) => ({ key, label: key.replace(/_/g, " ") }));
 
   // Detect which columns are numeric vs text for alignment
