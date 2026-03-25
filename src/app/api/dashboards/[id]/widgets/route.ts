@@ -222,7 +222,7 @@ function parseWidgetResponse(text: string): ParsedWidget | null {
         : [];
       return {
         widgetType: "table",
-        displayConfig: { columns },
+        displayConfig: { columns, inlineData: Array.isArray(rows) ? rows : undefined },
         title: "Table",
       };
     } catch { /* fall through */ }
@@ -450,8 +450,14 @@ export async function POST(
         widgetType: parsed.widgetType,
         queryConfig: (capturedQueryConfig ?? {}) as object,
         displayConfig: parsed.displayConfig as object,
-        cachedData: capturedData ? (capturedData as object) : undefined,
-        cachedAt: capturedData ? new Date() : undefined,
+        cachedData: capturedData
+          ? (capturedData as object)
+          : (parsed.displayConfig as Record<string, unknown>)?.inlineData
+            ? ((parsed.displayConfig as Record<string, unknown>).inlineData as object)
+            : undefined,
+        cachedAt: capturedData || (parsed.displayConfig as Record<string, unknown>)?.inlineData
+          ? new Date()
+          : undefined,
         title: parsed.title,
       },
     });
