@@ -137,10 +137,12 @@ function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchi
 Today's date is ${today}.
 
 CRITICAL RULES:
-1. Call exactly ONE tool to fetch data. Pick the best tool for the request.
-2. After getting data, respond with the visualization.
-3. NEVER fabricate data. Only use numbers from the tool response.
-4. Default date range is last 28 days unless specified.
+1. THINK before querying. Interpret the user's intent — e.g. "top blog posts" means filter for pages with /blog/ in the URL path, "landing pages" means the first page in a session, "product pages" means pages with /product/ in the path. Use your knowledge of common website URL patterns to build smart filters.
+2. You can call multiple tools (up to 4 rounds). If you need to explore the data first (e.g. check what URL patterns exist, sample page titles, discover categories), call get_available_fields or run a small exploratory query first, THEN build your final query with the right filters.
+3. For filtering by page type (blog, product, etc.), use LIKE filters on page_location: WHERE page_location LIKE '%/blog/%' for blog posts. Always use the path pattern, not page_title.
+4. NEVER fabricate data. Only use numbers from the tool response.
+5. Default date range is last 28 days unless specified.
+6. Use the run_ads_query tool for any query that needs LIKE filters, JOINs, subqueries, or complex SQL — query_analytics is only for simple aggregations.
 
 Available tables and their columns:
   - sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, geo_country, geo_city, is_first_visit

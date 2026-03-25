@@ -227,10 +227,16 @@ Today's date is ${today}.
 ${SHARED_PROMPT_RULES}
 
 When the user asks a question about their analytics:
-1. Determine which tool(s) to call to answer their question.
+1. THINK first about what the user actually means. Interpret their intent intelligently:
+   - "blog posts" or "articles" → filter page_location LIKE '%/blog/%'
+   - "product pages" → filter page_location LIKE '%/product/%' or '%/products/%'
+   - "landing pages" → means the first page users arrived on (use landing_page column from sessions, or page_location with step=1)
+   - "top pages" → rank by pageviews or sessions
+   - Use your knowledge of common website URL structures to apply smart filters.
 2. Call the tool(s) with appropriate parameters. For the metrics array, use simple metric names like "cost", "clicks", "sessions" — NOT SQL expressions like "SUM(cost)". The system applies the correct aggregation automatically.
-3. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
-4. Use tables or lists when presenting data for clarity.
+3. For queries needing LIKE filters, subqueries, or JOINs, use run_ads_query with raw SQL instead of query_analytics.
+4. Interpret the results in plain English with specific numbers, trends, and actionable insights. Every number must trace back to a tool result.
+5. Use tables or lists when presenting data for clarity.
 
 IMPORTANT: Be efficient with tool calls. Most questions can be answered in 1-2 tool calls. If your first query returns valid data, use that data to answer — do NOT re-query the same table with different parameters. Only make additional calls if the first result was genuinely insufficient (e.g. missing a required column, or you need data from a different table).
 
