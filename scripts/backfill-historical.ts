@@ -309,6 +309,24 @@ async function backfillUsers(accessToken: string) {
 // Main
 // ---------------------------------------------------------------------------
 
+async function clearExistingBackfill() {
+  console.log(`\n=== Clearing existing backfill data for property ${PROPERTY_ID} ===`);
+  for (const table of ["backfill_sessions", "backfill_traffic_sources"]) {
+    try {
+      await bqClient.query({
+        query: `DELETE FROM \`${DBT_DATASET}.${table}\` WHERE property_id = @propertyId`,
+        params: { propertyId: PROPERTY_ID },
+      });
+      console.log(`  Cleared ${table}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      // Table may not exist yet — that's fine
+      if (!err.message?.includes("Not found")) throw e;
+      console.log(`  ${table} not found (will be created)`);
+    }
+  }
+}
+
 async function main() {
   console.log(`=== Historical Backfill ===`);
   console.log(`Property: ${PROPERTY_ID}`);
@@ -317,6 +335,7 @@ async function main() {
 
   const accessToken = await getAccessToken();
 
+  await clearExistingBackfill();
   await backfillTrafficSources(accessToken);
   await backfillSessions(accessToken);
   await backfillUsers(accessToken);

@@ -79,6 +79,18 @@ export async function backfillProperty(
   // Ensure backfill tables exist
   await ensureBackfillTables(client);
 
+  // Clear any existing backfill data for this property to prevent duplicates
+  for (const table of ["backfill_sessions", "backfill_traffic_sources"]) {
+    try {
+      await client.query({
+        query: `DELETE FROM \`${DBT_DATASET}.${table}\` WHERE property_id = @propertyId`,
+        params: { propertyId },
+      });
+    } catch {
+      // Table may be empty or not exist yet — that's fine
+    }
+  }
+
   // 1. Backfill traffic_sources
   const tsRows = await backfillTrafficSources(client, accessToken, propertyId, startDate, endDate);
 

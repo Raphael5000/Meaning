@@ -71,8 +71,8 @@ jobs:
   validate:
     needs: dbt-build
     runs-on: ubuntu-latest
-    # Only run validation on daily builds, not full refresh
-    if: github.event.schedule != '0 7 * * 0'
+    # Only run validation on daily builds, not full refresh, and only if DATABASE_URL is set
+    if: github.event.schedule != '0 7 * * 0' && secrets.DATABASE_URL != ''
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
