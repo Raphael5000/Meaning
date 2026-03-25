@@ -82,17 +82,19 @@ real_with_key AS (
 
 ),
 
--- Dates that have real export data (used to exclude backfill for those dates)
-real_dates AS (
-  SELECT DISTINCT session_date FROM real_with_key
+-- Property+date combos that have real export data (exclude backfill for those)
+real_property_dates AS (
+  SELECT DISTINCT property_id, session_date FROM real_with_key
 ),
 
--- Backfill sessions: only for dates without real data
+-- Backfill sessions: only for property+date combos without real data
 backfill AS (
 
-  SELECT *
-  FROM {{ source('backfill', 'backfill_sessions') }}
-  WHERE session_date NOT IN (SELECT session_date FROM real_dates)
+  SELECT b.*
+  FROM {{ source('backfill', 'backfill_sessions') }} b
+  LEFT JOIN real_property_dates r
+    ON b.property_id = r.property_id AND b.session_date = r.session_date
+  WHERE r.property_id IS NULL
 
 )
 
