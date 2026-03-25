@@ -465,7 +465,15 @@ export async function POST(
     });
 
     // Add widget to the dashboard layout
-    const layout = (dashboard.layout as Array<{ i: string; x: number; y: number; w: number; h: number }>) || [];
+    // Get existing widget IDs to clean stale layout entries
+    const existingWidgets = await prisma.widget.findMany({
+      where: { dashboardId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingWidgets.map((w) => w.id));
+    const rawLayout = (dashboard.layout as Array<{ i: string; x: number; y: number; w: number; h: number }>) || [];
+    // Filter out layout entries for deleted widgets
+    const layout = rawLayout.filter((item) => existingIds.has(item.i));
     const sizes: Record<string, { w: number; h: number }> = {
       chart: { w: 6, h: 5 },
       scorecard: { w: 3, h: 3 },
