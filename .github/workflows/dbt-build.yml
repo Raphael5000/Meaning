@@ -71,8 +71,8 @@ jobs:
   validate:
     needs: dbt-build
     runs-on: ubuntu-latest
-    # Only run validation on daily builds, not full refresh, and only if DATABASE_URL is set
-    if: github.event.schedule != '0 7 * * 0' && secrets.DATABASE_URL != ''
+    # Only run validation on daily builds, not full refresh
+    if: github.event.schedule != '0 7 * * 0'
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -87,6 +87,7 @@ jobs:
         run: npm install -g pnpm && pnpm install --frozen-lockfile
 
       - name: Run BQ vs GA4 validation
+        if: env.DATABASE_URL != ''
         env:
           GOOGLE_BIGQUERY_CREDENTIALS: ${{ secrets.GOOGLE_BIGQUERY_CREDENTIALS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
