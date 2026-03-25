@@ -1,17 +1,45 @@
 version: 2
 
 sources:
-  - name: ga4_raw
-    description: Raw GA4 BigQuery export tables
+  - name: ga4_raw_404628120
+    description: "Raw GA4 BigQuery export — Code Capsules"
     database: scenic-healer-486415-u3
     schema: analytics_404628120
     tables:
       - name: events
-        description: Daily GA4 event export (sharded by date as events_YYYYMMDD)
         identifier: "events_*"
-      - name: pseudonymous_users
-        description: GA4 pseudonymous user data (sharded by date)
-        identifier: "pseudonymous_users_*"
+
+  - name: ga4_raw_379503029
+    description: "Raw GA4 BigQuery export — Decentral Energy"
+    database: scenic-healer-486415-u3
+    schema: analytics_379503029
+    tables:
+      - name: events
+        identifier: "events_*"
+
+  - name: ga4_raw_403387022
+    description: "Raw GA4 BigQuery export — Hivory"
+    database: scenic-healer-486415-u3
+    schema: analytics_403387022
+    tables:
+      - name: events
+        identifier: "events_*"
+
+  - name: ga4_raw_271992166
+    description: "Raw GA4 BigQuery export — Magix"
+    database: scenic-healer-486415-u3
+    schema: analytics_271992166
+    tables:
+      - name: events
+        identifier: "events_*"
+
+  - name: ga4_raw_484056386
+    description: "Raw GA4 BigQuery export — WhoYou"
+    database: scenic-healer-486415-u3
+    schema: analytics_484056386
+    tables:
+      - name: events
+        identifier: "events_*"
 
   - name: backfill
     description: Historical backfill data from GA4 API
@@ -22,4 +50,3 @@ sources:
         description: Backfilled session rows from GA4 API (aggregated, not raw events)
       - name: backfill_traffic_sources
         description: Backfilled daily traffic source aggregates from GA4 API
-
