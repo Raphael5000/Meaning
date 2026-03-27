@@ -124,13 +124,14 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 // Widget system prompt (shorter, focused on single-widget generation)
 // ---------------------------------------------------------------------------
 
-function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean): string {
+function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean, hasMsAds: boolean): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTables = hasAds ? "\n  - campaign_performance, keyword_performance, click_attribution, account_info (Google Ads)" : "";
   const linkedInTables = hasLinkedIn ? "\n  - post_performance, follower_stats, follower_demographics, page_stats, org_info (LinkedIn)" : "";
   const mailchimpTables = hasMailchimp ? "\n  - campaign_reports, audience_stats, audience_growth, mc_account_info (Mailchimp)" : "";
   const gscTables = hasGsc ? "\n  - search_performance, url_inspection, site_info (Google Search Console)" : "";
+  const msAdsTables = hasMsAds ? "\n  - msads_campaign_performance, msads_keyword_performance, msads_search_query_performance, msads_account_info (Microsoft/Bing Ads — use run_microsoft_ads_query tool)" : "";
 
   return `You are a data visualization assistant. Your job is to generate a single dashboard widget from a user's natural language request.
 
@@ -150,7 +151,7 @@ Available tables and their columns:
   - users: first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, geo_country, is_new_user
   - traffic_sources: session_date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate
   - conversions: event_date, event_name, page_location, session_source, session_medium, geo_country
-  - stg_events: event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, session_source, session_medium${adsTables}${linkedInTables}${mailchimpTables}${gscTables}
+  - stg_events: event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, session_source, session_medium${adsTables}${msAdsTables}${linkedInTables}${mailchimpTables}${gscTables}
 
 IMPORTANT column notes:
 - traffic_sources uses "source" and "medium". sessions/pageviews use "session_source" and "session_medium". Do NOT mix them.
@@ -159,6 +160,7 @@ IMPORTANT column notes:
 - For LinkedIn: date column is post_date or stats_date.
 - For Mailchimp: date column is send_date or stats_date.
 - For GSC: date column is query_date. ctr is 0-1 decimal. position: lower is better.
+- For Microsoft Ads: use run_microsoft_ads_query tool. Tables are prefixed msads_ (msads_campaign_performance, msads_keyword_performance, msads_search_query_performance, msads_account_info). Date column is stats_date. cost is in currency units. Use {dataset}.tableName format.
 
 RESPONSE FORMAT:
 You MUST respond with exactly ONE of these formats:
@@ -277,8 +279,9 @@ export async function POST(
     const linkedInOrgId = orgDataSources.find((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
     const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
+    const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
 
-    const systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl);
+    const systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId);
 
     // Call Claude with tools
     let response = await anthropic.messages.create({
@@ -316,7 +319,7 @@ export async function POST(
             case "query_analytics": {
               const input = toolUse.input as unknown as QueryAnalyticsInput;
               const { sql, params } = buildAnalyticsSQL(input);
-              result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
+              result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_analytics", input: toolUse.input };
                 capturedData = (result as { rows: unknown }).rows;
@@ -326,9 +329,10 @@ export async function POST(
             case "run_ads_query":
             case "run_linkedin_query":
             case "run_mailchimp_query":
-            case "run_gsc_query": {
+            case "run_gsc_query":
+            case "run_microsoft_ads_query": {
               const input = toolUse.input as { sql: string };
-              result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
+              result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: toolUse.name, input: toolUse.input };
                 capturedData = (result as { rows: unknown }).rows;
