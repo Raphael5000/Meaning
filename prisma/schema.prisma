@@ -304,10 +304,11 @@ model DataSource {
 // ──────────────────────────────────────────────
 
 model Organization {
-  id       String  @id @default(cuid())
-  name     String
-  imageUrl String?
-  ownerId  String
+  id              String  @id @default(cuid())
+  name            String
+  imageUrl        String?
+  ownerId         String
+  displayCurrency String  @default("USD") // ISO 4217 code (e.g. USD, ZAR, EUR)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

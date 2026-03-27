@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { runPropertyQuery, queryRealtimeData, getPropertySchema } from "@/lib/bigquery";
 import { BIGQUERY_TOOLS } from "@/lib/tools";
 import { getOrgDataSources } from "@/lib/org-access";
+import { getSourceCurrencies } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -124,8 +125,16 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 // Widget system prompt (shorter, focused on single-widget generation)
 // ---------------------------------------------------------------------------
 
-function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean, hasMsAds: boolean): string {
+function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean, hasMsAds: boolean, displayCurrency = "USD", sourceCurrencies: Record<string, string> = {}): string {
   const today = new Date().toISOString().split("T")[0];
+
+  const currencySymbols: Record<string, string> = {
+    USD: "$", EUR: "€", GBP: "£", ZAR: "R", AUD: "A$", CAD: "C$", JPY: "¥",
+    CHF: "CHF", INR: "₹", BRL: "R$", NZD: "NZ$", SEK: "kr", NOK: "kr",
+    MXN: "$", SGD: "S$", HKD: "HK$", KRW: "₩", TRY: "₺", ILS: "₪",
+    AED: "AED", NGN: "₦", PHP: "₱", THB: "฿", CNY: "¥",
+  };
+  const symbol = currencySymbols[displayCurrency] || displayCurrency;
 
   const adsTables = hasAds ? "\n  - campaign_performance, keyword_performance, click_attribution, account_info (Google Ads)" : "";
   const linkedInTables = hasLinkedIn ? "\n  - post_performance, follower_stats, follower_demographics, page_stats, org_info (LinkedIn)" : "";
@@ -144,6 +153,7 @@ CRITICAL RULES:
 4. NEVER fabricate data. Only use numbers from the tool response.
 5. Default date range is last 28 days unless specified.
 6. Use the run_ads_query tool for any query that needs LIKE filters, JOINs, subqueries, or complex SQL — query_analytics is only for simple aggregations.
+7. MANDATORY: When querying ANY monetary values (cost, spend, revenue, conversions_value), you MUST use the exchange rate conversion pattern to convert to ${displayCurrency}. Do NOT just query raw cost — always JOIN with exchange_rates. See CURRENCY section below.
 
 Available tables and their columns:
   - sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, geo_country, geo_city, is_first_visit
@@ -160,7 +170,16 @@ IMPORTANT column notes:
 - For LinkedIn: date column is post_date or stats_date.
 - For Mailchimp: date column is send_date or stats_date.
 - For GSC: date column is query_date. ctr is 0-1 decimal. position: lower is better.
-- For Microsoft Ads: use run_microsoft_ads_query tool. Tables are prefixed msads_ (msads_campaign_performance, msads_keyword_performance, msads_search_query_performance, msads_account_info). Date column is stats_date. cost is in currency units. Use {dataset}.tableName format.
+- For Microsoft Ads: use run_microsoft_ads_query tool. Tables are prefixed msads_ (msads_campaign_performance: stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost, conversions, conversions_value, revenue; msads_keyword_performance: stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost, conversions; msads_search_query_performance: stats_date, search_query, campaign_id, campaign_name, impressions, clicks, cost, conversions; msads_account_info: account_id, account_name, currency_code, last_synced_at). Date column is stats_date. cost is in currency units. Use {dataset}.tableName format. IMPORTANT: msads tables do NOT have property_id — do not filter by property_id.
+- CURRENCY: Display currency is ${displayCurrency} (${symbol}). ALL monetary columns (cost, spend, revenue, conversions_value) MUST be converted.${sourceCurrencies["GOOGLE_ADS"] ? `\n  Google Ads account currency: ${sourceCurrencies["GOOGLE_ADS"]}.` : ""}${sourceCurrencies["MICROSOFT_ADS"] ? `\n  Microsoft Ads account currency: ${sourceCurrencies["MICROSOFT_ADS"]}.` : ""}
+  Exchange rates: \`{dataset}.exchange_rates\` (rate_date, base="USD", target, rate). 1 USD = rate target-units.
+  SIMPLE CONVERSION for daily data: cost * SAFE_DIVIDE(tr.rate, sr.rate)
+    LEFT JOIN \`{dataset}.exchange_rates\` sr ON sr.rate_date = [date_col] AND sr.target = '[SOURCE_CURRENCY]'
+    LEFT JOIN \`{dataset}.exchange_rates\` tr ON tr.rate_date = [date_col] AND tr.target = '${displayCurrency}'
+  SIMPLE CONVERSION for aggregated totals (no date dimension):
+    Use subquery for latest rate: (SELECT rate FROM \`{dataset}.exchange_rates\` WHERE target='${displayCurrency}' ORDER BY rate_date DESC LIMIT 1) / (SELECT rate FROM \`{dataset}.exchange_rates\` WHERE target='[SOURCE_CURRENCY]' ORDER BY rate_date DESC LIMIT 1)
+  Replace [SOURCE_CURRENCY] with the account currency shown above. Replace [date_col] with stats_date.
+  Do NOT query account_info to get currency — use the values provided above.
 
 RESPONSE FORMAT:
 You MUST respond with exactly ONE of these formats:
@@ -183,7 +202,7 @@ Do NOT include any explanatory text. ONLY output the widget block.`;
 // ---------------------------------------------------------------------------
 
 const CHART_REGEX = /\[\[chart\]\]([\s\S]*?)\[\[\/chart\]\]/i;
-const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+)(?:\|([+-][^|[\]]*))?\[\[\/scorecard\]\]/i;
+const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+?)(?:\|([+-][^[\]]*)?)?\[\[\/scorecard\]\]/i;
 const TABLE_REGEX = /\[\[table\]\]([\s\S]*?)\[\[\/table\]\]/i;
 
 interface ParsedWidget {
@@ -270,8 +289,13 @@ export async function POST(
       return NextResponse.json({ error: "Dashboard not found" }, { status: 404 });
     }
 
-    // Resolve data sources from the org
-    const orgDataSources = await getOrgDataSources(dashboard.orgId);
+    // Resolve data sources and org settings
+    const [orgDataSources, org] = await Promise.all([
+      getOrgDataSources(dashboard.orgId),
+      prisma.organization.findUnique({ where: { id: dashboard.orgId }, select: { displayCurrency: true } }),
+    ]);
+    const displayCurrency = org?.displayCurrency ?? "USD";
+    console.log(`[widget-gen] displayCurrency=${displayCurrency}`);
     const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
     const propertyId = ga4Ds?.propertyId ?? "";
 
@@ -281,7 +305,11 @@ export async function POST(
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
     const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
 
-    const systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId);
+    // Fetch source currencies so the AI knows them without querying account_info
+    const sourceCurrencies = await getSourceCurrencies(adsCustomerId, msAdsAccountId);
+    console.log(`[widget-gen] sourceCurrencies:`, sourceCurrencies);
+
+    const systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, displayCurrency, sourceCurrencies);
 
     // Call Claude with tools
     let response = await anthropic.messages.create({
@@ -298,7 +326,7 @@ export async function POST(
     let capturedQueryConfig: { tool: string; input: unknown } | null = null;
     let capturedData: unknown = null;
 
-    while (response.stop_reason === "tool_use" && toolRound < 4) {
+    while (response.stop_reason === "tool_use" && toolRound < 6) {
       toolRound++;
       const assistantContent = response.content;
       const toolUseBlocks = assistantContent.filter(
@@ -331,7 +359,8 @@ export async function POST(
             case "run_mailchimp_query":
             case "run_gsc_query":
             case "run_microsoft_ads_query": {
-              const input = toolUse.input as { sql: string };
+              const input = toolUse.input as { sql: string; description?: string };
+              console.log(`[widget-gen] SQL (${toolUse.name}):`, input.sql);
               result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: toolUse.name, input: toolUse.input };

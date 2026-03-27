@@ -72,16 +72,29 @@ export async function PUT(
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  const { name, imageUrl } = (await request.json()) as {
+  const VALID_CURRENCIES = new Set([
+    "USD", "EUR", "GBP", "ZAR", "AUD", "CAD", "JPY", "CHF", "INR", "BRL",
+    "NZD", "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "MXN", "SGD", "HKD",
+    "KRW", "TRY", "ILS", "AED", "SAR", "NGN", "KES", "GHS", "EGP", "PHP",
+    "THB", "MYR", "IDR", "TWD", "CNY", "RUB",
+  ]);
+
+  const { name, imageUrl, displayCurrency } = (await request.json()) as {
     name?: string;
     imageUrl?: string;
+    displayCurrency?: string;
   };
+
+  if (displayCurrency !== undefined && !VALID_CURRENCIES.has(displayCurrency)) {
+    return NextResponse.json({ error: `Invalid currency code: ${displayCurrency}` }, { status: 400 });
+  }
 
   const updated = await prisma.organization.update({
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
       ...(imageUrl !== undefined && { imageUrl }),
+      ...(displayCurrency !== undefined && { displayCurrency }),
     },
   });
 

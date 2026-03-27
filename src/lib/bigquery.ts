@@ -88,6 +88,11 @@ const DBT_TABLES = new Set([
   "stg_events",
 ]);
 
+/** Shared tables in dbt_meaning that do NOT have property_id (no filter needed). */
+const DBT_SHARED_TABLES = new Set([
+  "exchange_rates",
+]);
+
 /** Google Ads tables — these live in ads_{customerId} dataset. */
 const ADS_TABLES = new Set([
   "campaign_performance",
@@ -181,6 +186,10 @@ export async function runPropertyQuery(
       }
       if (GSC_TABLES.has(tableName) && gscDataset) {
         return `${gscDataset}.${tableName}`;
+      }
+      if (DBT_SHARED_TABLES.has(tableName)) {
+        // Shared reference tables — no property_id filter
+        return `${DBT_DATASET}.${tableName}`;
       }
       if (DBT_TABLES.has(tableName)) {
         usesDbtTable = true;

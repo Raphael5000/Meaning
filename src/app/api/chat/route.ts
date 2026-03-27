@@ -150,7 +150,7 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false): string {
+function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false, displayCurrency = "USD"): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
@@ -194,6 +194,40 @@ MICROSOFT ADS QUERIES:
 - CURRENCY: Query msads_account_info (currency_code column) for the account's currency.
 - CROSS-PLATFORM: To compare Google Ads vs Microsoft Ads, run separate queries and present side-by-side. Do not UNION them unless the user asks — column semantics may differ slightly.
 - Always use {dataset}.tableName format — the system routes msads_ tables to the correct dataset automatically.` : "";
+
+  const currencySymbols: Record<string, string> = {
+    USD: "$", EUR: "€", GBP: "£", ZAR: "R", AUD: "A$", CAD: "C$", JPY: "¥",
+    CHF: "CHF", INR: "₹", BRL: "R$", NZD: "NZ$", SEK: "kr", NOK: "kr",
+    DKK: "kr", PLN: "zł", MXN: "$", SGD: "S$", HKD: "HK$", KRW: "₩",
+    TRY: "₺", ILS: "₪", AED: "AED", NGN: "₦", PHP: "₱", THB: "฿", CNY: "¥",
+  };
+  const symbol = currencySymbols[displayCurrency] || displayCurrency;
+
+  const currencyConversionGuidance = (includeAds || includeMsAds) ? `
+
+CURRENCY CONVERSION:
+- The organization's display currency is ${displayCurrency} (symbol: ${symbol}).
+- ALL monetary values (cost, spend, revenue, conversions_value) MUST be displayed in ${displayCurrency}.
+- Exchange rates are available in \`{dataset}.exchange_rates\` with columns: rate_date (DATE), base ("USD"), target (STRING), rate (FLOAT64). All rates are USD-based: 1 USD = rate target units.
+- To convert a value from source currency to ${displayCurrency}:
+  value * (target_rate.rate / source_rate.rate)
+  where source_rate.target = source_currency_code and target_rate.target = '${displayCurrency}'.
+- For daily data, JOIN on rate_date = stats_date (or the relevant date column) for historically accurate conversion.
+- For aggregated queries without a date dimension, use the most recent rate: WHERE rate_date = (SELECT MAX(rate_date) FROM \`{dataset}.exchange_rates\`).
+- Example conversion for Google Ads:
+  SELECT cp.stats_date, cp.campaign_name,
+    cp.cost * SAFE_DIVIDE(tr.rate, sr.rate) AS cost
+  FROM \`{dataset}.campaign_performance\` cp
+  CROSS JOIN (SELECT currency_code FROM \`{dataset}.account_info\` LIMIT 1) ai
+  LEFT JOIN \`{dataset}.exchange_rates\` sr ON sr.rate_date = cp.stats_date AND sr.target = ai.currency_code
+  LEFT JOIN \`{dataset}.exchange_rates\` tr ON tr.rate_date = cp.stats_date AND tr.target = '${displayCurrency}'
+  WHERE cp.stats_date >= @startDate
+- If the source account is already in ${displayCurrency}, the conversion is a no-op (rate ratio = 1).
+- Always display values with the ${symbol} symbol.
+- When comparing cross-platform data (Google Ads + Microsoft Ads), convert BOTH to ${displayCurrency} before summing or comparing.` : `
+
+CURRENCY:
+- Display all monetary values with the ${symbol} symbol (${displayCurrency}).`;
 
   const gscQueryGuidance = includeGsc ? `
 
@@ -273,7 +307,7 @@ You have access to these tools:
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
 - run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaign performance, keywords, search queries, spend). Use {dataset}.tableName for all table references.
-- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${currencyConversionGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: Sankey queries require CTEs and window functions, so you MUST use the run_ads_query tool (not query_analytics) with raw SQL. The run_ads_query tool works for ANY raw SQL query, not just Ads. Use {dataset}.pageviews for table references. Each pageviews row has ga_session_id, event_timestamp, page_location, session_source, session_medium, and session_default_channel_group. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, prefix each layer with a unique label so every node is unique. The result columns MUST be named from_page (or from_node), to_page (or to_node), and transitions.
 
@@ -500,8 +534,16 @@ export async function POST(request: NextRequest) {
   let mailchimpListIdFromOrg: string | null = null;
   let gscSiteUrlFromOrg: string | null = null;
   let msAdsAccountIdFromOrg: string | null = null;
+  let displayCurrency = "USD";
 
   if (body.orgId) {
+    // Fetch org settings (including display currency)
+    const org = await prisma.organization.findUnique({
+      where: { id: body.orgId },
+      select: { displayCurrency: true },
+    });
+    displayCurrency = org?.displayCurrency ?? "USD";
+
     // Org-based: fetch all org data sources and pick the first GA4 property
     const orgDataSources = await getOrgDataSources(body.orgId);
     const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
@@ -568,8 +610,8 @@ export async function POST(request: NextRequest) {
   const hasMailchimp = !!mailchimpListId;
   const hasGsc = !!gscSiteUrl;
   const hasMsAds = !!msAdsAccountId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} reason=${rollout.reason}`);
-  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds) : GA4_SYSTEM_PROMPT;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} currency=${displayCurrency} reason=${rollout.reason}`);
+  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, displayCurrency) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   // Helper: describe a tool call for the progress stream

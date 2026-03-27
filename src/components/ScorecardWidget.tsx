@@ -8,10 +8,10 @@ interface ScorecardWidgetProps {
 }
 
 export default function ScorecardWidget({ config, data }: ScorecardWidgetProps) {
-  // Extract value from config or cached data
+  // Extract value: prefer config.value (from AI scorecard block), fall back to first number in cached data
   let value: string | number = config.value ?? "—";
 
-  if (Array.isArray(data) && data.length > 0) {
+  if (value === "—" && Array.isArray(data) && data.length > 0) {
     const row = data[0] as Record<string, unknown>;
     const keys = Object.keys(row);
     for (const key of keys) {

@@ -184,6 +184,10 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   const [loadingMsAds, setLoadingMsAds] = useState(false);
   const [enablingMsAds, setEnablingMsAds] = useState<Record<string, boolean>>({});
 
+  // Display currency
+  const [displayCurrency, setDisplayCurrency] = useState("USD");
+  const [savingCurrency, setSavingCurrency] = useState(false);
+
   // ── Fetch connection status ──
   const fetchStatus = useCallback((silent = false) => {
     if (!silent) setLoading(true);
@@ -198,6 +202,19 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   }, [orgId]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  // Fetch org display currency
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/organizations/${orgId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.organization?.displayCurrency) {
+          setDisplayCurrency(data.organization.displayCurrency);
+        }
+      })
+      .catch(() => {});
+  }, [orgId]);
 
   // Poll while anything is syncing
   useEffect(() => {
@@ -392,6 +409,52 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       {/* Source list */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="mx-auto max-w-2xl space-y-2">
+          {/* Display currency selector */}
+          {orgId && (
+            <div className="mb-4 rounded-xl border px-4 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Display Currency</p>
+                  <p className="text-xs text-muted-foreground">All monetary values will be converted to this currency</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={displayCurrency}
+                    onChange={async (e) => {
+                      const newCurrency = e.target.value;
+                      setDisplayCurrency(newCurrency);
+                      setSavingCurrency(true);
+                      try {
+                        await fetch(`/api/organizations/${orgId}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ displayCurrency: newCurrency }),
+                        });
+                        setMessage({ type: "success", text: `Display currency set to ${newCurrency}` });
+                      } catch {
+                        setMessage({ type: "error", text: "Failed to update currency" });
+                      } finally {
+                        setSavingCurrency(false);
+                      }
+                    }}
+                    disabled={savingCurrency}
+                    className="h-8 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1"
+                    style={{ minWidth: 80 }}
+                  >
+                    {[
+                      "USD", "EUR", "GBP", "ZAR", "AUD", "CAD", "JPY", "CHF", "INR", "BRL",
+                      "NZD", "SEK", "NOK", "DKK", "PLN", "MXN", "SGD", "HKD", "KRW", "TRY",
+                      "ILS", "AED", "SAR", "NGN", "KES", "GHS", "EGP", "PHP", "THB", "MYR",
+                      "IDR", "CNY",
+                    ].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {savingCurrency && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                </div>
+              </div>
+            </div>
+          )}
           {SOURCES.map((source) => {
             const sourceStatus = getSourceStatus(source.type);
             const authed = isAuthenticated(source.type);
