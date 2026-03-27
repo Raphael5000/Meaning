@@ -223,7 +223,7 @@ CURRENCY CONVERSION:
   LEFT JOIN \`{dataset}.exchange_rates\` tr ON tr.rate_date = cp.stats_date AND tr.target = '${displayCurrency}'
   WHERE cp.stats_date >= @startDate
 - If the source account is already in ${displayCurrency}, the conversion is a no-op (rate ratio = 1).
-- Always display values with the ${symbol} symbol.
+- Always display values with the ${symbol} symbol. Always ROUND monetary values to 2 decimal places.
 - When comparing cross-platform data (Google Ads + Microsoft Ads), convert BOTH to ${displayCurrency} before summing or comparing.` : `
 
 CURRENCY:

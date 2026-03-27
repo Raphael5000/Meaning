@@ -346,6 +346,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
           <DashboardGrid
             layout={dashboard.layout}
             widgets={dashboard.widgets}
+            dashboardId={dashboardId}
             onLayoutChange={handleLayoutChange}
             onDeleteWidget={handleDeleteWidget}
             onEditWidget={handleEditWidget}

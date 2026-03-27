@@ -79,6 +79,43 @@ async function insertRates(date: string, rates: Record<string, number>): Promise
 }
 
 /**
+ * Fill weekend/holiday gaps by carrying forward the last known rate.
+ * Frankfurter only provides business day rates — this ensures every calendar day has a rate.
+ */
+async function fillGaps(): Promise<void> {
+  const bq = getBqClient();
+  await bq.query({
+    query: `
+      INSERT INTO ${DBT_DATASET}.${TABLE_NAME} (rate_date, base, target, rate)
+      WITH all_dates AS (
+        SELECT d FROM UNNEST(GENERATE_DATE_ARRAY(
+          (SELECT MIN(rate_date) FROM ${DBT_DATASET}.${TABLE_NAME}),
+          CURRENT_DATE()
+        )) AS d
+      ),
+      rates_with_gaps AS (
+        SELECT d.d AS rate_date, t.target,
+          LAST_VALUE(e.rate IGNORE NULLS) OVER (
+            PARTITION BY t.target ORDER BY d.d
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS rate
+        FROM all_dates d
+        CROSS JOIN (SELECT DISTINCT target FROM ${DBT_DATASET}.${TABLE_NAME}) t
+        LEFT JOIN ${DBT_DATASET}.${TABLE_NAME} e ON e.rate_date = d.d AND e.target = t.target
+      ),
+      existing AS (
+        SELECT rate_date, target FROM ${DBT_DATASET}.${TABLE_NAME}
+      )
+      SELECT r.rate_date, 'USD' as base, r.target, r.rate
+      FROM rates_with_gaps r
+      LEFT JOIN existing ex ON ex.rate_date = r.rate_date AND ex.target = r.target
+      WHERE ex.rate_date IS NULL AND r.rate IS NOT NULL
+    `,
+  });
+  console.log("[exchange-rates] Gap fill complete");
+}
+
+/**
  * POST /api/exchange-rates/sync
  *
  * Syncs exchange rates into BigQuery. Supports:
@@ -129,6 +166,7 @@ export async function POST(req: NextRequest) {
         daysProcessed++;
       }
 
+      await fillGaps();
       console.log(`[exchange-rates] Backfill complete: ${daysProcessed} days, ${totalRows} rows`);
       return NextResponse.json({ mode: "backfill", daysProcessed, totalRows });
     }
@@ -140,6 +178,7 @@ export async function POST(req: NextRequest) {
     }
 
     const count = await insertRates(today, rates);
+    await fillGaps();
     console.log(`[exchange-rates] Synced ${count} rates for ${today}`);
     return NextResponse.json({ mode: "daily", date: today, rows: count });
   } catch (err) {

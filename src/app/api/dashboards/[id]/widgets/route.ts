@@ -154,6 +154,7 @@ CRITICAL RULES:
 5. Default date range is last 28 days unless specified.
 6. Use the run_ads_query tool for any query that needs LIKE filters, JOINs, subqueries, or complex SQL — query_analytics is only for simple aggregations.
 7. MANDATORY: When querying ANY monetary values (cost, spend, revenue, conversions_value), you MUST use the exchange rate conversion pattern to convert to ${displayCurrency}. Do NOT just query raw cost — always JOIN with exchange_rates. See CURRENCY section below.
+8. ALL monetary values in SQL must be ROUND(..., 2) to 2 decimal places. Always include 2 decimal places in scorecard values (e.g. "R12,599.33" not "R12,599").
 
 Available tables and their columns:
   - sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, geo_country, geo_city, is_first_visit
@@ -184,11 +185,14 @@ IMPORTANT column notes:
 RESPONSE FORMAT:
 You MUST respond with exactly ONE of these formats:
 
-For CHART widgets — wrap an ECharts option JSON in [[chart]]...[[/chart]]:
-[[chart]]{"title":{"text":"..."},"xAxis":{"data":[...]},"series":[...]}[[/chart]]
+For CHART widgets — wrap a MINIMAL ECharts config in [[chart]]...[[/chart]].
+CRITICAL: Do NOT embed data values in the chart JSON. The system automatically populates chart data from your query results.
+Just provide the chart structure with empty series data arrays:
+[[chart]]{"title":{"text":"Daily Spend"},"series":[{"name":"Google Ads","type":"line","data":[]},{"name":"Microsoft Ads","type":"line","data":[]}]}[[/chart]]
+Your SQL query results MUST return columns in this order: first column = dimension/category (e.g. date), remaining columns = one per series (e.g. google_ads_spend, microsoft_ads_spend). The column names become series names if you don't specify them.
 
 For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
-[[scorecard]]12,847|Total Users|+12.3%[[/scorecard]]
+[[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
 The CHANGE is optional but recommended — it shows a comparison vs the previous period (e.g. +12.3%, -5%, +1,234). Include it whenever you can compute a period-over-period comparison. Use + prefix for positive change, - for negative.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
@@ -223,6 +227,36 @@ function parseWidgetResponse(text: string, prompt: string): ParsedWidget | null 
         title: (option.title?.text as string) || "Chart",
       };
     } catch { /* fall through */ }
+  }
+
+  // Fallback: truncated [[chart]] block — try to repair the JSON
+  if (text.includes("[[chart]]") && !text.includes("[[/chart]]")) {
+    const chartStart = text.indexOf("[[chart]]") + "[[chart]]".length;
+    let jsonStr = text.slice(chartStart).trim();
+    // Try progressively closing open brackets to repair truncated JSON
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        const option = JSON.parse(jsonStr);
+        console.log("[widget-gen] Repaired truncated chart JSON");
+        return {
+          widgetType: "chart",
+          displayConfig: option,
+          title: (option.title?.text as string) || "Chart",
+        };
+      } catch {
+        // Count open vs close braces/brackets to figure out what's missing
+        const openBraces = (jsonStr.match(/\{/g) || []).length;
+        const closeBraces = (jsonStr.match(/\}/g) || []).length;
+        const openBrackets = (jsonStr.match(/\[/g) || []).length;
+        const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+        // Remove any trailing partial value (cut at last complete value)
+        jsonStr = jsonStr.replace(/,\s*"?[^"}\]]*$/, "");
+        // Close remaining open brackets/braces
+        const missingBrackets = openBrackets - closeBrackets;
+        const missingBraces = openBraces - closeBraces;
+        jsonStr += "]".repeat(Math.max(0, missingBrackets)) + "}".repeat(Math.max(0, missingBraces));
+      }
+    }
   }
 
   // Try scorecard
@@ -314,7 +348,7 @@ export async function POST(
     // Call Claude with tools
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       tools: BIGQUERY_TOOLS,
       messages: [{ role: "user", content: body.prompt }],
@@ -401,7 +435,7 @@ export async function POST(
 
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: systemPrompt,
         tools: BIGQUERY_TOOLS,
         messages: conversationMessages,
@@ -426,7 +460,7 @@ export async function POST(
       conversationMessages.push({ role: "user", content: emptyResults });
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: systemPrompt,
         messages: conversationMessages,
       });

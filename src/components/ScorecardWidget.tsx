@@ -28,7 +28,7 @@ export default function ScorecardWidget({ config, data }: ScorecardWidgetProps) 
   }
 
   const formatted = typeof value === "number"
-    ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    ? value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : value;
 
   // Parse change string like "+12.3%", "-5%", "+1,234"

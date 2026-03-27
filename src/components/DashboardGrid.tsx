@@ -24,13 +24,14 @@ interface Widget {
 interface DashboardGridProps {
   layout: LayoutItem[];
   widgets: Widget[];
+  dashboardId: string;
   onLayoutChange: (layout: LayoutItem[]) => void;
   onDeleteWidget: (widgetId: string) => void;
   onEditWidget: (widgetId: string, prompt: string) => void;
   refreshing?: boolean;
 }
 
-export default function DashboardGrid({ layout, widgets, onLayoutChange, onDeleteWidget, onEditWidget, refreshing }: DashboardGridProps) {
+export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, refreshing }: DashboardGridProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { width, containerRef, mounted } = useContainerWidth({});
 
@@ -68,6 +69,7 @@ export default function DashboardGrid({ layout, widgets, onLayoutChange, onDelet
               <div key={item.i}>
                 <DashboardWidget
                   widget={widget}
+                  dashboardId={dashboardId}
                   onDelete={() => onDeleteWidget(widget.id)}
                   onEdit={(prompt) => onEditWidget(widget.id, prompt)}
                   refreshing={refreshing}

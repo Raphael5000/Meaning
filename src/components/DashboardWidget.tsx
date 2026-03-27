@@ -18,6 +18,7 @@ interface Widget {
 
 interface DashboardWidgetProps {
   widget: Widget;
+  dashboardId: string;
   onDelete: () => void;
   onEdit: (prompt: string) => void;
   refreshing?: boolean;
@@ -119,6 +120,15 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       splitLine: { lineStyle: { color: "rgba(128,128,128,0.1)" } },
       axisLabel: { fontSize: 10 },
     };
+
+    // Auto-create series for metric columns that don't have a matching series
+    while (series.length < metricKeys.length) {
+      series.push({
+        name: metricKeys[series.length].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        type: chartType,
+        data: [],
+      });
+    }
 
     for (let i = 0; i < series.length && i < metricKeys.length; i++) {
       series[i].data = rows.map((r) => Number(r[metricKeys[i]] ?? 0));
@@ -227,8 +237,27 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   );
 }
 
-export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }: DashboardWidgetProps) {
+export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing }: DashboardWidgetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(widget.title || widget.prompt);
+
+  function saveTitle() {
+    const newTitle = titleDraft.trim();
+    if (!newTitle || newTitle === widget.title) {
+      setTitleDraft(widget.title || widget.prompt);
+      setEditingTitle(false);
+      return;
+    }
+    setEditingTitle(false);
+    // Optimistic update — widget.title is readonly so we track via titleDraft
+    // Persist to API (fire-and-forget)
+    fetch(`/api/dashboards/${dashboardId}/widgets/${widget.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle }),
+    }).catch(() => {});
+  }
 
   return (
     <div
@@ -240,9 +269,27 @@ export default function DashboardWidget({ widget, onDelete, onEdit, refreshing }
         <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
-        <span className="flex-1 truncate text-xs font-medium text-foreground">
-          {widget.title || widget.prompt}
-        </span>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveTitle();
+              if (e.key === "Escape") { setTitleDraft(widget.title || widget.prompt); setEditingTitle(false); }
+            }}
+            className="flex-1 truncate rounded border border-border bg-transparent px-1 py-0 text-xs font-medium text-foreground outline-none focus:border-[var(--accent)]"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingTitle(true)}
+            className="flex-1 truncate text-left text-xs font-medium text-foreground hover:underline"
+          >
+            {titleDraft}
+          </button>
+        )}
         {(refreshing || widget.widgetType === "generating") && (
           <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
         )}
