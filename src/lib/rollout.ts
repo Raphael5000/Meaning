@@ -116,6 +116,26 @@ export async function getGscSiteUrl(
   return ds?.propertyId ?? null;
 }
 
+/**
+ * Check if a user has an active Microsoft Ads DataSource.
+ * Returns the accountId (propertyId on the DataSource) if found, null otherwise.
+ */
+export async function getMicrosoftAdsAccountId(
+  userId: string,
+  ga4PropertyId?: string
+): Promise<string | null> {
+  const ds = await prisma.dataSource.findFirst({
+    where: {
+      userId,
+      type: "MICROSOFT_ADS",
+      status: { in: ["ACTIVE", "BACKFILLING"] },
+      ...(ga4PropertyId ? { ga4PropertyId } : {}),
+    },
+    select: { propertyId: true },
+  });
+  return ds?.propertyId ?? null;
+}
+
 export async function shouldUseBigQuery(
   propertyId: string,
   userId: string

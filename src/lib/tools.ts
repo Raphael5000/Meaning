@@ -270,6 +270,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_microsoft_ads_query",
+    description:
+      "Run a custom SQL query against Microsoft Ads (Bing) data. Use this to answer questions about Bing/Microsoft ad campaign performance, keyword metrics, search query reports, and ad spend. Use {dataset}.tableName for table references. Microsoft Ads tables: msads_campaign_performance (daily: stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost, conversions, conversions_value, revenue), msads_keyword_performance (daily: stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost, conversions), msads_search_query_performance (daily: stats_date, search_query, campaign_id, campaign_name, ad_group_id, ad_group_name, impressions, clicks, cost, conversions), msads_account_info (account_id, account_name, currency_code, last_synced_at).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT campaign_name, SUM(clicks) as clicks, SUM(cost) as cost FROM `{dataset}.msads_campaign_performance` WHERE stats_date >= '2024-01-01' GROUP BY campaign_name ORDER BY cost DESC LIMIT 10",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "get_realtime_data",
     description:
       "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",

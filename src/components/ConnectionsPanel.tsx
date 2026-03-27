@@ -40,6 +40,13 @@ interface GscSite {
   permissionLevel: string;
 }
 
+interface MicrosoftAdsAccount {
+  accountId: string;
+  accountName: string;
+  customerId: string;
+  accountNumber: string;
+}
+
 interface ConnectionStatus {
   hasGoogleAccount: boolean;
   googleEmail: string | null;
@@ -47,6 +54,7 @@ interface ConnectionStatus {
   hasGscScope: boolean;
   hasLinkedInAccount: boolean;
   hasMailchimpAccount: boolean;
+  hasMicrosoftAdsAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -76,6 +84,7 @@ const SOURCES: SourceDef[] = [
   { type: "LINKEDIN", label: "LinkedIn", description: "Company page analytics and follower growth", icon: "/Linkedin.svg" },
   { type: "MAILCHIMP", label: "Mailchimp", description: "Email campaigns, open rates, and audience growth", icon: null, iconBg: "#ffe01b", iconColor: "#241c15", iconLetter: "M" },
   { type: "SEARCH_CONSOLE", label: "Search Console", description: "Search queries, impressions, clicks, and rankings", icon: null, iconBg: "#4285F4", iconColor: "#ffffff", iconLetter: "S" },
+  { type: "MICROSOFT_ADS", label: "Microsoft Ads", description: "Bing campaign performance, keywords, and ad spend", icon: null, iconBg: "#00A4EF", iconColor: "#ffffff", iconLetter: "M" },
   { type: "META", label: "Meta", description: "Facebook & Instagram campaigns and insights", icon: "/Meta.svg" },
 ];
 
@@ -170,6 +179,11 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   const [loadingGsc, setLoadingGsc] = useState(false);
   const [enablingGsc, setEnablingGsc] = useState<Record<string, boolean>>({});
 
+  // Microsoft Ads
+  const [msAdsAccounts, setMsAdsAccounts] = useState<MicrosoftAdsAccount[]>([]);
+  const [loadingMsAds, setLoadingMsAds] = useState(false);
+  const [enablingMsAds, setEnablingMsAds] = useState<Record<string, boolean>>({});
+
   // ── Fetch connection status ──
   const fetchStatus = useCallback((silent = false) => {
     if (!silent) setLoading(true);
@@ -250,6 +264,17 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     }
   }, [expanded, status?.hasGscScope, gscSites.length]);
 
+  useEffect(() => {
+    if (expanded === "MICROSOFT_ADS" && status?.hasMicrosoftAdsAccount && msAdsAccounts.length === 0) {
+      setLoadingMsAds(true);
+      fetch("/api/microsoft-ads/accessible-accounts")
+        .then((r) => r.json())
+        .then((data) => setMsAdsAccounts(data.accounts || []))
+        .catch(() => {})
+        .finally(() => setLoadingMsAds(false));
+    }
+  }, [expanded, status?.hasMicrosoftAdsAccount, msAdsAccounts.length]);
+
   // ── Helpers ──
   function getSourceStatus(type: string): string | null {
     const ds = status?.dataSources.find((d) => d.type === type);
@@ -267,6 +292,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       case "SEARCH_CONSOLE": return !!status?.hasGscScope;
       case "LINKEDIN": return !!status?.hasLinkedInAccount;
       case "MAILCHIMP": return !!status?.hasMailchimpAccount;
+      case "MICROSOFT_ADS": return !!status?.hasMicrosoftAdsAccount;
       default: return false;
     }
   }
@@ -278,12 +304,13 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       case "SEARCH_CONSOLE": return "/api/auth/connect-google-gsc";
       case "LINKEDIN": return "/api/auth/connect-linkedin";
       case "MAILCHIMP": return "/api/auth/connect-mailchimp";
+      case "MICROSOFT_ADS": return "/api/auth/connect-microsoft-ads";
       default: return "#";
     }
   }
 
   async function handleEnable(type: string, id: string) {
-    const setEnabling = type === "GA4_BIGQUERY" ? setEnablingGa4 : type === "GOOGLE_ADS" ? setEnablingAds : type === "SEARCH_CONSOLE" ? setEnablingGsc : type === "LINKEDIN" ? setEnablingLinkedIn : setEnablingMailchimp;
+    const setEnabling = type === "GA4_BIGQUERY" ? setEnablingGa4 : type === "GOOGLE_ADS" ? setEnablingAds : type === "SEARCH_CONSOLE" ? setEnablingGsc : type === "LINKEDIN" ? setEnablingLinkedIn : type === "MICROSOFT_ADS" ? setEnablingMsAds : setEnablingMailchimp;
     setEnabling((prev) => ({ ...prev, [id]: true }));
     setMessage(null);
 
@@ -293,6 +320,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       SEARCH_CONSOLE: { url: "/api/gsc/enable-export", body: { siteUrl: id, orgId: orgId ?? undefined } },
       LINKEDIN: { url: "/api/linkedin/enable-export", body: { orgId: id, organizationOrgId: orgId ?? undefined } },
       MAILCHIMP: { url: "/api/mailchimp/enable-export", body: { listId: id, orgId: orgId ?? undefined } },
+      MICROSOFT_ADS: { url: "/api/microsoft-ads/enable-export", body: { accountId: id, orgId: orgId ?? undefined } },
     };
 
     const endpoint = endpoints[type];
@@ -446,7 +474,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
 
   // ── Account list renderers ──
   function renderAccountList(type: string) {
-    const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "SEARCH_CONSOLE" ? loadingGsc : type === "LINKEDIN" ? loadingLinkedIn : loadingMailchimp;
+    const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "SEARCH_CONSOLE" ? loadingGsc : type === "LINKEDIN" ? loadingLinkedIn : type === "MICROSOFT_ADS" ? loadingMsAds : loadingMailchimp;
 
     if (isLoading) {
       return (
@@ -468,6 +496,8 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
         return renderLinkedInOrgs();
       case "MAILCHIMP":
         return renderMailchimpAudiences();
+      case "MICROSOFT_ADS":
+        return renderMsAdsAccounts();
       default:
         return null;
     }
@@ -638,6 +668,63 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                   onClick={() => handleEnable("LINKEDIN", org.id)}
                 >
                   {enablingLinkedIn[org.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderMsAdsAccounts() {
+    const dataSources = getSourceDataSources("MICROSOFT_ADS");
+    const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+
+    if (msAdsAccounts.length === 0) {
+      return <p className="text-xs text-muted-foreground">No accounts found. Check your Microsoft Ads access.</p>;
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {msAdsAccounts.map((acc) => {
+          const ds = dataSources.find((d) => d.propertyId === acc.accountId);
+          const connected = connectedIds.has(acc.accountId);
+          return (
+            <div key={acc.accountId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-xs font-medium text-foreground">{acc.accountName}</p>
+                <p className="text-[10px] text-muted-foreground">{acc.accountNumber || acc.accountId}</p>
+              </div>
+              {ds ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
+                  {(ds.status === "ERROR" || ds.status === "ACTIVE") && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-[10px] px-2"
+                      style={{ color: ds.status === "ERROR" ? "var(--error, #ef4444)" : "var(--text-muted)" }}
+                      disabled={enablingMsAds[acc.accountId]}
+                      onClick={() => handleEnable("MICROSOFT_ADS", acc.accountId)}
+                    >
+                      {enablingMsAds[acc.accountId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Resync"}
+                    </Button>
+                  )}
+                </div>
+              ) : !connected ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  style={{ color: "var(--accent)" }}
+                  disabled={enablingMsAds[acc.accountId]}
+                  onClick={() => handleEnable("MICROSOFT_ADS", acc.accountId)}
+                >
+                  {enablingMsAds[acc.accountId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
                 </Button>
               ) : null}
             </div>

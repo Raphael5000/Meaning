@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [googleAccount, linkedinAccount, mailchimpAccount] = await Promise.all([
+    const [googleAccount, linkedinAccount, mailchimpAccount, microsoftAdsAccount] = await Promise.all([
       prisma.account.findFirst({
         where: { userId, provider: "google" },
         select: { id: true, providerAccountId: true, refresh_token: true, scope: true },
@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
       }),
       prisma.account.findFirst({
         where: { userId, provider: "mailchimp" },
+        select: { id: true, providerAccountId: true },
+      }),
+      prisma.account.findFirst({
+        where: { userId, provider: "microsoft-ads" },
         select: { id: true, providerAccountId: true },
       }),
     ]);
@@ -42,7 +46,7 @@ export async function GET(req: NextRequest) {
     const hasAdsScope = googleAccount?.scope?.includes("adwords") ?? false;
     // Check if webmasters scope is granted (Search Console)
     const hasGscScope = googleAccount?.scope?.includes("webmasters") ?? false;
-    console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope, "hasGscScope:", hasGscScope);
+    console.log("[connections] scope:", googleAccount?.scope, "hasAdsScope:", hasAdsScope, "hasGscScope:", hasGscScope, "hasMicrosoftAdsAccount:", !!microsoftAdsAccount);
 
     // Get all DataSources — prefer orgId filter, fall back to userId
     const orgId = req.nextUrl.searchParams.get("orgId");
@@ -77,6 +81,7 @@ export async function GET(req: NextRequest) {
       hasGscScope,
       hasLinkedInAccount: !!linkedinAccount,
       hasMailchimpAccount: !!mailchimpAccount,
+      hasMicrosoftAdsAccount: !!microsoftAdsAccount,
       dataSources: propertyDataSources,
     });
   } catch (err) {

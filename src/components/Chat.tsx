@@ -136,6 +136,7 @@ export default function Chat() {
           SEARCH_CONSOLE: "Search Console",
           LINKEDIN: "LinkedIn",
           MAILCHIMP: "Mailchimp",
+          MICROSOFT_ADS: "Microsoft Ads",
         };
         const sources = (data.dataSources ?? []).map((ds: { type: string; status: string }) => ({
           type: ds.type,

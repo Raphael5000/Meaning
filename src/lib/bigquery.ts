@@ -120,6 +120,15 @@ const GSC_TABLES = new Set([
   "url_inspection",
 ]);
 
+/** Microsoft Ads tables — prefixed with msads_ to avoid collision with Google Ads tables.
+ *  These live in msads_{accountId} dataset. The msads_ prefix is stripped when routing. */
+const MSADS_TABLES = new Map([
+  ["msads_campaign_performance", "campaign_performance"],
+  ["msads_keyword_performance", "keyword_performance"],
+  ["msads_search_query_performance", "search_query_performance"],
+  ["msads_account_info", "account_info"],
+]);
+
 /**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
@@ -143,13 +152,15 @@ export async function runPropertyQuery(
   adsCustomerId?: string | null,
   linkedInOrgId?: string | null,
   mailchimpListId?: string | null,
-  gscSiteUrl?: string | null
+  gscSiteUrl?: string | null,
+  msAdsAccountId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
   const linkedInDataset = linkedInOrgId ? `linkedin_${linkedInOrgId}` : null;
   const mailchimpDataset = mailchimpListId ? `mailchimp_${mailchimpListId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
   const gscDataset = gscSiteUrl ? `gsc_${gscSiteUrl.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}` : null;
+  const msAdsDataset = msAdsAccountId ? `msads_${msAdsAccountId.replace(/-/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
@@ -158,6 +169,9 @@ export async function runPropertyQuery(
     (_match, tableName: string) => {
       if (ADS_TABLES.has(tableName) && adsDataset) {
         return `${adsDataset}.${tableName}`;
+      }
+      if (MSADS_TABLES.has(tableName) && msAdsDataset) {
+        return `${msAdsDataset}.${MSADS_TABLES.get(tableName)}`;
       }
       if (LINKEDIN_TABLES.has(tableName) && linkedInDataset) {
         return `${linkedInDataset}.${tableName}`;
