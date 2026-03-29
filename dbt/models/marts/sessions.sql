@@ -82,19 +82,29 @@ real_with_key AS (
 
 ),
 
+-- Session keys that exist in real data (used to exclude overlapping backfill)
+real_session_keys AS (
+  SELECT DISTINCT session_key FROM real_with_key
+),
+
 -- Property+date combos that have real export data (exclude backfill for those)
 real_property_dates AS (
   SELECT DISTINCT property_id, session_date FROM real_with_key
 ),
 
--- Backfill sessions: only for property+date combos without real data
+-- Backfill sessions: only for property+date combos without real data,
+-- and never for session_keys that already exist in real data
 backfill AS (
 
   SELECT b.*
   FROM {{ source('backfill', 'backfill_sessions') }} b
   LEFT JOIN real_property_dates r
     ON b.property_id = r.property_id AND b.session_date = r.session_date
+  LEFT JOIN real_session_keys k
+    ON b.session_key = k.session_key
   WHERE r.property_id IS NULL
+    AND k.session_key IS NULL
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY b.session_key ORDER BY b.session_start DESC) = 1
 
 )
 
