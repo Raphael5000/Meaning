@@ -1,12 +1,13 @@
 {{
   config(
     materialized = 'incremental',
+    unique_key = 'session_key',
     partition_by = {
       'field': 'session_date',
       'data_type': 'date',
       'granularity': 'day'
     },
-    incremental_strategy = 'insert_overwrite',
+    incremental_strategy = 'merge',
     cluster_by = ['property_id', 'session_source', 'session_medium']
   )
 }}
