@@ -33,7 +33,7 @@ interface PaymentRecord {
   currency: string;
   status: string;
   description: string | null;
-  paystackReference: string | null;
+  reference: string | null;
   createdAt: string;
 }
 
@@ -1054,7 +1054,7 @@ function AccountContent() {
                             {selectedInvoice.description || "Meaning Monthly"}
                           </span>
                         </div>
-                        {selectedInvoice.paystackReference && (
+                        {selectedInvoice.reference && (
                           <div className="flex justify-between py-1.5">
                             <span
                               className="text-sm"
@@ -1066,7 +1066,7 @@ function AccountContent() {
                               className="font-mono text-xs"
                               style={{ color: "var(--text-secondary)" }}
                             >
-                              {selectedInvoice.paystackReference}
+                              {selectedInvoice.reference}
                             </span>
                           </div>
                         )}

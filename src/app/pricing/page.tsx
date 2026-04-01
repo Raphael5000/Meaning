@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -11,10 +11,30 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+declare global {
+  interface Window {
+    createLemonSqueezy?: () => void;
+    LemonSqueezy?: {
+      Url: { Open: (url: string) => void };
+    };
+  }
+}
+
 export default function PricingPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load Lemon.js script for checkout overlay
+  useEffect(() => {
+    if (document.getElementById("lemonsqueezy-js")) return;
+    const script = document.createElement("script");
+    script.id = "lemonsqueezy-js";
+    script.src = "https://app.lemonsqueezy.com/js/lemon.js";
+    script.defer = true;
+    script.onload = () => window.createLemonSqueezy?.();
+    document.head.appendChild(script);
+  }, []);
 
   async function handleSubscribe() {
     if (!session) {
@@ -40,36 +60,12 @@ export default function PricingPage() {
         return;
       }
 
-      // Embedded checkout: overlay on same page, session stays intact
-      try {
-        const PaystackPop = (await import("@paystack/inline-js")).default;
-        const paystack = new PaystackPop();
-        paystack.resumeTransaction(data.access_code, {
-          onSuccess: async () => {
-            // Sync subscription before redirect (webhook may be delayed)
-            await fetch("/api/payments/verify-complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reference: data.reference }),
-            });
-            setLoading(false);
-            // Paystack overlay may be a popup; redirect parent (has session) and close
-            if (window.opener) {
-              window.opener.location.href = "/connect-analytics?payment=success";
-              window.close();
-            } else {
-              window.location.href = "/connect-analytics?payment=success";
-            }
-          },
-          onCancel: () => setLoading(false),
-          onError: (err: { message: string }) => {
-            setError(err?.message || "Payment failed");
-            setLoading(false);
-          },
-        });
-      } catch {
-        // Embedded failed (e.g. script load) — fall back to redirect
-        window.location.href = data.authorization_url;
+      // Try overlay first, fall back to redirect
+      if (window.LemonSqueezy) {
+        window.LemonSqueezy.Url.Open(data.checkout_url);
+        setLoading(false);
+      } else {
+        window.location.href = data.checkout_url;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -259,7 +255,7 @@ export default function PricingPage() {
                     className="mt-3 text-center text-xs"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Cancel anytime. Powered by Paystack, a Stripe company.
+                    Cancel anytime. Secure checkout by Lemon Squeezy.
                   </p>
                 </div>
               </div>

@@ -32,7 +32,7 @@ interface PaymentRecord {
   currency: string;
   status: string;
   description: string | null;
-  paystackReference: string | null;
+  reference: string | null;
   createdAt: string;
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { initializeTransaction } from "@/lib/paystack";
+import { createLsCheckout } from "@/lib/lemonsqueezy";
 
 export const dynamic = "force-dynamic";
 
@@ -11,19 +11,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Validate payment env so we return clear errors instead of generic 500
-  const planCode = process.env.PAYSTACK_PLAN_CODE?.trim();
-  const secretKey = process.env.PAYSTACK_SECRET_KEY?.trim();
+  const apiKey = process.env.LEMONSQUEEZY_API_KEY?.trim();
+  const storeId = process.env.LEMONSQUEEZY_STORE_ID?.trim();
+  const variantId = process.env.LEMONSQUEEZY_VARIANT_ID?.trim();
   const baseUrl = process.env.NEXTAUTH_URL?.trim();
-  if (!planCode) {
+
+  if (!apiKey || !storeId || !variantId) {
     return NextResponse.json(
-      { error: "Payment plan not configured. Set PAYSTACK_PLAN_CODE in .env (create a plan in Paystack dashboard)." },
-      { status: 500 }
-    );
-  }
-  if (!secretKey) {
-    return NextResponse.json(
-      { error: "Paystack not configured. Set PAYSTACK_SECRET_KEY in .env." },
+      { error: "LemonSqueezy not configured." },
       { status: 500 }
     );
   }
@@ -35,8 +30,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { plan } = await req.json();
-
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
       include: { subscription: true },
@@ -53,7 +46,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for active subscription
     if (user.subscription?.status === "active") {
       return NextResponse.json(
         { error: "You already have an active subscription" },
@@ -61,36 +53,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const callbackUrl = `${baseUrl}/api/payments/callback`;
-
-    const result = await initializeTransaction({
+    const checkoutUrl = await createLsCheckout({
+      userId: user.id,
       email: user.email,
-      amount: 0, // Paystack uses the plan amount when a plan is specified
-      plan: planCode,
-      callback_url: callbackUrl,
-      metadata: {
-        userId: user.id,
-        plan: plan || "monthly",
-      },
+      name: user.name || undefined,
+      redirectUrl: `${baseUrl}/connect-analytics?payment=success`,
     });
 
-    // Store pending payment
-    await prisma.payment.create({
-      data: {
-        userId: user.id,
-        amount: 0, // Will be updated on verification
-        currency: "ZAR",
-        status: "pending",
-        paystackReference: result.data.reference,
-        description: `Subscription: ${plan || "monthly"}`,
-      },
-    });
-
-    return NextResponse.json({
-      authorization_url: result.data.authorization_url,
-      access_code: result.data.access_code,
-      reference: result.data.reference,
-    });
+    return NextResponse.json({ checkout_url: checkoutUrl });
   } catch (error) {
     console.error("Payment initialization error:", error);
     const message =

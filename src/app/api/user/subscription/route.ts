@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { disableSubscription } from "@/lib/paystack";
+import { cancelLsSubscription } from "@/lib/lemonsqueezy";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +36,9 @@ export async function DELETE() {
   }
 
   try {
-    // Cancel on Paystack if we have the codes
-    if (subscription.paystackSubscriptionCode && subscription.paystackEmailToken) {
-      await disableSubscription({
-        code: subscription.paystackSubscriptionCode,
-        token: subscription.paystackEmailToken,
-      });
+    // Cancel on LemonSqueezy (enters grace period until ends_at)
+    if (subscription.lsSubscriptionId) {
+      await cancelLsSubscription(subscription.lsSubscriptionId);
     }
 
     // Mark as cancelling at period end

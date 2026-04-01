@@ -199,7 +199,7 @@ export default function PrivacyPage() {
                 <strong>AI processing provider (Anthropic):</strong> Your Google Analytics query data is sent to Anthropic&apos;s API to generate AI-powered insights and responses. Only analytics data relevant to your query is transmitted; your personal account information (name, email, password) is not shared with Anthropic.
               </li>
               <li>
-                <strong>Payment processor (Paystack/Stripe):</strong> Your payment and billing information is processed by Paystack (a Stripe company) to manage subscriptions and transactions. We do not store your full payment card details.
+                <strong>Payment processor (Lemon Squeezy):</strong> Your payment and billing information is processed by Lemon Squeezy to manage subscriptions and transactions. We do not store your full payment card details.
               </li>
               <li>
                 <strong>Hosting provider (Code Capsules):</strong> Our Service is hosted on Code Capsules&apos; infrastructure, which processes data as necessary to deliver the Service.

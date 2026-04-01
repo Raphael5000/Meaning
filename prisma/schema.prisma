@@ -23,9 +23,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Paystack
-  paystackCustomerCode        String?
-  paystackAuthorizationCode   String?
+  // LemonSqueezy
+  lsCustomerId   String?
 
   activeOrgId  String?
 
@@ -92,8 +91,7 @@ model Subscription {
   plan      String @default("monthly") // monthly
   seatCount Int    @default(1)
 
-  paystackSubscriptionCode String?
-  paystackEmailToken       String?
+  lsSubscriptionId String?
 
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
@@ -191,8 +189,8 @@ model Payment {
   currency String @default("ZAR")
   status   String // success | failed | pending
 
-  paystackReference     String  @unique
-  paystackTransactionId String?
+  lsOrderId    String?
+  reference    String  @unique
 
   description String?
   createdAt   DateTime @default(now())

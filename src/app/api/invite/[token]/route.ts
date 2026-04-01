@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { chargeAuthorization } from "@/lib/paystack";
-import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -122,15 +120,11 @@ export async function POST(
     data: { acceptedAt: new Date() },
   });
 
-  // Auto-increment seat count and charge prorated amount for remaining days
+  // Auto-increment seat count
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId: invite.team.ownerId },
-      select: { id: true, seatCount: true, currentPeriodEnd: true },
-    });
-    const admin = await prisma.user.findUnique({
-      where: { id: invite.team.ownerId },
-      select: { email: true, paystackAuthorizationCode: true },
+      select: { id: true, seatCount: true },
     });
 
     if (subscription) {
@@ -138,43 +132,6 @@ export async function POST(
         where: { id: subscription.id },
         data: { seatCount: subscription.seatCount + 1 },
       });
-
-      // Prorate: charge for remaining days in the current billing cycle
-      const now = Date.now();
-      const periodEnd = subscription.currentPeriodEnd.getTime();
-      const remainingDays = Math.max(0, Math.ceil((periodEnd - now) / 86_400_000));
-      const SEAT_PRICE_KOBO = 9900;
-      const proratedAmount = Math.ceil((remainingDays / 30) * SEAT_PRICE_KOBO);
-
-      if (proratedAmount > 0 && admin?.paystackAuthorizationCode) {
-        const ref = `prorate_${invite.id}_${crypto.randomUUID().slice(0, 8)}`;
-        try {
-          await chargeAuthorization({
-            authorization_code: admin.paystackAuthorizationCode,
-            email: admin.email,
-            amount: proratedAmount,
-            reference: ref,
-            metadata: {
-              type: "prorated_seat",
-              inviteId: invite.id,
-              remainingDays,
-            },
-          });
-
-          await prisma.payment.create({
-            data: {
-              userId: invite.team.ownerId,
-              amount: proratedAmount,
-              currency: "ZAR",
-              status: "success",
-              paystackReference: ref,
-              description: `Prorated seat (${remainingDays} days)`,
-            },
-          });
-        } catch (chargeErr) {
-          console.error("[invite] Prorated charge failed:", chargeErr);
-        }
-      }
     }
   } catch (err) {
     console.error("[invite] Failed to update seat count:", err);
