@@ -643,7 +643,7 @@ function AccountContent() {
                           className="text-sm font-medium"
                           style={{ color: "var(--text-primary)" }}
                         >
-                          Monthly - R299/month
+                          Monthly - $9.99/mo
                         </p>
                       </div>
                       <div>

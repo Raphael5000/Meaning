@@ -10,7 +10,7 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
 
   // Active subscription that hasn't expired
   if (
-    subscription.status === "active" &&
+    (subscription.status === "active" || subscription.status === "trialing") &&
     new Date(subscription.currentPeriodEnd) > new Date()
   ) {
     return true;

@@ -286,7 +286,7 @@ export default function AccountPanel({ onClose }: AccountPanelProps) {
                   <div className="grid gap-2 text-xs sm:grid-cols-2">
                     <div>
                       <p className="text-muted-foreground">Plan</p>
-                      <p className="font-medium text-foreground">Monthly - R299/month</p>
+                      <p className="font-medium text-foreground">Monthly - $9.99/mo</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Current period</p>

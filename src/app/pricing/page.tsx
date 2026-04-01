@@ -4,12 +4,6 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 declare global {
   interface Window {
@@ -109,7 +103,7 @@ export default function PricingPage() {
               color: "var(--accent)",
             }}
           >
-            Launch Offer
+            14-day free trial
           </div>
 
           <h1
@@ -137,71 +131,89 @@ export default function PricingPage() {
               }}
             >
               <div className="card-noise" aria-hidden />
-              {/* Why R? pill — top-right corner */}
-              <div className="absolute top-4 right-4 z-20">
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="inline-flex cursor-default items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-none"
-                        style={{
-                          background: "rgba(16, 163, 127, 0.1)",
-                          border: "1px solid rgba(16, 163, 127, 0.25)",
-                          color: "var(--accent)",
-                        }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 16v-4" />
-                          <path d="M12 8h.01" />
-                        </svg>
-                        Why R?
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-[220px] text-center text-xs leading-relaxed"
-                    >
-                      R is South African Rand (ZAR). R99 is roughly $5.50 USD.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
               <div className="relative z-10 flex flex-col">
+
+                {/* Trial banner */}
+                <div
+                  className="mb-6 -mx-8 -mt-8 px-8 py-4"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(16, 163, 127, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%)",
+                    borderBottom: "1px solid rgba(16, 163, 127, 0.15)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                      style={{
+                        background: "rgba(16, 163, 127, 0.15)",
+                      }}
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Try free for 14 days
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        No charge until your trial ends. Cancel anytime.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <p
                   className="mb-1 text-sm font-medium"
                   style={{ color: "var(--accent)" }}
                 >
                   Monthly
                 </p>
-                <div className="mb-2 flex items-baseline gap-1">
+                <div className="mb-1 flex items-baseline gap-1">
                   <span
                     className="text-4xl font-bold"
                     style={{ color: "var(--text-primary)" }}
                   >
-                    R99
+                    $9.99
                   </span>
                   <span
                     className="text-sm"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    /pm
+                    /mo
                   </span>
                 </div>
                 <p
                   className="mb-6 text-sm"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  per seat &middot; add team members at R99/seat
+                  after 14-day free trial
                 </p>
 
                 <ul className="mb-8 flex flex-col gap-3">
                   {[
                     "Unlimited AI-powered queries",
                     "Unlimited GA4 properties",
+                    "Unlimited team members",
                     "AI recommendations",
                     "Custom email alerts",
-                    "Add team members at R99 per seat",
                     "Priority support",
                   ].map((feature) => (
                     <li key={feature} className="flex items-center gap-3">
@@ -247,23 +259,111 @@ export default function PricingPage() {
                     {loading
                       ? "Opening checkout..."
                       : session
-                        ? "Subscribe now"
-                        : "Get started"}
+                        ? "Start free trial"
+                        : "Get started free"}
                   </button>
 
                   <p
                     className="mt-3 text-center text-xs"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Cancel anytime. Secure checkout by Lemon Squeezy.
+                    No credit card required to start. Cancel anytime.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Trial timeline */}
+            <div
+              className="mx-auto mt-6 flex max-w-sm items-center gap-0"
+            >
+              <div className="flex flex-col items-center">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                  style={{
+                    background: "var(--accent)",
+                    color: "white",
+                  }}
+                >
+                  1
+                </div>
+                <p
+                  className="mt-2 text-xs font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Today
+                </p>
+                <p
+                  className="text-[11px]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Full access
+                </p>
+              </div>
+
+              <div
+                className="mx-1 h-px flex-1"
+                style={{ background: "var(--border-color)" }}
+              />
+
+              <div className="flex flex-col items-center">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                  style={{
+                    background: "rgba(16, 163, 127, 0.15)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  7
+                </div>
+                <p
+                  className="mt-2 text-xs font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Day 7
+                </p>
+                <p
+                  className="text-[11px]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Reminder
+                </p>
+              </div>
+
+              <div
+                className="mx-1 h-px flex-1"
+                style={{ background: "var(--border-color)" }}
+              />
+
+              <div className="flex flex-col items-center">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                  style={{
+                    background: "rgba(16, 163, 127, 0.08)",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  14
+                </div>
+                <p
+                  className="mt-2 text-xs font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Day 14
+                </p>
+                <p
+                  className="text-[11px]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  $9.99/mo starts
+                </p>
               </div>
             </div>
           </div>
 
           <p
-            className="mt-6 text-sm"
+            className="mt-8 text-sm"
             style={{ color: "var(--text-muted)" }}
           >
             Offer valid until 30 April 2026.
