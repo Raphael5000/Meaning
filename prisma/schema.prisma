@@ -190,7 +190,7 @@ model Payment {
   status   String // success | failed | pending
 
   lsOrderId    String?
-  reference    String  @unique @default(cuid())
+  reference    String? @unique
 
   description String?
   createdAt   DateTime @default(now())
