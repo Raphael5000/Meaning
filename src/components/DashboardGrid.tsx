@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ResponsiveGridLayout,
-  useContainerWidth,
   type LayoutItem,
   type Layout,
 } from "react-grid-layout";
@@ -33,7 +32,30 @@ interface DashboardGridProps {
 
 export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, refreshing }: DashboardGridProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const { width, containerRef, mounted } = useContainerWidth({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const measure = () => {
+      const w = node.offsetWidth;
+      if (w > 0) {
+        setWidth(w);
+        if (!mounted) setMounted(true);
+      }
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
@@ -48,7 +70,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
   const widgetMap = new Map(widgets.map((w) => [w.id, w]));
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className="w-full">
       {mounted && (
         <ResponsiveGridLayout
           className="dashboard-grid"

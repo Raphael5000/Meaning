@@ -543,9 +543,9 @@ export async function POST(
     // Filter out layout entries for deleted widgets
     const layout = rawLayout.filter((item) => existingIds.has(item.i));
     const sizes: Record<string, { w: number; h: number }> = {
-      chart: { w: 6, h: 5 },
-      scorecard: { w: 3, h: 3 },
-      table: { w: 6, h: 4 },
+      chart: { w: 12, h: 5 },
+      scorecard: { w: 4, h: 3 },
+      table: { w: 12, h: 4 },
     };
     const size = sizes[parsed.widgetType] || sizes.chart;
     const maxBottom = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
