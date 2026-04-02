@@ -256,10 +256,12 @@ MAILCHIMP QUERIES:
 LINKEDIN QUERIES:
 - Use the run_linkedin_query tool for all LinkedIn data questions.
 - Date columns: post_date for post_performance, stats_date for follower_stats/follower_demographics/page_stats.
+- post_performance has both cumulative columns (impressions, clicks, engagements) and daily columns (daily_impressions, daily_clicks, daily_engagements). For charts over time or "impressions by day", ALWAYS use the daily_ columns (e.g. SELECT post_date, daily_impressions FROM \`{dataset}.post_performance\` ORDER BY post_date). For a scorecard total over a period, SUM the daily_ columns. The plain impressions/clicks/engagements columns are cumulative lifetime totals — only use the latest row if you need the all-time total.
+- FOLLOWER COUNT: The follower_stats table has total_followers (cumulative count), organic_gains, and paid_gains. To get the current follower count, query the latest row: SELECT total_followers FROM \`{dataset}.follower_stats\` ORDER BY stats_date DESC LIMIT 1. This is a single number — output it as a scorecard, not a table.
 - Follower demographics uses a dimension/dimension_value pattern. Filter by dimension to get breakdowns: WHERE dimension = 'country', 'industry', 'seniority', 'function', or 'company_size'.
 - org_info has a single row with the organization name and last sync timestamp.
 - Always use {dataset}.tableName format — the system routes LinkedIn tables to the correct dataset automatically.
-- Engagement rate = engagements / impressions.` : "";
+- Engagement rate = engagements / impressions (use the latest cumulative row for lifetime rate, or compute from daily deltas for a period).` : "";
 
   const adsQueryGuidance = includeAds ? `
 

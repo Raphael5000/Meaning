@@ -69,6 +69,9 @@ const TABLE_SCHEMAS: Record<string, { fields: { name: string; type: string }[]; 
       { name: "likes", type: "INT64" },
       { name: "shares", type: "INT64" },
       { name: "engagements", type: "INT64" },
+      { name: "daily_impressions", type: "INT64" },
+      { name: "daily_clicks", type: "INT64" },
+      { name: "daily_engagements", type: "INT64" },
     ],
   },
   follower_stats: {
@@ -200,7 +203,7 @@ export async function syncLinkedInData(
 
   // ── 1. Post performance (share statistics — lifetime totals snapshot) ──
   // Note: Development Tier does not support time-series breakdowns.
-  // We store a daily snapshot so we can track changes over time.
+  // We store a daily snapshot + computed daily deltas for easy querying.
   let postRows: Record<string, unknown>[] = [];
   try {
     const shareStats = (await linkedInGet({
@@ -221,18 +224,43 @@ export async function syncLinkedInData(
       }>;
     };
 
+    // Fetch previous day's cumulative totals to compute daily deltas
+    let prevImpressions = 0;
+    let prevClicks = 0;
+    let prevEngagements = 0;
+    try {
+      const fqTable = `\`${projectId}.${datasetId}.post_performance\``;
+      const [prevRows] = await bq.query({
+        query: `SELECT impressions, clicks, engagements FROM ${fqTable} WHERE post_date < '${today}' ORDER BY post_date DESC LIMIT 1`,
+      });
+      if (prevRows.length > 0) {
+        prevImpressions = Number(prevRows[0].impressions ?? 0);
+        prevClicks = Number(prevRows[0].clicks ?? 0);
+        prevEngagements = Number(prevRows[0].engagements ?? 0);
+      }
+    } catch {
+      // No previous data — first sync, deltas will equal the totals
+    }
+
     for (const el of shareStats.elements ?? []) {
       const stats = el.totalShareStatistics ?? {};
+      const impressions = Number(stats.impressionCount ?? 0);
+      const clicks = Number(stats.clickCount ?? 0);
+      const engagements = Number(stats.clickCount ?? 0) + Number(stats.likeCount ?? 0) + Number(stats.commentCount ?? 0) + Number(stats.shareCount ?? 0);
+
       postRows.push({
         post_date: today,
         post_urn: el.organizationalEntity ?? orgUrn,
         post_text: "lifetime_totals",
-        impressions: Number(stats.impressionCount ?? 0),
-        clicks: Number(stats.clickCount ?? 0),
+        impressions,
+        clicks,
         comments: Number(stats.commentCount ?? 0),
         likes: Number(stats.likeCount ?? 0),
         shares: Number(stats.shareCount ?? 0),
-        engagements: Number(stats.clickCount ?? 0) + Number(stats.likeCount ?? 0) + Number(stats.commentCount ?? 0) + Number(stats.shareCount ?? 0),
+        engagements,
+        daily_impressions: Math.max(impressions - prevImpressions, 0),
+        daily_clicks: Math.max(clicks - prevClicks, 0),
+        daily_engagements: Math.max(engagements - prevEngagements, 0),
       });
     }
   } catch (err) {

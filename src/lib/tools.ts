@@ -232,7 +232,7 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
   {
     name: "run_linkedin_query",
     description:
-      "Run a custom SQL query against LinkedIn company page analytics data. Use this to answer questions about LinkedIn post performance, follower growth, follower demographics, and page engagement. Use {dataset}.tableName for table references. LinkedIn tables: post_performance (daily post metrics: impressions, clicks, comments, likes, shares, engagements), follower_stats (daily follower gains: organic_gains, paid_gains), follower_demographics (follower breakdowns by country, industry, seniority, function, company_size), page_stats (daily page views, unique visitors, clicks), org_info (organization name and last sync time).",
+      "Run a custom SQL query against LinkedIn company page analytics data. Use this to answer questions about LinkedIn post performance, follower growth, follower demographics, and page engagement. Use {dataset}.tableName for table references. LinkedIn tables: post_performance (daily_impressions, daily_clicks, daily_engagements for daily metrics; impressions, clicks, engagements for cumulative lifetime totals; also comments, likes, shares), follower_stats (total_followers — cumulative, use latest row for current count; organic_gains, paid_gains), follower_demographics (follower breakdowns by country, industry, seniority, function, company_size), page_stats (daily page views, unique visitors, clicks), org_info (organization name and last sync time).",
     input_schema: {
       type: "object" as const,
       properties: {
