@@ -239,7 +239,9 @@ GSC QUERIES:
 - Device values: DESKTOP, MOBILE, TABLET.
 - Common queries: top search queries by clicks, pages with most impressions, average position trends, CTR by device/country.
 - INDEXING / CRAWL QUERIES: Use url_inspection table for questions about indexing status, crawl issues, canonical problems, or page fetch errors. Key columns: index_verdict (PASS/FAIL/NEUTRAL), coverage_state, page_fetch_state, last_crawl_time, google_canonical vs user_canonical. Example: "how many pages are indexed?" → COUNT by index_verdict. "which pages have crawl errors?" → WHERE page_fetch_state != 'SUCCESSFUL'.
-- Always use {dataset}.tableName format — the system routes GSC tables to the correct dataset automatically.` : "";
+- Always use {dataset}.tableName format — the system routes GSC tables to the correct dataset automatically.
+- IMPORTANT: BigQuery uses INTERVAL N DAY (singular, not DAYS). Always write DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY), never DAYS/MONTHS.
+- GA4 vs GSC DATA: GA4 sessions with source='google' includes ALL Google traffic (organic, paid/cpc, referral from YouTube/Gmail, Discover). GSC clicks only counts organic search clicks. These numbers will NOT match. When showing organic search traffic from GA4, always filter by session_source='google' AND session_medium='organic'. When comparing GA4 and GSC, explain the difference to the user.` : "";
 
   const mailchimpQueryGuidance = includeMailchimp ? `
 
@@ -321,6 +323,8 @@ PATTERN 2 — Traffic source → Landing page → Second page (3-layer):
 Use Pattern 2 when the user asks about traffic sources/channels flowing into pages, or asks for a multi-layer sankey showing where users came from. Use Pattern 1 for general page-to-page step flows.
 
 After getting the query results, you MUST render a sankey chart using [[chart]]...[[/chart]] with ECharts type "sankey". Build the nodes array from all unique from_node and to_node values, and the links array from each row {source: from_node, target: to_node, value: transitions}. Do NOT output a table — always render as a sankey chart.
+
+SANKEY COVERAGE NOTE: Sankey diagrams only include sessions with 2+ pageviews — single-page (bounce) sessions have no page-to-page flow to show. The LIMIT 30 also trims less common paths. So the total sessions in a sankey will always be LESS than total sessions in a scorecard. After rendering the sankey, briefly mention how many sessions the sankey covers vs total (e.g. "This sankey covers X sessions out of Y total — the remaining Z were single-page visits").
 
 Always clean URLs with REGEXP_EXTRACT to strip query params and domain. Limit results to keep diagrams readable.
 
