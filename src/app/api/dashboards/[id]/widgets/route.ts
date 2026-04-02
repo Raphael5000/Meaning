@@ -194,7 +194,7 @@ Your SQL query results MUST return columns in this order: first column = dimensi
 
 For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
 [[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
-The CHANGE is optional but recommended — it shows a comparison vs the previous period (e.g. +12.3%, -5%, +1,234). Include it whenever you can compute a period-over-period comparison. Use + prefix for positive change, - for negative.
+The CHANGE is MANDATORY. You MUST always include a comparison vs the previous period. Run two queries: one for the current period and one for the previous period of equal length (e.g. last 28 days vs the 28 days before that). Compute the percentage change: ((current - previous) / previous * 100) and format as +X% or -X%. Use + prefix for positive change, - for negative. Example: if current=500 and previous=450, change is +11.1%.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
 [[table]][{"column1":"value1","column2":123},...][[/table]]
