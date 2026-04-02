@@ -199,6 +199,9 @@ export async function syncLinkedInData(
 
   console.log(`[linkedin-sync] Starting sync for org ${orgId}, ${startDate} → ${endDate}`);
 
+  await ensureDataset(datasetId);
+  await ensureLinkedInTables(datasetId);
+
   const today = new Date().toISOString().split("T")[0];
 
   // ── 1. Post performance (share statistics — lifetime totals snapshot) ──
