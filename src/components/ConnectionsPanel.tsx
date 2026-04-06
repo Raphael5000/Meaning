@@ -632,6 +632,16 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <div className="flex items-center gap-1.5">
                   <StatusDot status={ds.status} />
                   <StatusLabel status={ds.status} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: ds.status === "ERROR" ? "var(--error, #ef4444)" : "var(--text-muted)" }}
+                    disabled={enablingAds[c.id]}
+                    onClick={() => handleEnable("GOOGLE_ADS", c.id)}
+                  >
+                    {enablingAds[c.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Resync"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button

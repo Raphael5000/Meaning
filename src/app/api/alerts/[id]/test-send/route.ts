@@ -3,9 +3,11 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendAlertEmail } from "@/lib/resend";
 import { buildEmailWrapper } from "@/lib/email-wrapper";
-import { generateAlertContent } from "@/lib/alert-content";
+import { generateAlertContent, AlertDataSources } from "@/lib/alert-content";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { describeSchedule, frequencyLabel } from "@/lib/schedule";
+import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId, getGscSiteUrl, getMicrosoftAdsAccountId } from "@/lib/rollout";
+import { getOrgDataSources } from "@/lib/org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -64,28 +66,99 @@ export async function POST(
     const freqLabel = frequencyLabel(alert.sendDays, alert.intervalWeeks);
 
     if (useLive) {
-      // Get access token while we still have the session context
-      const accessToken = await getGoogleAccessToken(
-        session as { accessToken?: string; userId?: string } | null
-      );
+      // Resolve data sources (same logic as send route)
+      let propertyId = alert.propertyId;
+      let usesBigQuery = false;
+      let dataSources: AlertDataSources | null = null;
+      let displayCurrency = "USD";
 
-      if (!alert.propertyId || !accessToken) {
+      if (alert.orgId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: alert.orgId },
+          select: { displayCurrency: true },
+        });
+        displayCurrency = org?.displayCurrency ?? "USD";
+
+        const orgDataSources = await getOrgDataSources(alert.orgId);
+
+        if (!propertyId) {
+          const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+          propertyId = ga4Ds?.propertyId ?? null;
+        }
+
+        const adsDsList = orgDataSources.filter((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+        const linkedInDsList = orgDataSources.filter((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+        const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+        const gscDsList = orgDataSources.filter((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+        const msAdsDsList = orgDataSources.filter((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+
+        if (propertyId) {
+          usesBigQuery = true;
+          dataSources = {
+            propertyId,
+            adsCustomerId: adsDsList[0]?.adsCustomerId ?? null,
+            linkedInOrgId: linkedInDsList[0]?.propertyId ?? null,
+            mailchimpListId: mailchimpDsList[0]?.propertyId ?? null,
+            gscSiteUrl: gscDsList[0]?.propertyId ?? null,
+            msAdsAccountId: msAdsDsList[0]?.propertyId ?? null,
+          };
+        }
+      } else if (propertyId) {
+        const accessToken = await getGoogleAccessToken(
+          session as { accessToken?: string; userId?: string } | null
+        );
+        const rollout = await shouldUseBigQuery(propertyId, userId);
+        usesBigQuery = rollout.useBigQuery;
+
+        if (usesBigQuery) {
+          const [adsId, liId, mcId, gscUrl, msId] = await Promise.all([
+            getGoogleAdsCustomerId(userId, propertyId),
+            getLinkedInOrgId(userId, propertyId),
+            getMailchimpListId(userId, propertyId),
+            getGscSiteUrl(userId, propertyId),
+            getMicrosoftAdsAccountId(userId, propertyId),
+          ]);
+          dataSources = {
+            propertyId,
+            adsCustomerId: adsId,
+            linkedInOrgId: liId,
+            mailchimpListId: mcId,
+            gscSiteUrl: gscUrl,
+            msAdsAccountId: msId,
+          };
+        } else if (!accessToken) {
+          return NextResponse.json(
+            { error: "Google connection expired. Please reconnect in Settings." },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (!propertyId) {
         return NextResponse.json(
-          { error: "No GA4 property linked or Google connection expired" },
+          { error: "No data source found. Please connect a property in Settings." },
           { status: 400 }
         );
       }
 
+      // Get access token for legacy GA4 path
+      const accessToken = await getGoogleAccessToken(
+        session as { accessToken?: string; userId?: string } | null
+      );
+
       // Fire off generation in the background — return immediately
-      const capturedToken = accessToken;
-      const capturedPropertyId = alert.propertyId;
+      const capturedToken = accessToken || "";
+      const capturedPropertyId = propertyId;
       const capturedAlertType = alert.alertType;
       const capturedCustomPrompt = alert.customPrompt;
       const capturedFreqLabel = freqLabel;
       const capturedSenderName = alert.user.name || alert.user.email;
+      const capturedUsesBigQuery = usesBigQuery;
+      const capturedDataSources = dataSources;
+      const capturedDisplayCurrency = displayCurrency;
 
       void (async () => {
-        console.log(`[test-send] Starting live generation for alert ${id}, property=${capturedPropertyId}, type=${capturedAlertType}`);
+        console.log(`[test-send] Starting live generation for alert ${id}, property=${capturedPropertyId}, type=${capturedAlertType}, bigquery=${capturedUsesBigQuery}`);
         try {
           console.log(`[test-send] Calling generateAlertContent...`);
           const contentHtml = await generateAlertContent(
@@ -93,7 +166,10 @@ export async function POST(
             capturedPropertyId,
             capturedAlertType,
             capturedFreqLabel,
-            capturedCustomPrompt
+            capturedCustomPrompt,
+            capturedUsesBigQuery,
+            capturedDataSources,
+            capturedDisplayCurrency
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
 
@@ -155,7 +231,7 @@ function buildSampleContent(
     <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.6; color: #333;">
       This is a preview of your <strong>${alertTypeLabel}</strong> for
       <strong>${propertyLabel}</strong> (${scheduleDescription}).
-      When your scheduled alert runs, this section will contain real data from Google Analytics.
+      When your scheduled alert runs, this section will contain real data from your connected analytics sources.
     </p>
     <h3 style="color: #1a1a1a; font-size: 16px; font-weight: 600; margin: 24px 0 8px 0;">Traffic Overview</h3>
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
@@ -195,7 +271,7 @@ function buildSampleContent(
       <li style="font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 6px;">Capitalise on the growing user base by testing new calls-to-action on high-traffic pages.</li>
     </ul>
     <p style="color: #666; font-size: 13px; font-style: italic;">
-      Sample data shown above. Your actual report will contain real analytics from Google Analytics.
+      Sample data shown above. Your actual report will contain real analytics from your connected data sources.
     </p>
   `;
 }

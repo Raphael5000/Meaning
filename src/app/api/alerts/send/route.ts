@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendAlertEmail } from "@/lib/resend";
-import { generateAlertContent } from "@/lib/alert-content";
+import { generateAlertContent, AlertDataSources } from "@/lib/alert-content";
 import { ALERT_TYPES } from "@/lib/alert-prompts";
 import { buildEmailWrapper } from "@/lib/email-wrapper";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { isAlertDue, describeSchedule, frequencyLabel } from "@/lib/schedule";
-import { shouldUseBigQuery } from "@/lib/rollout";
+import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId, getGscSiteUrl, getMicrosoftAdsAccountId } from "@/lib/rollout";
+import { getOrgDataSources } from "@/lib/org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -77,26 +78,112 @@ async function handleSend(request: NextRequest) {
       try {
         let contentHtml: string;
 
-        // Check if this property uses BigQuery (respects rollout percentage)
-        const rollout = alert.propertyId
-          ? await shouldUseBigQuery(alert.propertyId, alert.user.id)
-          : { useBigQuery: false, reason: "no_property" };
-        const usesBigQuery = rollout.useBigQuery;
-        console.log(`[alerts] property=${alert.propertyId} user=${alert.user.id} path=${usesBigQuery ? "bigquery" : "ga4"} reason=${rollout.reason}`);
+        // Resolve data sources: prefer org-level discovery, fall back to property-level
+        let propertyId = alert.propertyId;
+        let usesBigQuery = false;
+        let dataSources: AlertDataSources | null = null;
+        let displayCurrency = "USD";
+
+        if (alert.orgId) {
+          // Org-based: fetch all data sources from the org
+          const org = await prisma.organization.findUnique({
+            where: { id: alert.orgId },
+            select: { displayCurrency: true },
+          });
+          displayCurrency = org?.displayCurrency ?? "USD";
+
+          const orgDataSources = await getOrgDataSources(alert.orgId);
+
+          // Pick first GA4 property if alert doesn't have one
+          if (!propertyId) {
+            const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+            propertyId = ga4Ds?.propertyId ?? null;
+          }
+
+          // Collect all platform data source IDs
+          const adsDsList = orgDataSources.filter((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+          const linkedInDsList = orgDataSources.filter((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+          const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+          const gscDsList = orgDataSources.filter((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+          const msAdsDsList = orgDataSources.filter((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+
+          if (propertyId) {
+            usesBigQuery = true;
+            dataSources = {
+              propertyId,
+              adsCustomerId: adsDsList[0]?.adsCustomerId ?? null,
+              linkedInOrgId: linkedInDsList[0]?.propertyId ?? null,
+              mailchimpListId: mailchimpDsList[0]?.propertyId ?? null,
+              gscSiteUrl: gscDsList[0]?.propertyId ?? null,
+              msAdsAccountId: msAdsDsList[0]?.propertyId ?? null,
+            };
+          }
+        } else if (propertyId) {
+          // Legacy property-based path
+          const rollout = await shouldUseBigQuery(propertyId, alert.user.id);
+          usesBigQuery = rollout.useBigQuery;
+
+          if (usesBigQuery) {
+            const [adsId, liId, mcId, gscUrl, msId] = await Promise.all([
+              getGoogleAdsCustomerId(alert.user.id, propertyId),
+              getLinkedInOrgId(alert.user.id, propertyId),
+              getMailchimpListId(alert.user.id, propertyId),
+              getGscSiteUrl(alert.user.id, propertyId),
+              getMicrosoftAdsAccountId(alert.user.id, propertyId),
+            ]);
+            dataSources = {
+              propertyId,
+              adsCustomerId: adsId,
+              linkedInOrgId: liId,
+              mailchimpListId: mcId,
+              gscSiteUrl: gscUrl,
+              msAdsAccountId: msId,
+            };
+          }
+        }
+
+        console.log(`[alerts] alert=${alert.id} property=${propertyId} org=${alert.orgId} user=${alert.user.id} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${!!dataSources?.adsCustomerId} msads=${!!dataSources?.msAdsAccountId} linkedin=${!!dataSources?.linkedInOrgId} mailchimp=${!!dataSources?.mailchimpListId} gsc=${!!dataSources?.gscSiteUrl}`);
 
         // Get a valid (refreshed if needed) Google access token for this user
         // BigQuery path doesn't need the user's OAuth token, but we still try
         // to get one for the GA4 fallback path
         const accessToken = await getValidGoogleTokenForUser(alert.user.id);
-        if (alert.propertyId && (accessToken || usesBigQuery)) {
+
+        if (usesBigQuery && propertyId) {
+          // BigQuery path — works with or without Google OAuth token
           try {
             contentHtml = await generateAlertContent(
               accessToken || "",
-              alert.propertyId,
+              propertyId,
               alert.alertType,
               freqLabel,
               alert.customPrompt,
-              usesBigQuery
+              true,
+              dataSources,
+              displayCurrency
+            );
+          } catch (genErr) {
+            console.error(
+              `[api/alerts/send] Content generation failed for alert ${alert.id}:`,
+              genErr
+            );
+            contentHtml = `
+              <p style="color: #333; font-size: 15px; line-height: 1.6;">
+                We were unable to generate your analytics report for <strong>${propertyLabel}</strong> this time.
+                Please log in to <a href="https://usemeaning.io" style="color: #2563eb;">Meaning</a> to check your data connections.
+              </p>
+            `;
+          }
+        } else if (propertyId && accessToken) {
+          // Legacy GA4 API path
+          try {
+            contentHtml = await generateAlertContent(
+              accessToken,
+              propertyId,
+              alert.alertType,
+              freqLabel,
+              alert.customPrompt,
+              false
             );
           } catch (genErr) {
             console.error(
@@ -114,8 +201,8 @@ async function handleSend(request: NextRequest) {
         } else {
           contentHtml = `
             <p style="color: #333; font-size: 15px; line-height: 1.6;">
-              No Google Analytics property is linked to this alert.
-              Please log in to <a href="https://usemeaning.io" style="color: #2563eb;">Meaning</a> to configure a property.
+              No data source is linked to this alert.
+              Please log in to <a href="https://usemeaning.io" style="color: #2563eb;">Meaning</a> to configure your data connections.
             </p>
           `;
         }

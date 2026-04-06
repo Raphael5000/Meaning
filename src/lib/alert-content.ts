@@ -29,26 +29,99 @@ Important rules:
 - Use <h3> for section headings. Do NOT use <h1> or <h2>.
 - Follow the detailed styling rules in the user prompt exactly.`;
 
-function getBigQueryAlertSystemPrompt(): string {
+function getBigQueryAlertSystemPrompt(
+  hasAds = false,
+  hasLinkedIn = false,
+  hasMailchimp = false,
+  hasGsc = false,
+  hasMsAds = false,
+  displayCurrency = "USD"
+): string {
   const today = new Date().toISOString().split("T")[0];
+
+  const adsTablesPrompt = hasAds ? `
+  - campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost_micros, cost, conversions, conversions_value)
+  - keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions)
+  - click_attribution: Per-click data with gclid (click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text)
+  - account_info: Account metadata (customer_id, currency_code, descriptive_name, last_synced_at)` : "";
+
+  const msAdsTablesPrompt = hasMsAds ? `
+  - msads_campaign_performance: Daily Bing campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost, conversions, conversions_value, revenue)
+  - msads_keyword_performance: Daily Bing keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost, conversions)
+  - msads_search_query_performance: Daily Bing search query report (stats_date, search_query, campaign_id, campaign_name, ad_group_id, ad_group_name, impressions, clicks, cost, conversions)
+  - msads_account_info: Account metadata (account_id, account_name, currency_code, last_synced_at)` : "";
+
+  const linkedInTablesPrompt = hasLinkedIn ? `
+  - post_performance: Daily LinkedIn post metrics (post_date, post_urn, post_text, impressions, clicks, comments, likes, shares, engagements)
+  - follower_stats: Daily follower gains (stats_date, total_followers, organic_gains, paid_gains)
+  - follower_demographics: Follower breakdowns (stats_date, dimension, dimension_value, follower_count)
+  - page_stats: Daily page engagement (stats_date, page_views, unique_visitors, clicks)
+  - org_info: Organization metadata (organization_id, organization_name, vanity_name, last_synced_at)` : "";
+
+  const mailchimpTablesPrompt = hasMailchimp ? `
+  - campaign_reports: Per-campaign email metrics (send_date, campaign_id, campaign_title, subject_line, emails_sent, opens_total, unique_opens, open_rate, clicks_total, unique_clicks, click_rate, hard_bounces, soft_bounces, unsubscribed, total_revenue)
+  - audience_stats: Daily audience snapshot (stats_date, list_id, list_name, member_count, total_contacts, unsubscribe_count, cleaned_count, campaign_count, open_rate, click_rate)
+  - audience_growth: Monthly subscriber growth (month_date, list_id, subscribed, unsubscribed, cleaned, pending, deleted)
+  - mc_account_info: Account metadata (account_name, list_id, list_name, dc, last_synced_at)` : "";
+
+  const gscTablesPrompt = hasGsc ? `
+  - search_performance: Daily search metrics (query_date, query, page, country, device, clicks, impressions, ctr, position)
+  - site_info: Site metadata (site_url, permission_level, last_synced_at)` : "";
+
+  const adsQueryGuidance = hasAds ? `
+- For Google Ads data, use the run_ads_query tool. Date column: stats_date. cost is already in currency units.
+- CTR = clicks / impressions. CPC = cost / clicks. ROAS = conversions_value / cost.` : "";
+
+  const msAdsQueryGuidance = hasMsAds ? `
+- For Microsoft/Bing Ads data, use the run_microsoft_ads_query tool. Table names are prefixed with msads_. Date column: stats_date. cost is already in currency units.
+- CTR = clicks / impressions. CPC = cost / clicks. ROAS = conversions_value / cost.
+- To compare Google Ads vs Microsoft Ads, run separate queries and present side-by-side.` : "";
+
+  const linkedInQueryGuidance = hasLinkedIn ? `
+- For LinkedIn data, use the run_linkedin_query tool. Date columns: post_date for post_performance, stats_date for follower/page tables.
+- For daily metrics, use daily_impressions, daily_clicks, daily_engagements columns (not the cumulative ones).` : "";
+
+  const mailchimpQueryGuidance = hasMailchimp ? `
+- For Mailchimp data, use the run_mailchimp_query tool. Date columns: send_date for campaign_reports, stats_date for audience_stats.` : "";
+
+  const gscQueryGuidance = hasGsc ? `
+- For Google Search Console data, use the run_gsc_query tool. Date column: query_date. CTR is 0-1 decimal, position lower is better.` : "";
+
+  const currencySymbols: Record<string, string> = {
+    USD: "$", EUR: "€", GBP: "£", ZAR: "R", AUD: "A$", CAD: "C$", JPY: "¥",
+  };
+  const symbol = currencySymbols[displayCurrency] || displayCurrency;
+
+  const currencyGuidance = (hasAds || hasMsAds) ? `
+- Display all monetary values in ${displayCurrency} (${symbol}). Round to 2 decimal places.
+- Exchange rates are in \`{dataset}.exchange_rates\` (rate_date, base, target, rate). All rates are USD-based.` : "";
+
+  const toolList: string[] = [
+    "- query_analytics: Query GA4 analytics data (sessions, pageviews, users, traffic sources, conversions, etc.)",
+    "- run_ads_query: Run custom SQL queries for complex JOINs, CTEs, or cross-table queries. Works with ALL tables.",
+  ];
+  if (hasMsAds) toolList.push("- run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaigns, keywords, search queries, spend). Use {dataset}.tableName.");
+  if (hasLinkedIn) toolList.push("- run_linkedin_query: Query LinkedIn analytics (posts, followers, demographics). Use {dataset}.tableName.");
+  if (hasMailchimp) toolList.push("- run_mailchimp_query: Query Mailchimp email marketing data (campaigns, audience). Use {dataset}.tableName.");
+  if (hasGsc) toolList.push("- run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName.");
+  toolList.push("- get_realtime_data: See active users in the last 30 minutes.");
+  toolList.push("- get_available_fields: Discover available tables and columns.");
+
   return `You are an analytics expert that generates concise, professional email reports. You query analytics data from BigQuery using the provided tools and return a well-formatted HTML summary.
 
 Today's date is ${today}. Data is exported daily and may be up to 24 hours behind — today's data is typically not available until tomorrow.
 
 You have access to these tools:
-- query_analytics: Query analytics data. Specify a table, metrics, dimensions, filters, date range, and ordering. Available tables:
+${toolList.join("\n")}
+
+Available tables and columns for query_analytics:
   - sessions: session_key, property_id, user_pseudo_id, ga_session_id, session_date, session_start, session_end, session_duration_seconds, pageviews, total_engagement_time_msec, is_engaged, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city, ga_session_number, is_first_visit
   - pageviews: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, page_location, page_title, page_referrer, engagement_time_msec, session_source, session_medium, session_default_channel_group, device_category, device_os, device_browser, geo_country, geo_city
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)
-  - campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost_micros, cost, conversions, conversions_value)
-  - keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions)
-  - click_attribution: Per-click data with gclid (click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text)
-  - account_info: Account metadata (customer_id, currency_code, descriptive_name, last_synced_at)
-- get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
-- get_available_fields: Discover available tables and columns in the dataset.
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}
+${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${currencyGuidance}
 
 Important rules:
 - Return ONLY clean HTML with inline styles. No markdown, no code fences, no explanation outside the HTML.
@@ -57,7 +130,9 @@ Important rules:
 - Use the tools to fetch real data before writing the report.
 - Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
 - Use <h3> for section headings. Do NOT use <h1> or <h2>.
-- Follow the detailed styling rules in the user prompt exactly.`;
+- Follow the detailed styling rules in the user prompt exactly.
+- NEVER fabricate numbers. Every number must come from a tool result.
+- Always use {dataset}.tableName for all table references in raw SQL tools.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +215,11 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
   const whereParts: string[] = [];
   const params: Record<string, unknown> = {};
 
-  const isAccountInfo = table === "account_info";
+  const isAccountInfo = table === "account_info" || table === "msads_account_info";
   const dateColumn =
     table === "traffic_sources" || table === "sessions" ? "session_date" :
     table === "campaign_performance" || table === "keyword_performance" ? "stats_date" :
+    table.startsWith("msads_") && table !== "msads_account_info" ? "stats_date" :
     table === "click_attribution" ? "click_date" :
     table === "pageviews" || table === "conversions" || table === "stg_events" ? "event_date" :
     table === "users" ? "DATE(last_seen)" : "event_date";
@@ -246,21 +322,56 @@ async function executeGA4Tool(
   }
 }
 
+/** Data source IDs for BigQuery tool execution */
+export interface AlertDataSources {
+  propertyId: string;
+  adsCustomerId?: string | null;
+  linkedInOrgId?: string | null;
+  mailchimpListId?: string | null;
+  gscSiteUrl?: string | null;
+  msAdsAccountId?: string | null;
+}
+
 async function executeBigQueryTool(
   toolUse: { name: string; input: Record<string, unknown> },
-  propertyId: string
+  ds: AlertDataSources
 ): Promise<{ result: unknown; isError: boolean }> {
   try {
     switch (toolUse.name) {
       case "query_analytics": {
         const input = toolUse.input as unknown as QueryAnalyticsInput;
         const { sql, params } = buildAnalyticsSQL(input);
-        return { result: await runPropertyQuery(propertyId, sql, params), isError: false };
+        return { result: await runPropertyQuery(ds.propertyId, sql, params, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
+      }
+      case "run_ads_query": {
+        const input = toolUse.input as { sql: string; description?: string };
+        console.log("[alert-content] Ads query:", input.description || "custom");
+        return { result: await runPropertyQuery(ds.propertyId, input.sql, undefined, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
+      }
+      case "run_microsoft_ads_query": {
+        const input = toolUse.input as { sql: string; description?: string };
+        console.log("[alert-content] Microsoft Ads query:", input.description || "custom");
+        return { result: await runPropertyQuery(ds.propertyId, input.sql, undefined, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
+      }
+      case "run_linkedin_query": {
+        const input = toolUse.input as { sql: string; description?: string };
+        console.log("[alert-content] LinkedIn query:", input.description || "custom");
+        return { result: await runPropertyQuery(ds.propertyId, input.sql, undefined, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
+      }
+      case "run_mailchimp_query": {
+        const input = toolUse.input as { sql: string; description?: string };
+        console.log("[alert-content] Mailchimp query:", input.description || "custom");
+        return { result: await runPropertyQuery(ds.propertyId, input.sql, undefined, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
+      }
+      case "run_gsc_query": {
+        const input = toolUse.input as { sql: string; description?: string };
+        console.log("[alert-content] GSC query:", input.description || "custom");
+        return { result: await runPropertyQuery(ds.propertyId, input.sql, undefined, ds.adsCustomerId, ds.linkedInOrgId, ds.mailchimpListId, ds.gscSiteUrl, ds.msAdsAccountId), isError: false };
       }
       case "get_realtime_data":
-        return { result: await queryRealtimeData(propertyId), isError: false };
+        return { result: await queryRealtimeData(ds.propertyId), isError: false };
       case "get_available_fields":
-        return { result: await getPropertySchema(propertyId), isError: false };
+        return { result: await getPropertySchema(ds.propertyId), isError: false };
       default:
         return { result: { error: `Unknown tool: ${toolUse.name}` }, isError: true };
     }
@@ -277,12 +388,14 @@ async function executeBigQueryTool(
 /**
  * Generate alert email content by running the prompt against the user's analytics data.
  *
- * @param accessToken   - Google OAuth access token (required for GA4 path, ignored for BigQuery)
- * @param propertyId    - GA4 property ID
- * @param alertType     - Key from ALERT_TYPES (e.g. "weekly_snapshot" or "custom")
- * @param frequency     - e.g. "daily" | "weekly" | "monthly" (used for context in the prompt)
- * @param customPrompt  - User-defined prompt text (required when alertType is "custom")
- * @param usesBigQuery  - Whether to use BigQuery path instead of GA4 API
+ * @param accessToken    - Google OAuth access token (required for GA4 path, ignored for BigQuery)
+ * @param propertyId     - GA4 property ID (can be empty for org-only alerts)
+ * @param alertType      - Key from ALERT_TYPES (e.g. "weekly_snapshot" or "custom")
+ * @param frequency      - e.g. "daily" | "weekly" | "monthly" (used for context in the prompt)
+ * @param customPrompt   - User-defined prompt text (required when alertType is "custom")
+ * @param usesBigQuery   - Whether to use BigQuery path instead of GA4 API
+ * @param dataSources    - Optional org-level data source IDs for multi-platform queries
+ * @param displayCurrency - Display currency code (default: USD)
  * @returns The generated HTML string for the email body
  */
 export async function generateAlertContent(
@@ -291,7 +404,9 @@ export async function generateAlertContent(
   alertType: string,
   frequency: string,
   customPrompt?: string | null,
-  usesBigQuery: boolean = false
+  usesBigQuery: boolean = false,
+  dataSources?: AlertDataSources | null,
+  displayCurrency: string = "USD"
 ): Promise<string> {
   let promptText: string;
 
@@ -308,9 +423,21 @@ export async function generateAlertContent(
     promptText = typeDefinition.prompt;
   }
 
-  const userPrompt = `${promptText}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`;
+  const userPrompt = propertyId
+    ? `${promptText}\n\nThis is a ${frequency} report. The GA4 property ID is ${propertyId}.`
+    : `${promptText}\n\nThis is a ${frequency} report.`;
 
-  const systemPrompt = usesBigQuery ? getBigQueryAlertSystemPrompt() : GA4_ALERT_SYSTEM_PROMPT;
+  // Determine which data sources are available
+  const ds: AlertDataSources = dataSources || { propertyId };
+  const hasAds = !!ds.adsCustomerId;
+  const hasLinkedIn = !!ds.linkedInOrgId;
+  const hasMailchimp = !!ds.mailchimpListId;
+  const hasGsc = !!ds.gscSiteUrl;
+  const hasMsAds = !!ds.msAdsAccountId;
+
+  const systemPrompt = usesBigQuery
+    ? getBigQueryAlertSystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, displayCurrency)
+    : GA4_ALERT_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   const messages: Anthropic.MessageParam[] = [
@@ -319,7 +446,7 @@ export async function generateAlertContent(
 
   const anthropic = getAnthropic();
 
-  console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}, bigquery=${usesBigQuery}`);
+  console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}, bigquery=${usesBigQuery}, ads=${hasAds}, msads=${hasMsAds}, linkedin=${hasLinkedIn}, mailchimp=${hasMailchimp}, gsc=${hasGsc}`);
 
   let response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -356,7 +483,7 @@ export async function generateAlertContent(
 
     for (const toolUse of toolUseBlocks) {
       const { result, isError } = usesBigQuery
-        ? await executeBigQueryTool(toolUse, propertyId)
+        ? await executeBigQueryTool(toolUse, ds)
         : await executeGA4Tool(toolUse, accessToken, propertyId);
 
       if (isError) {
