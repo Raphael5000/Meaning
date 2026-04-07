@@ -67,7 +67,15 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), ads/linkedin/mailchimp sync (daily + startup)");
+  // Microsoft Ads sync: run on startup, then daily at ~06:00 UTC
+  setTimeout(() => callLocal("/api/microsoft-ads/sync"), 120 * 1000); // 120s after boot
+  setInterval(() => {
+    if (new Date().getUTCHours() === 6) {
+      callLocal("/api/microsoft-ads/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  console.log("[cron] Scheduled: alerts (hourly), ads/linkedin/mailchimp/microsoft-ads sync (daily + startup)");
 }
 
 // ---------------------------------------------------------------------------
