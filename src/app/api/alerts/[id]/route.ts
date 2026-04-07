@@ -21,6 +21,7 @@ export async function PUT(
   const { id } = await params;
 
   const body = (await request.json()) as {
+    name?: string | null;
     recipients?: string;
     alertType?: string;
     customPrompt?: string | null;
@@ -142,6 +143,10 @@ export async function PUT(
       data.intervalWeeks = body.intervalWeeks;
     }
 
+    if (body.name !== undefined) {
+      const trimmed = typeof body.name === "string" ? body.name.trim() : "";
+      data.name = trimmed || null;
+    }
     if (body.propertyId !== undefined) data.propertyId = body.propertyId;
     if (body.propertyName !== undefined) data.propertyName = body.propertyName;
     if (body.enabled !== undefined) data.enabled = body.enabled;

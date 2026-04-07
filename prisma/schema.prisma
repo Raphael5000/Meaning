@@ -154,6 +154,7 @@ model EmailAlert {
   id     String @id @default(cuid())
   userId String
 
+  name         String?  // user-defined display name for this alert
   recipients   String   // comma-separated email addresses
   alertType    String   @default("weekly_snapshot") // alert prompt template key
   customPrompt String?  // user-defined prompt for "custom" alertType

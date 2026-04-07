@@ -85,7 +85,7 @@ function formatTime(hour: number, minute: number): string {
   const period = hour >= 12 ? "PM" : "AM";
   const h = hour % 12 || 12;
   const m = minute.toString().padStart(2, "0");
-  return `${h}:${m} ${period} UTC`;
+  return `${h}:${m} ${period} GMT+2`;
 }
 
 /**
@@ -104,14 +104,14 @@ export function isAlertDue(
   lastSentAt: Date | null,
   now: Date = new Date()
 ): boolean {
-  // Check if current day matches
-  const currentDay = now
+  // Compare against GMT+2 (user's chosen timezone across the platform)
+  const gmt2 = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const currentDay = gmt2
     .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
     .toLowerCase();
   if (!sendDays.includes(currentDay)) return false;
 
-  // Check if current hour matches
-  const currentHour = now.getUTCHours();
+  const currentHour = gmt2.getUTCHours();
   if (currentHour !== sendHour) return false;
 
   // Check interval: skip if sent too recently

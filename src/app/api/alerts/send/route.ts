@@ -41,12 +41,14 @@ async function handleSend(request: NextRequest) {
   try {
     // Fetch all enabled alerts whose sendHour matches the current UTC hour.
     // Fine-grained filtering (day, interval) happens in application code.
-    const currentHour = now.getUTCHours();
+    // sendHour is stored as GMT+2 — match against current GMT+2 hour
+    const currentHour = (now.getUTCHours() + 2) % 24;
 
     const alerts = await prisma.emailAlert.findMany({
       where: { enabled: true, sendHour: currentHour },
       include: {
         user: { select: { id: true, name: true, email: true } },
+        org: { select: { name: true } },
       },
     });
 
@@ -68,10 +70,11 @@ async function handleSend(request: NextRequest) {
 
       if (recipients.length === 0) continue;
 
-      const propertyLabel = alert.propertyName || alert.propertyId || "your website";
+      const propertyLabel = alert.org?.name || alert.propertyName || alert.propertyId || "your website";
       const alertTypeDef = ALERT_TYPES[alert.alertType];
       const alertTypeLabel = alertTypeDef?.label ?? "Performance Summary";
-      const subject = `${alertTypeLabel} – ${propertyLabel}`;
+      const headerTitle = alert.name || alertTypeLabel;
+      const subject = `${headerTitle} – ${propertyLabel}`;
       const scheduleDesc = describeSchedule(alert.sendDays, alert.sendHour, alert.sendMinute, alert.intervalWeeks);
       const freqLabel = frequencyLabel(alert.sendDays, alert.intervalWeeks);
 
@@ -207,7 +210,7 @@ async function handleSend(request: NextRequest) {
           `;
         }
 
-        const html = buildEmailWrapper(propertyLabel, scheduleDesc, alertTypeLabel, contentHtml, alert.user.name || alert.user.email);
+        const html = buildEmailWrapper(propertyLabel, scheduleDesc, headerTitle, contentHtml, alert.user.name || alert.user.email);
 
         await sendAlertEmail(recipients, subject, html);
         await prisma.emailAlert.update({

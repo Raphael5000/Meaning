@@ -92,7 +92,7 @@ function formatScheduleShort(
   const h = sendHour % 12 || 12;
   const m = sendMinute.toString().padStart(2, "0");
   const period = sendHour >= 12 ? "PM" : "AM";
-  const time = `${h}:${m} ${period} UTC`;
+  const time = `${h}:${m} ${period} GMT+2`;
 
   if (sendDays.length === 7) {
     return intervalWeeks === 1 ? `Daily at ${time}` : `Every ${intervalWeeks}w, daily at ${time}`;
@@ -116,6 +116,7 @@ function formatScheduleShort(
 
 interface EmailAlert {
   id: string;
+  name: string | null;
   recipients: string;
   alertType: string;
   customPrompt: string | null;
@@ -154,6 +155,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
   const [recipients, setRecipients] = useState("");
   const [alertType, setAlertType] = useState("weekly_snapshot");
   const [customPrompt, setCustomPrompt] = useState("");
@@ -188,6 +190,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
   function resetForm() {
     setShowForm(false);
     setEditingId(null);
+    setName("");
     setRecipients("");
     setAlertType("weekly_snapshot");
     setCustomPrompt("");
@@ -202,6 +205,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
 
   function startEditing(alert: EmailAlert) {
     setEditingId(alert.id);
+    setName(alert.name || "");
     setRecipients(alert.recipients);
     setAlertType(alert.alertType || "weekly_snapshot");
     setCustomPrompt(alert.customPrompt || "");
@@ -220,6 +224,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
     setSaving(true);
 
     const payload = {
+      name: name.trim() || null,
       recipients,
       alertType,
       customPrompt: alertType === "custom" ? customPrompt : null,
@@ -381,8 +386,13 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-foreground">
-                            {alert.propertyName || "All properties"}
+                            {alert.name || alert.propertyName || "All properties"}
                           </p>
+                          {alert.name && (
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {alert.propertyName || "All properties"}
+                            </p>
+                          )}
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {alert.recipients}
                           </p>
@@ -508,6 +518,16 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
               {showForm ? (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
+                    <Label>Name</Label>
+                    <Input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Monday Morning Traffic Report"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
                     <Label>Property</Label>
                     <Select
                       value={selectedPropertyId || "__all__"}
@@ -632,7 +652,7 @@ export default function AlertsModal({ open, onClose }: AlertsModalProps) {
 
                   {/* Schedule: Time */}
                   <div className="space-y-1.5">
-                    <Label>Time (UTC)</Label>
+                    <Label>Time (GMT+2)</Label>
                     <div className="flex items-center gap-2">
                       <Select
                         value={String(sendHour)}

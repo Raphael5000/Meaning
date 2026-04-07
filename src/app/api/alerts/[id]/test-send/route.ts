@@ -39,7 +39,10 @@ export async function POST(
   try {
     const alert = await prisma.emailAlert.findFirst({
       where: { id, userId },
-      include: { user: { select: { name: true, email: true } } },
+      include: {
+        user: { select: { name: true, email: true } },
+        org: { select: { name: true } },
+      },
     });
 
     if (!alert) {
@@ -59,9 +62,10 @@ export async function POST(
     }
 
     const propertyLabel =
-      alert.propertyName || alert.propertyId || "your website";
+      alert.org?.name || alert.propertyName || alert.propertyId || "your website";
     const alertTypeLabel =
       ALERT_TYPE_LABELS[alert.alertType] || "Performance Summary";
+    const headerTitle = alert.name || alertTypeLabel;
     const scheduleDesc = describeSchedule(alert.sendDays, alert.sendHour, alert.sendMinute, alert.intervalWeeks);
     const freqLabel = frequencyLabel(alert.sendDays, alert.intervalWeeks);
 
@@ -173,11 +177,11 @@ export async function POST(
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
 
-          const subject = `[TEST] ${alertTypeLabel} – ${propertyLabel}`;
+          const subject = `[TEST] ${headerTitle} – ${propertyLabel}`;
           const html = buildEmailWrapper(
             propertyLabel,
             scheduleDesc,
-            alertTypeLabel,
+            headerTitle,
             contentHtml,
             capturedSenderName,
             true
@@ -197,13 +201,13 @@ export async function POST(
     }
 
     // Default: instant send with sample content
-    const subject = `[TEST] ${alertTypeLabel} – ${propertyLabel}`;
+    const subject = `[TEST] ${headerTitle} – ${propertyLabel}`;
     const contentHtml = buildSampleContent(alertTypeLabel, propertyLabel, scheduleDesc);
 
     const html = buildEmailWrapper(
       propertyLabel,
       scheduleDesc,
-      alertTypeLabel,
+      headerTitle,
       contentHtml,
       alert.user.name || alert.user.email,
       true

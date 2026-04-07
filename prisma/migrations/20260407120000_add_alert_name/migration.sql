@@ -1,0 +1,1 @@
+ALTER TABLE "EmailAlert" ADD COLUMN "name" TEXT;

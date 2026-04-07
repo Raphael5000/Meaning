@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as {
+    name?: string | null;
     recipients: string;
     alertType?: string;
     customPrompt?: string;
@@ -152,6 +153,7 @@ export async function POST(request: NextRequest) {
     const alert = await prisma.emailAlert.create({
       data: {
         userId,
+        name: body.name?.trim() || null,
         recipients: emails.join(", "),
         alertType,
         customPrompt,

@@ -61,7 +61,7 @@ function formatScheduleShort(sendDays: string[], sendHour: number, sendMinute: n
   const h = sendHour % 12 || 12;
   const m = sendMinute.toString().padStart(2, "0");
   const period = sendHour >= 12 ? "PM" : "AM";
-  const time = `${h}:${m} ${period} UTC`;
+  const time = `${h}:${m} ${period} GMT+2`;
 
   if (sendDays.length === 7) return intervalWeeks === 1 ? `Daily at ${time}` : `Every ${intervalWeeks}w, daily at ${time}`;
 
@@ -78,6 +78,7 @@ function formatScheduleShort(sendDays: string[], sendHour: number, sendMinute: n
 
 interface EmailAlert {
   id: string;
+  name: string | null;
   recipients: string;
   alertType: string;
   customPrompt: string | null;
@@ -108,6 +109,7 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
   const [recipients, setRecipients] = useState("");
   const [alertType, setAlertType] = useState("weekly_snapshot");
   const [customPrompt, setCustomPrompt] = useState("");
@@ -128,6 +130,7 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
   function resetForm() {
     setShowForm(false);
     setEditingId(null);
+    setName("");
     setRecipients("");
     setAlertType("weekly_snapshot");
     setCustomPrompt("");
@@ -140,6 +143,7 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
 
   function startEditing(alert: EmailAlert) {
     setEditingId(alert.id);
+    setName(alert.name || "");
     setRecipients(alert.recipients);
     setAlertType(alert.alertType || "weekly_snapshot");
     setCustomPrompt(alert.customPrompt || "");
@@ -155,6 +159,7 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
     setError(null);
     setSaving(true);
     const payload = {
+      name: name.trim() || null,
       recipients,
       alertType,
       customPrompt: alertType === "custom" ? customPrompt : null,
@@ -309,8 +314,13 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">
-                    {ALERT_TYPE_MAP[alert.alertType] || "Weekly Snapshot"}
+                    {alert.name || ALERT_TYPE_MAP[alert.alertType] || "Weekly Snapshot"}
                   </p>
+                  {alert.name && (
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      {ALERT_TYPE_MAP[alert.alertType] || "Weekly Snapshot"}
+                    </p>
+                  )}
                   <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{alert.recipients}</p>
                   <p className="mt-0.5 text-[10px] text-muted-foreground">
                     {formatScheduleShort(alert.sendDays || ["monday"], alert.sendHour ?? 9, alert.sendMinute ?? 0, alert.intervalWeeks ?? 1)}
@@ -379,6 +389,17 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
           {showForm ? (
             <div className="rounded-xl border border-border p-4 space-y-4" style={{ background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
               <div className="space-y-1.5">
+                <Label className="text-xs">Name</Label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Monday Morning Traffic Report"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="text-xs">Report type</Label>
                 <div className="space-y-1.5">
                   {ALERT_TYPES.map((t) => (
@@ -442,7 +463,7 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Time (UTC)</Label>
+                <Label className="text-xs">Time (GMT+2)</Label>
                 <div className="flex items-center gap-2">
                   <Select value={String(sendHour)} onValueChange={(v) => setSendHour(Number(v))}>
                     <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
