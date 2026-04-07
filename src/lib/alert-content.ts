@@ -477,9 +477,9 @@ export async function generateAlertContent(
     messages,
   });
 
-  // Agentic tool-use loop — accumulate full conversation across rounds (max 8 rounds)
+  // Agentic tool-use loop — accumulate full conversation across rounds
   let round = 0;
-  const MAX_TOOL_ROUNDS = 8;
+  const MAX_TOOL_ROUNDS = 15;
   while (response.stop_reason === "tool_use" && round < MAX_TOOL_ROUNDS) {
     round++;
     const assistantContent = response.content;
@@ -532,6 +532,40 @@ export async function generateAlertContent(
   }
 
   console.log(`[alert-content] Generation complete after ${round} tool-use round(s), stop_reason=${response.stop_reason}`);
+
+  // If we exited the loop still in tool_use state (hit the round cap), force a
+  // final no-tool call so the model produces the HTML report from what it has.
+  if (response.stop_reason === "tool_use") {
+    console.log(`[alert-content] Hit MAX_TOOL_ROUNDS — forcing final text response`);
+    // Append the last assistant turn and synthetic tool results so the
+    // conversation is well-formed, then call again without tools.
+    messages.push({ role: "assistant", content: response.content });
+    const lastToolUses = response.content.filter(
+      (b): b is Anthropic.ContentBlockParam & { type: "tool_use"; id: string } =>
+        b.type === "tool_use"
+    );
+    if (lastToolUses.length > 0) {
+      messages.push({
+        role: "user",
+        content: lastToolUses.map((t) => ({
+          type: "tool_result" as const,
+          tool_use_id: t.id,
+          content: JSON.stringify({ error: "Tool budget exhausted — produce the final HTML report now using the data already gathered." }),
+          is_error: true,
+        })),
+      });
+    }
+    messages.push({
+      role: "user",
+      content: "You have exhausted your tool call budget. Produce the final HTML email report NOW using only the data already gathered in this conversation. Do not call any more tools. If some data is missing, note that in the report rather than trying to fetch it.",
+    });
+    response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages,
+    });
+  }
 
   // Extract the final text
   const textBlocks = response.content.filter(

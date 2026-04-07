@@ -176,6 +176,10 @@ export async function POST(
             capturedDisplayCurrency
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
+          if (!contentHtml.trim()) {
+            console.error(`[test-send] Empty content for alert ${id} — aborting send`);
+            return;
+          }
 
           const subject = `[TEST] ${headerTitle} – ${propertyLabel}`;
           const html = buildEmailWrapper(
