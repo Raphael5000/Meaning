@@ -36,14 +36,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No active Microsoft Ads accounts to sync", synced: 0 });
     }
 
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() - 1);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 4);
+    // Optional ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD override for catch-up syncs
+    const url = new URL(req.url);
+    const startOverride = url.searchParams.get("startDate");
+    const endOverride = url.searchParams.get("endDate");
 
     const fmt = (d: Date) => d.toISOString().split("T")[0];
-    const start = fmt(startDate);
-    const end = fmt(endDate);
+    let start: string;
+    let end: string;
+    if (startOverride && endOverride) {
+      start = startOverride;
+      end = endOverride;
+    } else {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() - 1);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 4);
+      start = fmt(startDate);
+      end = fmt(endDate);
+    }
+    console.log(`[msads-sync] Date range: ${start} → ${end}`);
 
     const results: Array<{ accountId: string; status: string; error?: string }> = [];
 
