@@ -95,9 +95,10 @@ interface EmailAlert {
 
 interface AlertsPanelProps {
   onClose: () => void;
+  orgId: string | null;
 }
 
-export default function AlertsPanel({ onClose }: AlertsPanelProps) {
+export default function AlertsPanel({ onClose, orgId }: AlertsPanelProps) {
   const [alerts, setAlerts] = useState<EmailAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,12 +121,14 @@ export default function AlertsPanel({ onClose }: AlertsPanelProps) {
 
   useEffect(() => {
     setLoading(true);
+    resetForm();
     fetch("/api/alerts")
       .then((r) => (r.ok ? r.json() : Promise.reject("Failed to load alerts")))
       .then((data) => setAlerts(data))
       .catch((err) => setError(typeof err === "string" ? err : "Failed to load data"))
       .finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   function resetForm() {
     setShowForm(false);

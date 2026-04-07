@@ -668,7 +668,7 @@ export default function Chat() {
         ) : accountOpen ? (
           <AccountPanel onClose={() => setAccountOpen(false)} />
         ) : alertsOpen ? (
-          <AlertsPanel onClose={() => setAlertsOpen(false)} />
+          <AlertsPanel onClose={() => setAlertsOpen(false)} orgId={activeOrgId} />
         ) : teamOpen ? (
           <TeamPanel onClose={() => setTeamOpen(false)} />
         ) : activeDashboardId ? (

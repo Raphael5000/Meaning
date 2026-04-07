@@ -17,8 +17,15 @@ export async function GET() {
   }
 
   try {
+    // Scope alerts to the user's currently active org
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { activeOrgId: true },
+    });
+    const activeOrgId = me?.activeOrgId ?? null;
+
     let alerts = await prisma.emailAlert.findMany({
-      where: { userId },
+      where: { userId, orgId: activeOrgId },
       orderBy: { createdAt: "desc" },
     });
 
