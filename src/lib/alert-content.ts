@@ -93,8 +93,27 @@ function getBigQueryAlertSystemPrompt(
   const symbol = currencySymbols[displayCurrency] || displayCurrency;
 
   const currencyGuidance = (hasAds || hasMsAds) ? `
-- Display all monetary values in ${displayCurrency} (${symbol}). Round to 2 decimal places.
-- Exchange rates are in \`{dataset}.exchange_rates\` (rate_date, base, target, rate). All rates are USD-based.` : "";
+
+CURRENCY CONVERSION (CRITICAL):
+- The organization's display currency is ${displayCurrency} (symbol: ${symbol}).
+- ALL monetary values (cost, spend, revenue, conversions_value) MUST be displayed in ${displayCurrency}.
+- Ad account native currencies may differ from ${displayCurrency}. ALWAYS convert using the exchange_rates table before displaying.
+- Exchange rates are available in \`{dataset}.exchange_rates\` with columns: rate_date (DATE), base ("USD"), target (STRING), rate (FLOAT64). All rates are USD-based: 1 USD = rate target units.
+- To convert a value from source currency to ${displayCurrency}:
+  value * SAFE_DIVIDE(target_rate.rate, source_rate.rate)
+  where source_rate.target = source_currency_code and target_rate.target = '${displayCurrency}'.
+- For daily data, JOIN on rate_date = stats_date for historically accurate conversion.
+- Example conversion for Google Ads:
+  SELECT SUM(cp.cost * SAFE_DIVIDE(tr.rate, sr.rate)) AS cost
+  FROM \`{dataset}.campaign_performance\` cp
+  CROSS JOIN (SELECT currency_code FROM \`{dataset}.account_info\` LIMIT 1) ai
+  LEFT JOIN \`{dataset}.exchange_rates\` sr ON sr.rate_date = cp.stats_date AND sr.target = ai.currency_code
+  LEFT JOIN \`{dataset}.exchange_rates\` tr ON tr.rate_date = cp.stats_date AND tr.target = '${displayCurrency}'
+  WHERE cp.stats_date >= @startDate
+- Example conversion for Microsoft Ads: same pattern but use msads_campaign_performance and msads_account_info.
+- If the source account is already in ${displayCurrency}, the rate ratio is 1 (no-op).
+- Always display values with the ${symbol} symbol. Always ROUND monetary values to 2 decimal places.
+- When comparing cross-platform data (Google Ads + Microsoft Ads), convert BOTH to ${displayCurrency} before summing or comparing.` : "";
 
   const toolList: string[] = [
     "- query_analytics: Query GA4 analytics data (sessions, pageviews, users, traffic sources, conversions, etc.)",
@@ -123,16 +142,18 @@ Available tables and columns for query_analytics:
   - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}
 ${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${currencyGuidance}
 
-Important rules:
-- Return ONLY clean HTML with inline styles. No markdown, no code fences, no explanation outside the HTML.
-- Format large numbers with commas.
-- Keep the report concise and scannable — this goes in an email body.
-- Use the tools to fetch real data before writing the report.
-- Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
-- Use <h3> for section headings. Do NOT use <h1> or <h2>.
-- Follow the detailed styling rules in the user prompt exactly.
-- NEVER fabricate numbers. Every number must come from a tool result.
-- Always use {dataset}.tableName for all table references in raw SQL tools.`;
+CRITICAL RULES:
+1. NEVER fabricate, estimate, or assume any numbers. Every number you present MUST come directly from a tool response in this conversation.
+2. NEVER invent data that does not exist in the available tables. In particular: there are NO budget, target, goal, plan, or forecast tables. Do NOT include "budget", "target", "% of budget", "remaining budget", or similar columns unless the user's request explicitly provides those values.
+3. If the user asks for something you cannot compute from the available tables, say so plainly in the report — do not make up numbers to fill the gap.
+4. Use the tools to fetch real data before writing the report. Make as many tool calls as needed.
+5. Return ONLY clean HTML with inline styles. No markdown, no code fences, no explanation outside the HTML.
+6. Format large numbers with commas.
+7. Keep the report concise and scannable — this goes in an email body.
+8. Every report must follow this structure: a short overview paragraph, data presented in tables, an "Observations" section with bullet points, and a "Recommendations" section with bullet points.
+9. Use <h3> for section headings. Do NOT use <h1> or <h2>.
+10. Follow the detailed styling rules in the user prompt exactly.
+11. Always use {dataset}.tableName for all table references in raw SQL tools.`;
 }
 
 // ---------------------------------------------------------------------------

@@ -125,7 +125,12 @@ export function buildCustomPrompt(userPrompt: string): string {
 ${userPrompt}
 ---
 
-Use the run_report tool (and run_realtime_report or get_metadata if useful) to fetch the relevant data from Google Analytics, then write a clear, professional report that answers the user's request.
+Use the available tools to fetch the relevant data from the user's connected data sources (GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Google Search Console — whatever is available), then write a clear, professional report that answers the user's request.
+
+IMPORTANT:
+- Only use data that actually exists in the available tables. Do NOT fabricate budgets, targets, goals, or any other numbers that are not returned by a tool call.
+- If the user's request references data that is not available (e.g. budgets), explicitly say that data is not available rather than inventing numbers.
+- Always convert monetary values to the organization's display currency using the exchange_rates table, following the currency conversion rules in the system prompt.
 
 Follow the user's request for what data and insights to include, but always use the structure and styling below.
 
