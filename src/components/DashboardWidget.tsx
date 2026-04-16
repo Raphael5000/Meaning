@@ -264,7 +264,7 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
 
   return (
     <div
-      className="widget-glass flex h-full w-full flex-col rounded-xl"
+      className="widget-glass flex h-full w-full flex-col overflow-hidden rounded-xl"
     >
       {/* Header */}
       <div className="flex items-center gap-1 border-b px-3 py-2" style={{ borderColor: "rgba(128,128,128,0.15)" }}>
