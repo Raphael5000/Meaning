@@ -192,6 +192,18 @@ Just provide the chart structure with empty series data arrays:
 [[chart]]{"title":{"text":"Daily Spend"},"series":[{"name":"Google Ads","type":"line","data":[]},{"name":"Microsoft Ads","type":"line","data":[]}]}[[/chart]]
 Your SQL query results MUST return columns in this order: first column = dimension/category (e.g. date), remaining columns = one per series (e.g. google_ads_spend, microsoft_ads_spend). The column names become series names if you don't specify them.
 
+Supported chart types (use the right type for the question):
+- **bar**: Comparing categories (top pages, campaigns). SQL: dimension col + metric cols.
+- **line**: Trends over time (daily sessions). SQL: date col + metric cols.
+- **pie**: Proportions (traffic by device). SQL: name col + value col.
+- **sankey**: User flows (page navigation). SQL: from_node, to_node, transitions cols.
+- **funnel**: Conversion funnels (visits→leads→sales). SQL: stage col + value col, ordered by funnel step.
+- **scatter**: Correlations (spend vs conversions). SQL: two numeric cols (x and y).
+- **radar**: Multi-metric comparison (campaign performance). SQL: category col + multiple metric cols, few rows (3-6).
+- **gauge**: Single KPI with progress (goal tracking). SQL: one numeric value.
+- **heatmap**: Time patterns (sessions by day/hour). SQL: x category col, y category col, value col.
+- **treemap**: Hierarchical breakdown (traffic by source). SQL: name col + value col.
+
 For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
 [[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
 The CHANGE is MANDATORY. Include a comparison vs the previous period using a SINGLE query with CASE expressions, e.g.: SELECT SUM(CASE WHEN date >= current_start THEN value ELSE 0 END) as current, SUM(CASE WHEN date >= prev_start AND date < current_start THEN value ELSE 0 END) as previous FROM table WHERE date >= prev_start. Compute percentage change: ((current - previous) / NULLIF(previous, 0) * 100). Format as +X% or -X%. If no previous data, use +0%.

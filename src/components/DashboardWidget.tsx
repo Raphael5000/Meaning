@@ -193,6 +193,161 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
     }
 
     option.tooltip = { trigger: "item", triggerOn: "mousemove" };
+  } else if (chartType === "funnel") {
+    // Funnel: rows have stage name + value (e.g. step, count)
+    const nameKey = keys.find((k) => typeof rows[0][k] === "string") || keys[0];
+    const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[1];
+
+    series[0].data = rows.map((r) => ({
+      name: String(r[nameKey] ?? ""),
+      value: Number(r[valueKey] ?? 0),
+    }));
+    series[0].type = "funnel";
+    series[0].left = "10%";
+    series[0].width = "80%";
+    series[0].gap = 2;
+    series[0].label = { show: true, position: "inside", fontSize: 12, formatter: "{b}" };
+    series[0].itemStyle = { borderColor: "transparent", borderWidth: 1 };
+    series[0].emphasis = { label: { fontSize: 14, fontWeight: "bold" } };
+
+    option.tooltip = { trigger: "item", formatter: "{b}: {c}" };
+    option.legend = { show: false };
+  } else if (chartType === "scatter") {
+    // Scatter: first numeric col = x, second numeric col = y, optional string col = label
+    const numericKeys = keys.filter((k) => typeof rows[0][k] === "number");
+    const labelKey = keys.find((k) => typeof rows[0][k] === "string");
+    const xKey = numericKeys[0] || keys[0];
+    const yKey = numericKeys[1] || keys[1];
+
+    series[0].data = rows.map((r) => [Number(r[xKey] ?? 0), Number(r[yKey] ?? 0)]);
+    series[0].type = "scatter";
+    series[0].symbolSize = 10;
+    series[0].itemStyle = { opacity: 0.7 };
+
+    option.xAxis = {
+      type: "value",
+      name: xKey.replace(/_/g, " "),
+      nameLocation: "center",
+      nameGap: 30,
+      axisLabel: { fontSize: 10 },
+      splitLine: { lineStyle: { color: "rgba(128,128,128,0.1)" } },
+    };
+    option.yAxis = {
+      type: "value",
+      name: yKey.replace(/_/g, " "),
+      nameLocation: "center",
+      nameGap: 40,
+      axisLabel: { fontSize: 10 },
+      splitLine: { lineStyle: { color: "rgba(128,128,128,0.1)" } },
+    };
+    option.tooltip = {
+      trigger: "item",
+      formatter: (params: { value: number[] }) => {
+        const [x, y] = params.value;
+        return `${xKey.replace(/_/g, " ")}: ${x}<br/>${yKey.replace(/_/g, " ")}: ${y}`;
+      },
+    };
+    option.grid = { left: 8, right: 12, top: 12, bottom: 36, containLabel: true };
+  } else if (chartType === "radar") {
+    // Radar: rows are categories, columns are metrics
+    const dimKey = keys.find((k) => typeof rows[0][k] === "string") || keys[0];
+    const metricKeys = keys.filter((k) => k !== dimKey);
+
+    const indicator = metricKeys.map((k) => {
+      const max = Math.max(...rows.map((r) => Number(r[k] ?? 0))) * 1.2 || 100;
+      return { name: k.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), max };
+    });
+
+    // Each row becomes a data point on the radar
+    series[0].type = "radar";
+    series[0].data = rows.map((r) => ({
+      name: String(r[dimKey] ?? ""),
+      value: metricKeys.map((k) => Number(r[k] ?? 0)),
+      areaStyle: { opacity: 0.1 },
+    }));
+
+    option.radar = { indicator, shape: "polygon", splitArea: { show: false }, axisName: { fontSize: 10, color: "var(--text-muted)" } };
+    option.tooltip = { trigger: "item" };
+    option.legend = { ...legendConfig, orient: "horizontal", top: 4, left: "center" };
+    delete option.xAxis;
+    delete option.yAxis;
+  } else if (chartType === "gauge") {
+    // Gauge: single value with optional max
+    const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[0];
+    const value = Number(rows[0][valueKey] ?? 0);
+
+    series[0].type = "gauge";
+    series[0].data = [{ value, name: valueKey.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) }];
+    series[0].detail = { fontSize: 24, fontWeight: "bold", offsetCenter: [0, "60%"] };
+    series[0].title = { fontSize: 12, offsetCenter: [0, "80%"] };
+    series[0].progress = { show: true, roundCap: true, width: 12 };
+    series[0].axisLine = { roundCap: true, lineStyle: { width: 12 } };
+    series[0].axisTick = { show: false };
+    series[0].splitLine = { show: false };
+    series[0].pointer = { show: false };
+
+    option.tooltip = { show: false };
+    delete option.xAxis;
+    delete option.yAxis;
+  } else if (chartType === "heatmap") {
+    // Heatmap: rows have x category, y category, and value
+    // e.g. day_of_week, hour_of_day, sessions
+    const xKey = keys[0];
+    const yKey = keys[1];
+    const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[2];
+
+    const xCategories = [...new Set(rows.map((r) => String(r[xKey] ?? "")))];
+    const yCategories = [...new Set(rows.map((r) => String(r[yKey] ?? "")))];
+
+    const data = rows.map((r) => [
+      xCategories.indexOf(String(r[xKey] ?? "")),
+      yCategories.indexOf(String(r[yKey] ?? "")),
+      Number(r[valueKey] ?? 0),
+    ]);
+    const maxVal = Math.max(...data.map((d) => d[2]));
+
+    series[0].type = "heatmap";
+    series[0].data = data;
+    series[0].label = { show: true, fontSize: 9 };
+    series[0].emphasis = { itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.3)" } };
+
+    option.xAxis = { type: "category", data: xCategories, axisLabel: { fontSize: 10 }, splitArea: { show: true } };
+    option.yAxis = { type: "category", data: yCategories, axisLabel: { fontSize: 10 }, splitArea: { show: true } };
+    option.visualMap = {
+      min: 0,
+      max: maxVal || 100,
+      calculable: true,
+      orient: "horizontal",
+      left: "center",
+      bottom: 4,
+      itemWidth: 10,
+      itemHeight: 80,
+      textStyle: { fontSize: 10 },
+      inRange: { color: ["#f0fdf4", "#22c55e", "#15803d"] },
+    };
+    option.grid = { left: 8, right: 12, top: 12, bottom: 60, containLabel: true };
+    option.tooltip = { trigger: "item", formatter: (params: { value: number[] }) => `${xCategories[params.value[0]]}, ${yCategories[params.value[1]]}: ${params.value[2]}` };
+  } else if (chartType === "treemap") {
+    // Treemap: rows have name + value, optionally with parent for hierarchy
+    const nameKey = keys.find((k) => typeof rows[0][k] === "string") || keys[0];
+    const valueKey = keys.find((k) => typeof rows[0][k] === "number") || keys[1];
+
+    series[0].type = "treemap";
+    series[0].data = rows.map((r) => ({
+      name: String(r[nameKey] ?? ""),
+      value: Number(r[valueKey] ?? 0),
+    }));
+    series[0].leafDepth = 1;
+    series[0].label = { show: true, fontSize: 12 };
+    series[0].breadcrumb = { show: false };
+    series[0].itemStyle = { borderColor: "var(--bg-primary)", borderWidth: 2, gapWidth: 2 };
+    series[0].levels = [
+      { itemStyle: { borderRadius: 6 }, upperLabel: { show: false } },
+    ];
+
+    option.tooltip = { trigger: "item", formatter: "{b}: {c}" };
+    delete option.xAxis;
+    delete option.yAxis;
   }
 
   return option;

@@ -1,15 +1,41 @@
 export const dynamic = "force-dynamic";
 
-import { getAllArticles, categories, getFeaturedArticle } from "./data";
+import { getArticlesBySection, docsCategories } from "./data";
+import { DocsSidebar } from "./DocsSidebar";
 import DocsClient from "./DocsClient";
 
-export default async function DocsPage() {
-  const articles = await getAllArticles();
+export default async function DocsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string }>;
+}) {
+  const { section } = await searchParams;
+  const articles = await getArticlesBySection("docs");
+
+  // Filter articles and categories when a section tab is selected
+  const activeCategory = section
+    ? docsCategories.find((c) => c.slug === section)
+    : null;
+  const filteredArticles = activeCategory
+    ? articles.filter((a) => a.category === activeCategory.slug)
+    : articles;
+  const filteredCategories = activeCategory
+    ? [activeCategory]
+    : docsCategories;
+  const featuredArticle = filteredArticles.find((a) => a.featured);
+
   return (
-    <DocsClient
-      articles={articles}
-      categories={categories}
-      featuredArticle={await getFeaturedArticle(articles)}
-    />
+    <div className="flex">
+      <DocsSidebar articles={articles} categories={docsCategories} />
+      <main className="min-w-0 flex-1">
+        <DocsClient
+          articles={filteredArticles}
+          categories={filteredCategories}
+          featuredArticle={featuredArticle}
+          sectionTitle={activeCategory?.label}
+          sectionDescription={activeCategory?.description}
+        />
+      </main>
+    </div>
   );
 }

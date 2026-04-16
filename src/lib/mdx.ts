@@ -4,11 +4,13 @@ import GithubSlugger from "github-slugger";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { CodeBlockContainer } from "@/components/CodeBlockContainer";
+import { DocsDemo } from "@/components/docs/DocsDemo";
 import { prisma } from "@/lib/prisma";
 import type { JSX } from "react";
 
 const mdxComponents = {
   pre: CodeBlockContainer,
+  DocsDemo: DocsDemo,
 };
 
 export interface TocHeading {
