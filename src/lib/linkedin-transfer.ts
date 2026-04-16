@@ -58,20 +58,20 @@ export async function ensureDataset(datasetId: string): Promise<void> {
 
 const TABLE_SCHEMAS: Record<string, { fields: { name: string; type: string }[]; partition?: string }> = {
   post_performance: {
-    partition: "post_date",
+    partition: "published_date",
     fields: [
-      { name: "post_date", type: "DATE" },
+      { name: "published_date", type: "DATE" },
       { name: "post_urn", type: "STRING" },
-      { name: "post_text", type: "STRING" },
+      { name: "post_type", type: "STRING" },
+      { name: "text_preview", type: "STRING" },
       { name: "impressions", type: "INT64" },
+      { name: "unique_impressions", type: "INT64" },
       { name: "clicks", type: "INT64" },
       { name: "comments", type: "INT64" },
       { name: "likes", type: "INT64" },
       { name: "shares", type: "INT64" },
       { name: "engagements", type: "INT64" },
-      { name: "daily_impressions", type: "INT64" },
-      { name: "daily_clicks", type: "INT64" },
-      { name: "daily_engagements", type: "INT64" },
+      { name: "created_at", type: "TIMESTAMP" },
     ],
   },
   follower_stats: {
@@ -204,70 +204,116 @@ export async function syncLinkedInData(
 
   const today = new Date().toISOString().split("T")[0];
 
-  // ── 1. Post performance (share statistics — lifetime totals snapshot) ──
-  // Note: Development Tier does not support time-series breakdowns.
-  // We store a daily snapshot + computed daily deltas for easy querying.
+  // ── 1. Post performance (per-post stats) ──
+  // Fetches all posts, then gets per-post lifetime stats from the share
+  // statistics endpoint. Gives accurate impressions/clicks/likes per post.
   let postRows: Record<string, unknown>[] = [];
   try {
-    const shareStats = (await linkedInGet({
-      accessToken,
-      url: `https://api.linkedin.com/rest/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(orgUrn)}`,
-    })) as {
-      elements?: Array<{
-        totalShareStatistics?: {
-          impressionCount?: number;
-          uniqueImpressionsCount?: number;
-          clickCount?: number;
-          commentCount?: number;
-          likeCount?: number;
-          shareCount?: number;
-          engagement?: number;
-        };
-        organizationalEntity?: string;
-      }>;
-    };
+    // 1a. Fetch all posts with pagination
+    interface LinkedInPost {
+      id?: string;
+      lifecycleState?: string;
+      publishedAt?: number;
+      createdAt?: number;
+      commentary?: string;
+      content?: { article?: unknown; media?: unknown; multiImage?: unknown };
+    }
+    const allPosts: LinkedInPost[] = [];
+    let postsUrl: string | null =
+      `https://api.linkedin.com/rest/posts?q=author&author=${encodeURIComponent(orgUrn)}&count=100&sortBy=LAST_MODIFIED`;
+    const seenUrns = new Set<string>();
 
-    // Fetch previous day's cumulative totals to compute daily deltas
-    let prevImpressions = 0;
-    let prevClicks = 0;
-    let prevEngagements = 0;
-    try {
-      const fqTable = `\`${projectId}.${datasetId}.post_performance\``;
-      const [prevRows] = await bq.query({
-        query: `SELECT impressions, clicks, engagements FROM ${fqTable} WHERE post_date < '${today}' ORDER BY post_date DESC LIMIT 1`,
-      });
-      if (prevRows.length > 0) {
-        prevImpressions = Number(prevRows[0].impressions ?? 0);
-        prevClicks = Number(prevRows[0].clicks ?? 0);
-        prevEngagements = Number(prevRows[0].engagements ?? 0);
+    while (postsUrl) {
+      const postsData = (await linkedInGet({
+        accessToken,
+        url: postsUrl,
+      })) as { elements?: LinkedInPost[]; paging?: { links?: Array<{ rel: string; href: string }> } };
+
+      for (const post of postsData.elements ?? []) {
+        const urn = post.id ?? "";
+        if (!urn || seenUrns.has(urn)) continue;
+        seenUrns.add(urn);
+        if (post.lifecycleState && post.lifecycleState !== "PUBLISHED") continue;
+        if (!post.publishedAt && !post.createdAt) continue;
+        allPosts.push(post);
       }
-    } catch {
-      // No previous data — first sync, deltas will equal the totals
+
+      const nextHref = postsData.paging?.links?.find((l) => l.rel === "next")?.href;
+      postsUrl = nextHref
+        ? (nextHref.startsWith("http") ? nextHref : `https://api.linkedin.com${nextHref}`)
+        : null;
     }
 
-    for (const el of shareStats.elements ?? []) {
-      const stats = el.totalShareStatistics ?? {};
-      const impressions = Number(stats.impressionCount ?? 0);
-      const clicks = Number(stats.clickCount ?? 0);
-      const engagements = Number(stats.clickCount ?? 0) + Number(stats.likeCount ?? 0) + Number(stats.commentCount ?? 0) + Number(stats.shareCount ?? 0);
+    console.log(`[linkedin-sync] Fetched ${allPosts.length} posts, getting per-post stats...`);
+
+    // 1b. Get stats for each post individually
+    // (batch List() param doesn't work reliably on this API tier)
+    // BigQuery partitioned tables only accept dates within ~10 years
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(cutoffDate.getFullYear() - 9);
+    const cutoffStr = cutoffDate.toISOString().split("T")[0];
+
+    for (const post of allPosts) {
+      const urn = post.id!;
+      const ts = post.publishedAt ?? post.createdAt!;
+      const publishedDate = new Date(ts).toISOString().split("T")[0];
+
+      if (publishedDate < cutoffStr) continue; // Skip very old posts
+
+      let postType = "text";
+      if (post.content?.article) postType = "article";
+      else if (post.content?.multiImage) postType = "multi_image";
+      else if (post.content?.media) postType = "media";
+
+      // Default stats (in case per-post stats call fails)
+      let impressions = 0, uniqueImpressions = 0, clicks = 0, comments = 0, likes = 0, shares = 0;
+
+      try {
+        const statsData = (await linkedInGet({
+          accessToken,
+          url: `https://api.linkedin.com/rest/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(orgUrn)}&shares=List(${encodeURIComponent(urn)})`,
+        })) as {
+          elements?: Array<{
+            totalShareStatistics?: {
+              impressionCount?: number;
+              uniqueImpressionsCount?: number;
+              clickCount?: number;
+              commentCount?: number;
+              likeCount?: number;
+              shareCount?: number;
+            };
+          }>;
+        };
+        const s = statsData.elements?.[0]?.totalShareStatistics;
+        if (s) {
+          impressions = Number(s.impressionCount ?? 0);
+          uniqueImpressions = Number(s.uniqueImpressionsCount ?? 0);
+          clicks = Number(s.clickCount ?? 0);
+          comments = Number(s.commentCount ?? 0);
+          likes = Number(s.likeCount ?? 0);
+          shares = Number(s.shareCount ?? 0);
+        }
+      } catch {
+        // Stats call failed for this post — store with zero stats
+      }
 
       postRows.push({
-        post_date: today,
-        post_urn: el.organizationalEntity ?? orgUrn,
-        post_text: "lifetime_totals",
+        published_date: publishedDate,
+        post_urn: urn,
+        post_type: postType,
+        text_preview: (post.commentary ?? "").slice(0, 200),
         impressions,
+        unique_impressions: uniqueImpressions,
         clicks,
-        comments: Number(stats.commentCount ?? 0),
-        likes: Number(stats.likeCount ?? 0),
-        shares: Number(stats.shareCount ?? 0),
-        engagements,
-        daily_impressions: Math.max(impressions - prevImpressions, 0),
-        daily_clicks: Math.max(clicks - prevClicks, 0),
-        daily_engagements: Math.max(engagements - prevEngagements, 0),
+        comments,
+        likes,
+        shares,
+        engagements: clicks + likes + comments + shares,
+        created_at: new Date(ts).toISOString(),
       });
     }
   } catch (err) {
-    console.warn(`[linkedin-sync] Share stats fetch failed (non-fatal):`, (err as Error).message);
+    console.warn(`[linkedin-sync] Post performance fetch failed (non-fatal):`, (err as Error).message);
   }
 
   // ── 2. Follower statistics (lifetime snapshot from demographics endpoint) ──
@@ -395,7 +441,7 @@ export async function syncLinkedInData(
     console.warn(`[linkedin-sync] Page stats fetch failed (non-fatal):`, (err as Error).message);
   }
 
-  // ── 5. Org info ──
+  // ── 4. Org info ──
   let orgInfoRows: Record<string, unknown>[] = [];
   try {
     const orgData = (await linkedInGet({
@@ -421,9 +467,10 @@ export async function syncLinkedInData(
   const fqDataset = `\`${projectId}.${datasetId}\``;
   const deleteTasks: Promise<unknown>[] = [];
 
+  // Post performance: replace all (we re-fetch every post each sync)
   if (postRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.post_performance WHERE post_date = '${today}'` }).catch(() => {})
+      bq.query({ query: `DELETE FROM ${fqDataset}.post_performance WHERE TRUE` }).catch(() => {})
     );
   }
   if (followerRows.length > 0) {
@@ -442,7 +489,6 @@ export async function syncLinkedInData(
       bq.query({ query: `DELETE FROM ${fqDataset}.follower_demographics WHERE TRUE` }).catch(() => {})
     );
   }
-
   await Promise.all(deleteTasks);
 
   // ── Streaming insert into BigQuery ──
@@ -461,7 +507,6 @@ export async function syncLinkedInData(
   if (pageStatRows.length > 0) {
     insertTasks.push(dataset.table("page_stats").insert(pageStatRows));
   }
-
   // Org info: truncate and replace
   if (orgInfoRows.length > 0) {
     await bq.query({ query: `DELETE FROM ${fqDataset}.org_info WHERE TRUE` }).catch(() => {});

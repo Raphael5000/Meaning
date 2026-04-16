@@ -20,7 +20,7 @@ const SUGGESTED_QUESTIONS_REGEX = /\s*```json\s*([\s\S]*)\s*```\s*$/;
 
 /** Regex to match scorecard block: [[scorecard]]VALUE|LABEL[[/scorecard]] or [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]] (change = comparison delta, e.g. +1,234 or -5%) */
 const SCORECARD_REGEX =
-  /\[\[scorecard\]\]([^|[\]]+)\|([^|]*?)(?:\|([+-][^|[\]]*))?\[\[\/scorecard\]\]\s*\n?/i;
+  /\[\[scorecard\]\]([^|[\]]+)\|([^|]*?)(?:\|([^|[\]]*))?\[\[\/scorecard\]\]\s*\n?/i;
 
 /** Regex to match chart block: [[chart]]{ ... }[[/chart]] */
 const CHART_REGEX = /\[\[chart\]\]([\s\S]*?)\[\[\/chart\]\]/i;
@@ -257,13 +257,18 @@ MAILCHIMP QUERIES:
 
 LINKEDIN QUERIES:
 - Use the run_linkedin_query tool for all LinkedIn data questions.
-- Date columns: post_date for post_performance, stats_date for follower_stats/follower_demographics/page_stats.
-- post_performance has both cumulative columns (impressions, clicks, engagements) and daily columns (daily_impressions, daily_clicks, daily_engagements). For charts over time or "impressions by day", ALWAYS use the daily_ columns (e.g. SELECT post_date, daily_impressions FROM \`{dataset}.post_performance\` ORDER BY post_date). For a scorecard total over a period, SUM the daily_ columns. The plain impressions/clicks/engagements columns are cumulative lifetime totals — only use the latest row if you need the all-time total.
-- FOLLOWER COUNT: The follower_stats table has total_followers (cumulative count), organic_gains, and paid_gains. To get the current follower count, query the latest row: SELECT total_followers FROM \`{dataset}.follower_stats\` ORDER BY stats_date DESC LIMIT 1. This is a single number — output it as a scorecard, not a table.
-- Follower demographics uses a dimension/dimension_value pattern. Filter by dimension to get breakdowns: WHERE dimension = 'country', 'industry', 'seniority', 'function', or 'company_size'.
+- post_performance has ONE ROW PER POST with lifetime stats: published_date, post_urn, post_type (text/article/media/multi_image), text_preview, impressions, unique_impressions, clicks, comments, likes, shares, engagements, created_at.
+- For "total impressions this month": SELECT SUM(impressions) FROM \`{dataset}.post_performance\` WHERE published_date >= DATE_TRUNC(CURRENT_DATE(), MONTH). Note: these are lifetime impressions for posts published that month — the API does not provide time-bounded impression data.
+- For "how many posts this month": SELECT COUNT(*) FROM \`{dataset}.post_performance\` WHERE published_date >= DATE_TRUNC(CURRENT_DATE(), MONTH).
+- For "top posts": SELECT text_preview, impressions, likes, clicks FROM \`{dataset}.post_performance\` ORDER BY impressions DESC LIMIT 10.
+- For "impressions by month": SELECT FORMAT_DATE('%Y-%m', published_date) as month, COUNT(*) as posts, SUM(impressions) as impressions FROM \`{dataset}.post_performance\` GROUP BY month ORDER BY month.
+- SINGLE-NUMBER ANSWERS: When the user asks for a total or aggregate (e.g. "total impressions", "how many posts", "how many followers"), query for ONE number and output it as a [[scorecard]]VALUE|LABEL[[/scorecard]], NOT a table.
+- FOLLOWER COUNT: follower_stats has total_followers (cumulative), organic_gains, paid_gains. Current count: SELECT total_followers FROM \`{dataset}.follower_stats\` ORDER BY stats_date DESC LIMIT 1. Output as scorecard.
+- Follower demographics uses a dimension/dimension_value pattern. Filter by dimension: WHERE dimension = 'country', 'industry', 'seniority', 'function', or 'company_size'.
+- page_stats columns: stats_date, page_views, unique_visitors, clicks — these are cumulative lifetime snapshots.
 - org_info has a single row with the organization name and last sync timestamp.
 - Always use {dataset}.tableName format — the system routes LinkedIn tables to the correct dataset automatically.
-- Engagement rate = engagements / impressions (use the latest cumulative row for lifetime rate, or compute from daily deltas for a period).` : "";
+- Engagement rate = SUM(engagements) / SUM(impressions) from post_performance.` : "";
 
   const adsQueryGuidance = includeAds ? `
 

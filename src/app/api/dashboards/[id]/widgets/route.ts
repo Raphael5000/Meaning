@@ -168,7 +168,7 @@ IMPORTANT column notes:
 - traffic_sources uses "source" and "medium". sessions/pageviews use "session_source" and "session_medium". Do NOT mix them.
 - For page flow / sankey diagrams, use pageviews table with page_location, ga_session_id, event_timestamp, session_source, session_medium. Sankey nodes MUST be unique — prefix each layer (e.g. "google / organic" for sources, "Page 1: /path" for landing pages, "Page 2: /path" for second pages). For source→page flows, UNION two layers: source→landing page and landing page→second page. Columns must be from_node, to_node, transitions. NOTE: Sankeys only cover sessions with 2+ pageviews (bounces excluded) and LIMIT 30 trims rare paths, so totals will be less than a session scorecard.
 - For Google Ads: date column is stats_date. cost is already in currency units.
-- For LinkedIn: date column is post_date or stats_date. post_performance has both cumulative columns (impressions, clicks, engagements) and daily columns (daily_impressions, daily_clicks, daily_engagements). For charts over time or "impressions by day", ALWAYS use the daily_ columns (e.g. SELECT post_date, daily_impressions FROM post_performance). For a scorecard total over a period, SUM the daily_ columns. The plain impressions/clicks/engagements columns are cumulative lifetime totals — only use the latest row if you need the all-time total. follower_stats.total_followers is also cumulative — use latest row for current count.
+- For LinkedIn: post_performance has ONE ROW PER POST: published_date, post_urn, post_type, text_preview, impressions, unique_impressions, clicks, comments, likes, shares, engagements, created_at. For total impressions: SUM(impressions). For post count: COUNT(*). Filter by published_date for time periods. follower_stats.total_followers is cumulative — use latest row for current count. page_stats columns: stats_date, page_views, unique_visitors, clicks (cumulative lifetime snapshots).
 - For Mailchimp: date column is send_date or stats_date.
 - For GSC: date column is query_date. ctr is 0-1 decimal. position: lower is better. IMPORTANT: BigQuery uses INTERVAL N DAY (singular, not DAYS). Always write DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY), never DAYS/MONTHS.
 - GA4 vs GSC DATA: GA4 sessions with source='google' includes ALL Google traffic (organic, paid/cpc, referral from YouTube/Gmail, Discover). GSC clicks only counts organic search clicks. These numbers will NOT match. When showing organic search traffic from GA4, always filter by session_source='google' AND session_medium='organic'. When comparing GA4 and GSC, explain the difference to the user. Never combine GA4 and GSC numbers in the same chart as if they measure the same thing.
@@ -194,7 +194,7 @@ Your SQL query results MUST return columns in this order: first column = dimensi
 
 For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
 [[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
-The CHANGE is MANDATORY. You MUST always include a comparison vs the previous period. Run two queries: one for the current period and one for the previous period of equal length (e.g. last 28 days vs the 28 days before that). Compute the percentage change: ((current - previous) / previous * 100) and format as +X% or -X%. Use + prefix for positive change, - for negative. Example: if current=500 and previous=450, change is +11.1%.
+The CHANGE is MANDATORY. You MUST always include a comparison vs the previous period. Run two queries: one for the current period and one for the previous period of equal length (e.g. last 28 days vs the 28 days before that). Compute the percentage change: ((current - previous) / previous * 100) and format as +X% or -X%. Use + prefix for positive change, - for negative. Example: if current=500 and previous=450, change is +11.1%. If there is no previous period data available, use +0% as the change value.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
 [[table]][{"column1":"value1","column2":123},...][[/table]]
@@ -207,7 +207,7 @@ Do NOT include any explanatory text. ONLY output the widget block.`;
 // ---------------------------------------------------------------------------
 
 const CHART_REGEX = /\[\[chart\]\]([\s\S]*?)\[\[\/chart\]\]/i;
-const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+?)(?:\|([+-][^[\]]*)?)?\[\[\/scorecard\]\]/i;
+const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+?)(?:\|([^[\]]*)?)?\[\[\/scorecard\]\]/i;
 const TABLE_REGEX = /\[\[table\]\]([\s\S]*?)\[\[\/table\]\]/i;
 
 interface ParsedWidget {

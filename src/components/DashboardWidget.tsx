@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil, Sparkles } from "lucide-react";
 import ChartRenderer from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
@@ -241,6 +242,8 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(widget.title || widget.prompt);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   function saveTitle() {
     const newTitle = titleDraft.trim();
@@ -261,11 +264,10 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
 
   return (
     <div
-      className="flex h-full w-full flex-col overflow-hidden rounded-xl border"
-      style={{ borderColor: "var(--border-color)", background: "var(--card-bg, var(--bg-secondary, transparent))" }}
+      className="widget-glass flex h-full w-full flex-col rounded-xl"
     >
       {/* Header */}
-      <div className="flex items-center gap-1 border-b px-3 py-2" style={{ borderColor: "var(--border-color)" }}>
+      <div className="flex items-center gap-1 border-b px-3 py-2" style={{ borderColor: "rgba(128,128,128,0.15)" }}>
         <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
@@ -293,20 +295,33 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
         {(refreshing || widget.widgetType === "generating") && (
           <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
         )}
-        {widget.widgetType !== "generating" && <div className="relative">
+        {widget.widgetType !== "generating" && <div>
           <button
+            ref={menuBtnRef}
             type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => {
+              if (!menuOpen && menuBtnRef.current) {
+                const rect = menuBtnRef.current.getBoundingClientRect();
+                setMenuPos({ top: rect.bottom + 4, left: rect.right });
+              }
+              setMenuOpen(!menuOpen);
+            }}
             className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
-          {menuOpen && (
+          {menuOpen && createPortal(
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
               <div
-                className="absolute right-0 top-full z-20 mt-1 rounded-lg border py-1 shadow-lg"
-                style={{ background: "var(--bg-primary)", borderColor: "var(--border-color)", minWidth: 120 }}
+                className="fixed z-[9999] rounded-lg border py-1 shadow-lg"
+                style={{
+                  background: "var(--bg-primary)",
+                  borderColor: "var(--border-color)",
+                  minWidth: 120,
+                  top: menuPos?.top ?? 0,
+                  left: (menuPos?.left ?? 0) - 120,
+                }}
               >
                 <button
                   type="button"
@@ -325,7 +340,8 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
                   Delete
                 </button>
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>}
       </div>

@@ -93,7 +93,7 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
   return (
     <div className="h-full overflow-auto">
       <table className="w-full text-xs">
-        <thead className="sticky top-0 z-10" style={{ background: "var(--table-header-bg)" }}>
+        <thead className="sticky top-0" style={{ background: "var(--table-header-bg)" }}>
           <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
             {columns.map((col) => (
               <th
