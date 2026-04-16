@@ -219,7 +219,7 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
     measure();
     const observer = new ResizeObserver(() => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(measure, 100);
+      debounceRef.current = setTimeout(measure, 50);
     });
     observer.observe(containerRef.current);
     return () => { observer.disconnect(); if (debounceRef.current) clearTimeout(debounceRef.current); };

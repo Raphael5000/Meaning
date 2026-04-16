@@ -252,6 +252,7 @@ model Article {
   slug        String   @unique
   title       String
   description String   @default("")
+  section     String   @default("docs") // docs | blog
   category    String   @default("getting-started")
   type        String   @default("article") // article | video | guide
   readTime    String?
@@ -265,7 +266,7 @@ model Article {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([category])
+  @@index([section, category])
 }
 
 // ──────────────────────────────────────────────
@@ -334,6 +335,7 @@ model Dashboard {
   dateRange String   @default("28d") // "7d" | "28d" | "90d" | "custom"
   dateFrom  String?  // YYYY-MM-DD, only when dateRange="custom"
   dateTo    String?  // YYYY-MM-DD, only when dateRange="custom"
+  sortOrder Int      @default(0) // ordering in the dashboard list
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -148,7 +148,7 @@ Today's date is ${today}.
 
 CRITICAL RULES:
 1. THINK before querying. Interpret the user's intent — e.g. "top blog posts" means filter for pages with /blog/ in the URL path, "landing pages" means the first page in a session, "product pages" means pages with /product/ in the path. Use your knowledge of common website URL patterns to build smart filters.
-2. You can call multiple tools (up to 4 rounds). If you need to explore the data first (e.g. check what URL patterns exist, sample page titles, discover categories), call get_available_fields or run a small exploratory query first, THEN build your final query with the right filters.
+2. Be FAST — minimize tool calls. All table schemas are listed below so DO NOT call get_available_fields. Most widgets need just 1 query. For scorecards with comparison, use 1 query with a CASE expression or UNION instead of 2 separate queries. Maximum 3 tool rounds.
 3. For filtering by page type (blog, product, etc.), use LIKE filters on page_location: WHERE page_location LIKE '%/blog/%' for blog posts. Always use the path pattern, not page_title.
 4. NEVER fabricate data. Only use numbers from the tool response.
 5. Default date range is last 28 days unless specified.
@@ -194,7 +194,7 @@ Your SQL query results MUST return columns in this order: first column = dimensi
 
 For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
 [[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
-The CHANGE is MANDATORY. You MUST always include a comparison vs the previous period. Run two queries: one for the current period and one for the previous period of equal length (e.g. last 28 days vs the 28 days before that). Compute the percentage change: ((current - previous) / previous * 100) and format as +X% or -X%. Use + prefix for positive change, - for negative. Example: if current=500 and previous=450, change is +11.1%. If there is no previous period data available, use +0% as the change value.
+The CHANGE is MANDATORY. Include a comparison vs the previous period using a SINGLE query with CASE expressions, e.g.: SELECT SUM(CASE WHEN date >= current_start THEN value ELSE 0 END) as current, SUM(CASE WHEN date >= prev_start AND date < current_start THEN value ELSE 0 END) as previous FROM table WHERE date >= prev_start. Compute percentage change: ((current - previous) / NULLIF(previous, 0) * 100). Format as +X% or -X%. If no previous data, use +0%.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
 [[table]][{"column1":"value1","column2":123},...][[/table]]
@@ -349,19 +349,19 @@ export async function POST(
     // Call Claude with tools
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
+      max_tokens: 2048,
       system: systemPrompt,
       tools: BIGQUERY_TOOLS,
       messages: [{ role: "user", content: body.prompt }],
     });
 
-    // Tool execution loop (max 2 rounds for widgets)
+    // Tool execution loop (max 3 rounds for widgets)
     const conversationMessages: Anthropic.MessageParam[] = [{ role: "user", content: body.prompt }];
     let toolRound = 0;
     let capturedQueryConfig: { tool: string; input: unknown } | null = null;
     let capturedData: unknown = null;
 
-    while (response.stop_reason === "tool_use" && toolRound < 6) {
+    while (response.stop_reason === "tool_use" && toolRound < 3) {
       toolRound++;
       const assistantContent = response.content;
       const toolUseBlocks = assistantContent.filter(
@@ -436,7 +436,7 @@ export async function POST(
 
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
+        max_tokens: 2048,
         system: systemPrompt,
         tools: BIGQUERY_TOOLS,
         messages: conversationMessages,
@@ -461,7 +461,7 @@ export async function POST(
       conversationMessages.push({ role: "user", content: emptyResults });
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: conversationMessages,
       });

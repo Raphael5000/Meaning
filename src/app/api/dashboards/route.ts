@@ -20,11 +20,12 @@ export async function GET(request: NextRequest) {
   try {
     const dashboards = await prisma.dashboard.findMany({
       where: { orgId },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: {
         id: true,
         title: true,
         dateRange: true,
+        sortOrder: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { widgets: true } },

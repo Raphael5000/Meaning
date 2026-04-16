@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, ArrowLeft, Plus, LayoutDashboard, Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, ArrowLeft, Plus, LayoutDashboard, Trash2, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DashboardSummary {
   id: string;
   title: string;
   dateRange: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
   _count: { widgets: number };
@@ -69,6 +70,39 @@ export default function DashboardListPanel({ onClose, onOpenDashboard, orgId, or
     }
   }
 
+  // Drag-to-reorder state
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  function handleDragStart(index: number) {
+    dragItem.current = index;
+  }
+
+  function handleDragEnter(index: number) {
+    dragOverItem.current = index;
+  }
+
+  function handleDragEnd() {
+    if (dragItem.current === null || dragOverItem.current === null || dragItem.current === dragOverItem.current) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+    const reordered = [...dashboards];
+    const [removed] = reordered.splice(dragItem.current, 1);
+    reordered.splice(dragOverItem.current, 0, removed);
+    setDashboards(reordered);
+    dragItem.current = null;
+    dragOverItem.current = null;
+
+    // Persist order
+    fetch("/api/dashboards/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: reordered.map((d) => d.id) }),
+    }).catch(() => {});
+  }
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -124,31 +158,43 @@ export default function DashboardListPanel({ onClose, onOpenDashboard, orgId, or
               </Button>
             </div>
           ) : (
-            dashboards.map((d) => (
-              <button
+            dashboards.map((d, i) => (
+              <div
                 key={d.id}
-                type="button"
-                onClick={() => onOpenDashboard(d.id)}
-                className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors hover:border-[var(--accent)]"
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragEnter={() => handleDragEnter(i)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => e.preventDefault()}
+                className="flex w-full items-center gap-2 rounded-xl border px-3 py-3 text-left transition-colors hover:border-[var(--accent)]"
                 style={{ borderColor: "var(--border-color)", background: "var(--card-bg, var(--bg-secondary, transparent))" }}
               >
-                <LayoutDashboard className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{d.title}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {d._count.widgets} widget{d._count.widgets !== 1 ? "s" : ""}
-                    {" · "}
-                    {new Date(d.updatedAt).toLocaleDateString()}
-                  </p>
+                <div className="flex shrink-0 cursor-grab items-center text-muted-foreground active:cursor-grabbing">
+                  <GripVertical className="h-4 w-4" />
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => handleDelete(e, d.id)}
+                  onClick={() => onOpenDashboard(d.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <LayoutDashboard className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{d.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {d._count.widgets} widget{d._count.widgets !== 1 ? "s" : ""}
+                      {" · "}
+                      {new Date(d.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDelete(e, d.id); }}
                   className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
-              </button>
+              </div>
             ))
           )}
         </div>

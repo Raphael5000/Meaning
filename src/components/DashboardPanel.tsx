@@ -57,9 +57,9 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
       .finally(() => setLoading(false));
   }, [dashboardId]);
 
-  // Refresh all widget data
-  const refreshWidgets = useCallback(async (dateRange?: string, dateFrom?: string | null, dateTo?: string | null) => {
-    setRefreshing(true);
+  // Refresh all widget data. When silent=true, skip the loading skeleton overlay.
+  const refreshWidgets = useCallback(async (dateRange?: string, dateFrom?: string | null, dateTo?: string | null, silent = false) => {
+    if (!silent) setRefreshing(true);
     try {
       const res = await fetch(`/api/dashboards/${dashboardId}/refresh`, {
         method: "POST",
@@ -85,7 +85,7 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
     } catch {
       // ignore
     } finally {
-      setRefreshing(false);
+      if (!silent) setRefreshing(false);
     }
   }, [dashboardId]);
 
@@ -93,11 +93,12 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Auto-refresh on initial load (once dashboard and widgets are loaded)
+  // Auto-refresh on initial load — silently in the background (no skeletons).
+  // Cached data is shown instantly; fresh data swaps in when ready.
   useEffect(() => {
     if (!dashboard || dashboard.widgets.length === 0 || hasRefreshedRef.current) return;
     hasRefreshedRef.current = true;
-    refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo);
+    refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo, true);
   }, [dashboard, refreshWidgets]);
 
   async function saveTitle() {
