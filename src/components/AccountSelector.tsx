@@ -105,14 +105,27 @@ export default function AccountSelector({
 
   if (orgs.length === 0) {
     return (
-      <button
-        type="button"
-        onClick={handleCreate}
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
-      >
-        <Plus className="h-4 w-4" />
-        Create an account
-      </button>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          placeholder="Team name..."
+          className="h-9 w-full rounded-[100px] border border-input bg-muted px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          autoFocus
+        />
+        {newName.trim() && (
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={creating}
+            className="flex h-9 shrink-0 items-center rounded-[100px] border border-input bg-muted px-3 text-sm text-foreground hover:bg-accent disabled:opacity-50"
+          >
+            {creating ? "..." : "Create"}
+          </button>
+        )}
+      </div>
     );
   }
 

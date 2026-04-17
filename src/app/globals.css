@@ -2,6 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Theme toggle switch — sun/moon with animated thumb
+   ============================================================ */
+.theme-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 3.75rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background 300ms ease, border-color 300ms ease;
+  vertical-align: middle;
+}
+:is(.dark, [data-theme="dark"]) .theme-switch {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.theme-switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-top: -0.8125rem;
+  border-radius: 9999px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+:is(.dark, [data-theme="dark"]) .theme-switch-thumb {
+  background: #0a0a0a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.theme-switch[data-state="checked"] .theme-switch-thumb {
+  transform: translateX(1.375rem);
+}
+.theme-switch-icon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  transition: opacity 200ms ease;
+}
+.theme-switch-sun {
+  color: rgba(0, 0, 0, 0.5);
+  opacity: 1;
+}
+:is(.dark, [data-theme="dark"]) .theme-switch-sun {
+  color: rgba(255, 255, 255, 0.3);
+}
+.theme-switch[data-state="checked"] .theme-switch-sun {
+  opacity: 0.25;
+}
+.theme-switch-moon {
+  color: rgba(0, 0, 0, 0.25);
+  opacity: 0.25;
+}
+:is(.dark, [data-theme="dark"]) .theme-switch-moon {
+  color: rgba(255, 255, 255, 0.5);
+}
+.theme-switch[data-state="checked"] .theme-switch-moon {
+  opacity: 1;
+}
+
 h1, h2 {
   font-family: var(--font-martel), serif;
   font-weight: 400;
@@ -90,6 +158,79 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--bg-hover);
+}
+
+/* Nav glass — liquid glass navbar + dropdown */
+.nav-glass-scrolled {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border-bottom: 0.5px solid rgba(200, 200, 200, 0.35) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.dark .nav-glass-scrolled {
+  background: rgba(10, 10, 10, 0.65) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+.nav-glass {
+  position: relative;
+  isolation: isolate;
+  background: rgba(255, 255, 255, 0.55);
+  border: 0.5px solid rgba(200, 200, 200, 0.3);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.dark .nav-glass {
+  background: rgba(20, 20, 22, 0.55);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Widget glass — frosted glass card for dashboard widgets */
+.widget-glass {
+  position: relative;
+  isolation: isolate;
+  background: rgba(255, 255, 255, 0.6);
+  border: 0.5px solid rgba(200, 200, 200, 0.5);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.widget-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset -8px -6px 0px -9px rgba(255, 255, 255, 0.8),
+    inset 0px -7px 0px -6px rgba(255, 255, 255, 0.6);
+  filter: blur(1px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+.widget-glass > * { position: relative; z-index: 1; }
+
+.dark .widget-glass {
+  background: rgba(20, 20, 22, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .widget-glass::after {
+  box-shadow:
+    inset -8px -6px 0px -9px rgba(255, 255, 255, 0.12),
+    inset 0px -7px 0px -6px rgba(255, 255, 255, 0.1);
 }
 
 /* Markdown content styling */
@@ -781,7 +922,7 @@ body {
 
 /* Resource article body (MDX content) */
 .article-body {
-  color: var(--text-secondary);
+  color: var(--m-text-secondary, var(--text-secondary));
   line-height: 1.7;
 }
 
@@ -790,7 +931,7 @@ body {
   margin-bottom: 0.75rem;
   font-size: 1.375rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--m-text, var(--text-primary));
 }
 
 .article-body h2:first-child {
@@ -802,7 +943,7 @@ body {
   margin-bottom: 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--m-text, var(--text-primary));
 }
 
 .article-body p {
@@ -830,18 +971,18 @@ body {
 }
 
 .article-body li::marker {
-  color: var(--accent);
+  color: var(--m-text-muted, var(--accent));
 }
 
 .article-body blockquote {
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid var(--m-hairline-strong, var(--accent));
   margin: 1rem 0;
   padding: 0.25rem 0 0.25rem 1rem;
-  color: var(--text-muted);
+  color: var(--m-text-muted, var(--text-muted));
 }
 
 .article-body a {
-  color: var(--accent);
+  color: var(--m-text, var(--accent));
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: opacity 0.15s ease;
@@ -853,12 +994,12 @@ body {
 
 .article-body strong {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--m-text, var(--text-primary));
 }
 
 .article-body hr {
   border: none;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--m-hairline, var(--border-color));
   margin: 2rem 0;
 }
 
@@ -870,25 +1011,25 @@ body {
   font-size: 0.875rem;
   border-radius: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--m-hairline, var(--border-color));
 }
 
 .article-body thead {
-  background: rgba(16, 163, 127, 0.08);
+  background: var(--m-surface-elevated, rgba(16, 163, 127, 0.08));
 }
 
 .article-body th {
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--border-color);
+  color: var(--m-text, var(--text-primary));
+  border-bottom: 2px solid var(--m-hairline, var(--border-color));
 }
 
 .article-body td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  border-bottom: 1px solid var(--m-hairline, var(--border-color));
+  color: var(--m-text-secondary, var(--text-secondary));
 }
 
 .article-body tr:last-child td {
@@ -896,7 +1037,7 @@ body {
 }
 
 .article-body tbody tr:hover {
-  background: rgba(16, 163, 127, 0.04);
+  background: var(--m-surface-elevated, rgba(16, 163, 127, 0.04));
 }
 
 /* Code block container (docs) */
@@ -904,8 +1045,8 @@ body {
   margin: 1.25rem 0;
   border-radius: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
+  border: 1px solid var(--m-hairline, var(--border-color));
+  background: var(--m-surface-elevated, var(--bg-tertiary));
 }
 
 .article-body .article-code-container pre {
@@ -914,7 +1055,7 @@ body {
   overflow-x: auto;
   font-size: 0.875rem;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--m-text-secondary, var(--text-secondary));
 }
 
 .article-body .article-code-container pre code {
@@ -925,21 +1066,821 @@ body {
   color: inherit;
 }
 
-/* Inline code in articles (unchanged from default) */
+/* Inline code in articles */
 .article-body :not(pre) > code {
   padding: 0.2em 0.4em;
   border-radius: 0.375rem;
   font-size: 0.875em;
-  background: rgba(16, 163, 127, 0.12);
-  color: var(--accent);
+  background: var(--m-surface-elevated, rgba(16, 163, 127, 0.12));
+  color: var(--m-text, var(--accent));
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
-/* Related article card hover */
-.related-article-card:hover {
-  border-color: rgba(16, 163, 127, 0.4);
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-card-hover);
+/* =========================================================
+   Marketing surface — Phase A foundations
+   Scoped under .marketing so the product app is untouched.
+   ========================================================= */
+
+.marketing {
+  /* Refined emerald brand */
+  --brand: #0a7b5e;
+  --brand-strong: #086a51;
+  --brand-soft: rgba(10, 123, 94, 0.09);
+  --brand-ring: rgba(10, 123, 94, 0.28);
+
+  /* Paper page + white cards — proper tonal hierarchy */
+  --m-bg: #f6f5f1;                /* warm paper page */
+  --m-surface: #ffffff;            /* card bg pops off paper */
+  --m-surface-elevated: #f3f1eb;   /* inner elements on cards */
+  --m-text: #0a0a0a;
+  --m-text-secondary: #404040;
+  --m-text-muted: #6a6a6a;
+
+  /* Stronger hairlines — visible without being heavy */
+  --m-hairline: rgba(0, 0, 0, 0.10);
+  --m-hairline-strong: rgba(0, 0, 0, 0.18);
+
+  /* Card elevation shadows */
+  --m-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  --m-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 20px -6px rgba(0, 0, 0, 0.08);
+  --m-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.06), 0 16px 32px -8px rgba(0, 0, 0, 0.14);
+
+  /* Override inherited product tokens */
+  --accent: var(--brand);
+  --page-bg: var(--m-bg);
+  --text-primary: var(--m-text);
+  --text-secondary: var(--m-text-secondary);
+  --text-muted: var(--m-text-muted);
+  --border-color: var(--m-hairline);
+  --card-bg: var(--m-surface);
+  --bg-secondary: var(--m-surface);
+  --bg-tertiary: #f0efe9;
+
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--m-bg);
+  color: var(--m-text);
+}
+
+.dark .marketing {
+  --brand: #14b58e;
+  --brand-strong: #10a37f;
+  --brand-soft: rgba(20, 181, 142, 0.12);
+  --brand-ring: rgba(20, 181, 142, 0.32);
+
+  --m-bg: #0a0a0a;
+  --m-surface: #161616;          /* cards elevated above page */
+  --m-surface-elevated: #262626; /* inner elements on cards */
+  --m-text: #f5f5f4;
+  --m-text-secondary: #b8b8b8;
+  --m-text-muted: #8a8a8a;
+
+  --m-hairline: rgba(255, 255, 255, 0.10);
+  --m-hairline-strong: rgba(255, 255, 255, 0.20);
+
+  --m-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --m-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5), 0 8px 24px -6px rgba(0, 0, 0, 0.5);
+  --m-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.55), 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+
+  --accent: var(--brand);
+  --page-bg: var(--m-bg);
+  --text-primary: var(--m-text);
+  --text-secondary: var(--m-text-secondary);
+  --text-muted: var(--m-text-muted);
+  --border-color: var(--m-hairline);
+  --card-bg: var(--m-surface);
+  --bg-secondary: var(--m-surface);
+  --bg-tertiary: #262626;
+}
+
+/* Default: sans for all h1/h2 inside marketing (overrides global Martel rule) */
+.marketing h1,
+.marketing h2 {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Big display — Martel serif light, the character moment */
+.marketing .display-2xl,
+.marketing .display-xl,
+.marketing .display-lg {
+  font-family: var(--font-martel), ui-serif, Georgia, "Times New Roman", serif !important;
+  font-weight: 200 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.marketing .display-2xl {
+  font-size: clamp(2.75rem, 7vw, 6rem);
+}
+.marketing .display-xl {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+}
+
+.marketing .display-lg {
+  font-size: clamp(2.375rem, 5.8vw, 4.25rem);
+}
+.marketing .display-md {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.625rem, 3.5vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  font-weight: 450;
+}
+
+/* Bento card typography — tight, restrained */
+.marketing .bento-heading {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  font-weight: 500;
+  color: var(--m-text);
+}
+.marketing .bento-sub {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--m-text-secondary);
+}
+
+/* Italic serif moment — stays Martel, used for one-word accents in display-2xl/xl */
+.marketing .display-italic {
+  font-family: var(--font-martel), ui-serif, Georgia, serif;
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* Mono utility — only for terminal content / code */
+.marketing .mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+/* Label utility — sans, refined, not technical */
+.marketing .mono-label {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-text-muted);
+}
+
+/* Glowing pill — eyebrow badge for heroes & section headings */
+.marketing .glow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--m-text);
+  background: var(--glow-pill-bg);
+  border: 1px solid var(--glow-pill-border);
+  box-shadow: var(--glow-pill-shadow);
+  --glow-pill-bg: rgba(0, 0, 0, 0.04);
+  --glow-pill-border: rgba(0, 0, 0, 0.12);
+  --glow-pill-shadow:
+    0 0 12px rgba(0, 0, 0, 0.04),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+}
+:is(.dark, [data-theme="dark"]) .marketing .glow-pill {
+  --glow-pill-bg: rgba(255, 255, 255, 0.06);
+  --glow-pill-border: rgba(255, 255, 255, 0.14);
+  --glow-pill-shadow:
+    0 0 16px rgba(255, 255, 255, 0.06),
+    0 0 4px rgba(255, 255, 255, 0.03),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
+.marketing .glow-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--m-text);
+  box-shadow: 0 0 6px var(--m-text-muted);
+  animation: pill-pulse 2.4s ease-in-out infinite;
+}
+@keyframes pill-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   Primary button — Resend-style translucent w/ hover invert + glow
+   ============================================================ */
+:root {
+  --btn-bg: rgba(0, 0, 0, 0.04);
+  --btn-border: rgba(0, 0, 0, 0.12);
+  --btn-text: var(--m-text);
+  --btn-bg-hover: #0a0a0a;
+  --btn-text-hover: #ffffff;
+  --btn-glow-hover: 0 0 0 1px rgba(0, 0, 0, 0.9), 0 8px 28px rgba(0, 0, 0, 0.18), 0 0 32px rgba(0, 0, 0, 0.12);
+}
+.dark {
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-border: rgba(255, 255, 255, 0.16);
+  --btn-text: #f5f5f4;
+  --btn-bg-hover: #ffffff;
+  --btn-text-hover: #0a0a0a;
+  --btn-glow-hover: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 8px 28px rgba(255, 255, 255, 0.18), 0 0 36px rgba(255, 255, 255, 0.22);
+}
+.btn-primary {
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--btn-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background-color 200ms ease, color 200ms ease, box-shadow 250ms ease, transform 150ms ease;
+}
+.btn-primary:hover {
+  background-color: var(--btn-bg-hover);
+  color: var(--btn-text-hover);
+  box-shadow: var(--btn-glow-hover);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+/* Hairline border helpers */
+.marketing .hairline {
+  border: 1px solid var(--m-hairline);
+}
+.marketing .hairline-t { border-top: 1px solid var(--m-hairline); }
+.marketing .hairline-b { border-bottom: 1px solid var(--m-hairline); }
+.marketing .hairline-strong { border: 1px solid var(--m-hairline-strong); }
+
+/* Dotted grid background — low contrast */
+.marketing .dotted-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--m-hairline-strong) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+.dark .marketing .dotted-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1px, transparent 0);
+}
+
+/* ============================================================
+   Glass bars — Robinhood-style translucent 3D bars
+   Bright emerald top → transparent bottom, inner white reflection
+   ============================================================ */
+.glass-bar {
+  border-radius: 5px 5px 1px 1px;
+  background:
+    /* Horizontal: left-lit cylinder shading */
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0.04) 18%,
+      transparent 45%,
+      rgba(0, 0, 0, 0.05) 80%,
+      rgba(0, 0, 0, 0.1) 100%
+    ),
+    /* Vertical: neon bright top → transparent bottom */
+    linear-gradient(
+      180deg,
+      rgba(30, 240, 180, 0.92) 0%,
+      rgba(20, 220, 160, 0.7) 22%,
+      rgba(16, 200, 140, 0.45) 45%,
+      rgba(10, 180, 120, 0.18) 70%,
+      rgba(10, 160, 100, 0.04) 90%,
+      transparent 100%
+    );
+  position: relative;
+  overflow: hidden;
+  filter: drop-shadow(0 0 14px rgba(10, 160, 120, 0.25))
+         drop-shadow(0 0 30px rgba(10, 140, 100, 0.1));
+}
+.dark .glass-bar {
+  filter: drop-shadow(0 0 20px rgba(30, 240, 180, 0.45))
+         drop-shadow(0 0 40px rgba(20, 200, 150, 0.2));
+}
+/* Soft specular highlight — vertical bright band slightly left of center */
+.glass-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      ellipse 35% 60% at 35% 15%,
+      rgba(255, 255, 255, 0.2) 0%,
+      transparent 100%
+    );
+  pointer-events: none;
+}
+/* Bottom reflection / neon ground bounce */
+.glass-bar::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 10%;
+  right: 10%;
+  height: 30%;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(
+    0deg,
+    rgba(30, 240, 180, 0.15) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+/* ============================================================
+   Liquid glass — Apple iOS 26-style frosted card
+   Based on the recreated specs from dev.to/kevinbism — low blur,
+   high transparency, hairline border, layered inset highlights.
+   ============================================================ */
+:root {
+  --lg-bg: rgba(255, 255, 255, 0.55);
+  --lg-border: rgba(0, 0, 0, 0.06);
+  --lg-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.06),
+    0 8px 32px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --lg-shine-shadow:
+    inset -10px -8px 0px -11px rgba(255, 255, 255, 0.9),
+    inset 0px -9px 0px -8px rgba(255, 255, 255, 0.8);
+  --lg-shimmer: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.7) 50%, transparent 65%);
+}
+.dark {
+  --lg-bg: rgba(20, 20, 22, 0.55);
+  --lg-border: rgba(255, 255, 255, 0.08);
+  --lg-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --lg-shine-shadow:
+    inset -10px -8px 0px -11px rgba(255, 255, 255, 0.18),
+    inset 0px -9px 0px -8px rgba(255, 255, 255, 0.18);
+  --lg-shimmer: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
+}
+.liquid-glass {
+  position: relative;
+  isolation: isolate;
+  background: var(--lg-bg);
+  border: 0.5px solid var(--lg-border);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--lg-shadow);
+}
+/* Inner shine — Apple's trick for the curved-edge highlight */
+.liquid-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--lg-shine-shadow);
+  filter: blur(1px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+.liquid-glass > * { position: relative; z-index: 1; }
+.liquid-glass-shimmer {
+  position: absolute;
+  inset: 0;
+  background: var(--lg-shimmer);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  background-position: 220% 0;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+  animation: lg-shimmer 9s linear infinite;
+  z-index: 2;
+}
+@keyframes lg-shimmer {
+  0%   { background-position: 220% 0; }
+  55%  { background-position: -120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* ============================================================
+   Shimmer text — animated highlight sweeps across the heading
+   ============================================================ */
+:root {
+  --shimmer-base: rgba(10, 10, 10, 0.55);
+  --shimmer-peak: #0a0a0a;
+}
+.dark {
+  --shimmer-base: rgba(245, 245, 244, 0.4);
+  --shimmer-peak: #ffffff;
+}
+.shimmer-text {
+  background: linear-gradient(
+    100deg,
+    var(--shimmer-base) 0%,
+    var(--shimmer-base) 40%,
+    var(--shimmer-peak) 50%,
+    var(--shimmer-base) 60%,
+    var(--shimmer-base) 100%
+  );
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer-sweep 5s ease-in-out infinite;
+}
+@keyframes shimmer-sweep {
+  0%   { background-position: 200% 0; }
+  80%  { background-position: -100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text { animation: none; background-position: 50% 0; }
+}
+
+/* Hero orb glow — theme-aware drop shadow color */
+:root {
+  --hero-glow: drop-shadow(0 0 24px rgba(0, 0, 0, 0.22)) drop-shadow(0 0 60px rgba(0, 0, 0, 0.12));
+}
+.dark {
+  --hero-glow: drop-shadow(0 0 24px rgba(255, 255, 255, 0.18)) drop-shadow(0 0 60px rgba(255, 255, 255, 0.08));
+}
+.hero-glow { filter: var(--hero-glow); }
+
+/* Ambient light ray — single atmospheric gradient */
+.marketing .ambient-ray {
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    var(--brand-soft) 0%,
+    transparent 60%
+  );
+}
+
+/* Film grain noise overlay */
+.marketing .noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Bento tile — earned card with elevation */
+.marketing .bento-tile {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--m-hairline);
+  border-radius: 20px;
+  background: var(--m-surface);
+  box-shadow: var(--m-shadow-md);
+  transition:
+    border-color 250ms ease,
+    transform 250ms ease,
+    box-shadow 250ms ease,
+    background 250ms ease;
+}
+.marketing .bento-tile:hover {
+  border-color: var(--m-hairline-strong);
+  box-shadow: var(--m-shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* Hero chat input — rotating conic-gradient border (Resend-style) */
+@property --hc-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes hero-chat-rotate {
+  to {
+    --hc-angle: 360deg;
+  }
+}
+
+.marketing .hero-chat-input {
+  position: relative;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--m-surface), var(--m-surface)) padding-box,
+    conic-gradient(
+      from var(--hc-angle),
+      transparent 0deg,
+      transparent 60deg,
+      var(--brand) 85deg,
+      transparent 110deg,
+      transparent 360deg
+    ) border-box;
+  box-shadow: var(--m-shadow-md);
+  animation: hero-chat-rotate 5s linear infinite;
+  transition:
+    box-shadow 250ms ease,
+    transform 250ms ease;
+}
+
+/* Soft ambient outer glow that follows the rotating border */
+.marketing .hero-chat-input::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--hc-angle),
+    transparent 0deg,
+    transparent 55deg,
+    var(--brand) 85deg,
+    transparent 115deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  filter: blur(6px);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.marketing .hero-chat-input:hover {
+  box-shadow: var(--m-shadow-lg);
+}
+
+.marketing .hero-chat-input:focus-within {
+  box-shadow:
+    0 0 0 4px var(--brand-ring),
+    var(--m-shadow-lg);
+}
+
+/* Fallback for browsers without @property support — static subtle border */
+@supports not (background: paint(something)) {
+  .marketing .hero-chat-input {
+    border: 1.5px solid var(--m-hairline-strong);
+    background: var(--m-surface);
+    animation: none;
+  }
+  .marketing .hero-chat-input::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing .hero-chat-input {
+    animation: none;
+  }
+}
+
+/* Cursor-follow spotlight — set via CSS custom properties on mousemove */
+.marketing .spotlight {
+  --spot-color: var(--brand-soft);
+}
+.marketing .spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    320px circle at var(--mx, 50%) var(--my, 50%),
+    var(--spot-color),
+    transparent 40%
+  );
+  opacity: 0;
+  transition: opacity 300ms ease;
+  z-index: 1;
+}
+.marketing .spotlight:hover::before {
+  opacity: 1;
+}
+/* Subtle halo variant for liquid-glass cards — dark tint on light, white on dark */
+.marketing .spotlight-white {
+  --spot-color: rgba(0, 0, 0, 0.04);
+}
+.dark .marketing .spotlight-white {
+  --spot-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Marquee — infinite horizontal scroll */
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marketing .marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-x 40s linear infinite;
+}
+.marketing .marquee-slow {
+  animation-duration: 60s;
+}
+.marketing .marquee-paused:hover .marquee {
+  animation-play-state: paused;
+}
+
+/* Display button — Resend-style translucent w/ hover invert + glow */
+.marketing .btn-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--btn-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background-color 200ms ease, color 200ms ease, box-shadow 250ms ease, transform 150ms ease;
+}
+.marketing .btn-display:not(.btn-display-ghost):hover {
+  background-color: var(--btn-bg-hover);
+  color: var(--btn-text-hover);
+  box-shadow: var(--btn-glow-hover);
+}
+.marketing .btn-display:active {
+  transform: scale(0.97);
+}
+.marketing .btn-display-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--m-text);
+  border: 1px solid var(--m-hairline-strong);
+  transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
+  cursor: pointer;
+}
+.marketing .btn-display-ghost:hover {
+  transform: translateY(-1px);
+  border-color: var(--m-text);
+  background: var(--m-surface-elevated);
+}
+
+/* Dark band — localised dark-mode surface with proper tonal hierarchy */
+.marketing .dark-band {
+  background: #0a0a0a;
+  --m-surface: #0a0a0a;              /* page bg */
+  --m-tile-bg: #161616;              /* elevated card surface */
+  --m-tile-bg-hover: #1c1c1c;        /* card hover */
+  --m-surface-elevated: #262626;     /* inner elements sitting ON cards */
+  --m-text: #f5f5f4;
+  --m-text-secondary: #b0b0b0;
+  --m-text-muted: #8a8a8a;
+  --m-hairline: rgba(255, 255, 255, 0.10);
+  --m-hairline-strong: rgba(255, 255, 255, 0.18);
+  --text-primary: #f5f5f4;
+  --text-secondary: #b0b0b0;
+  --text-muted: #8a8a8a;
+  --border-color: rgba(255, 255, 255, 0.10);
+  --card-bg: #161616;
+  --bg-secondary: #161616;
+  --bg-tertiary: #262626;
+  --brand: #14b58e;
+  --brand-strong: #10a37f;
+  --brand-soft: rgba(20, 181, 142, 0.14);
+  --brand-ring: rgba(20, 181, 142, 0.32);
+  color: var(--m-text);
+}
+
+/* Dark-band card override — elevated surface, faked top light, separation shadow */
+.marketing .dark-band .bento-tile {
+  background: var(--m-tile-bg);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px 0 rgba(0, 0, 0, 0.5),
+    0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  transition: background 250ms ease, border-color 250ms ease, transform 250ms ease;
+}
+.marketing .dark-band .bento-tile:hover {
+  background: var(--m-tile-bg-hover);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+/* Subtle top-edge gradient highlight on dark cards (fake ambient light from above) */
+.marketing .dark-band .bento-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 30%
+  );
+}
+
+/* Hairline helpers inside dark cards need to sit above the ::after overlay */
+.marketing .dark-band .bento-tile > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Flow line — green glowing line with beam traveling left to right, clipped at bounds */
+.marketing .flow-line {
+  position: relative;
+  height: 2px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--brand-ring) 18%,
+    var(--brand-ring) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px var(--brand-soft);
+}
+.marketing .flow-line::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--brand) 50%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 6px var(--brand),
+    0 0 14px var(--brand-ring);
+  border-radius: 9999px;
+  animation: flow-x 2.6s linear infinite;
+}
+@keyframes flow-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.marketing .flow-line-v {
+  position: relative;
+  width: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--brand-ring) 15%,
+    var(--brand-ring) 85%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 8px var(--brand-ring),
+    0 0 20px var(--brand-soft);
+  overflow: visible;
+}
+.marketing .flow-line-v::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -55%;
+  width: calc(100% + 2px);
+  height: 55%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--brand) 50%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 14px var(--brand),
+    0 0 28px var(--brand-ring);
+  border-radius: 9999px;
+  animation: flow-y 2.6s linear infinite;
+}
+@keyframes flow-y {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(290%);
+  }
+}
+
+/* Reduced motion — respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  .marketing .marquee,
+  .marketing .spotlight::before,
+  .marketing .flow-line::after,
+  .marketing .flow-line-v::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Noise texture overlay for cards (Diem-style) */

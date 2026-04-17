@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     const title = (data.title as string) || slug;
     const description = (data.description as string) || "";
+    const section = (data.section as string) || "docs";
     const category = (data.category as string) || "getting-started";
     const type = (data.type as string) || "article";
     const readTime = (data.readTime as string) || null;
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
         slug,
         title,
         description,
+        section,
         category,
         type,
         readTime,
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       update: {
         title,
         description,
+        section,
         category,
         type,
         readTime,

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email: user.email,
       name: user.name || undefined,
-      redirectUrl: `${baseUrl}/connect-analytics?payment=success`,
+      redirectUrl: `${baseUrl}/`,
     });
 
     return NextResponse.json({ checkout_url: checkoutUrl });

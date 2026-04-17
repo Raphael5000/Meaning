@@ -19,10 +19,7 @@ export default function Home() {
           window.location.href = "/pricing";
           return;
         }
-        if (!data.gaConnected) {
-          window.location.href = "/connect-analytics";
-          return;
-        }
+        // Users can connect sources from within the chat — no redirect needed
         setOnboarded(true);
       })
       .catch(() => {

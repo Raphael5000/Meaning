@@ -3,20 +3,31 @@ import Image from "next/image";
 
 const columns = [
   {
-    title: "Features",
+    title: "Product",
     links: [
-      { label: "Natural Language Queries", href: "/features/natural-language" },
-      { label: "Real-time Analytics", href: "/features/real-time-analytics" },
-      { label: "Email Alerts", href: "/features/email-alerts" },
-      { label: "Team Collaboration", href: "/features/team-collaboration" },
-      { label: "Rich Visualizations", href: "/features/visualizations" },
-      { label: "Automated Reports", href: "/features/automated-reports" },
+      { label: "Chat", href: "/features/natural-language" },
+      { label: "Dashboards", href: "/features/dashboards" },
+      { label: "Alerts", href: "/features/email-alerts" },
+      { label: "Connectors", href: "/features/connectors" },
+      { label: "AI Insights", href: "/features/ai-insights" },
+      { label: "Teams", href: "/features/team-collaboration" },
+      { label: "Visualizations", href: "/features/visualizations" },
+      { label: "Real-time analytics", href: "/features/real-time-analytics" },
+    ],
+  },
+  {
+    title: "Compare",
+    links: [
+      { label: "Meaning vs Looker Studio", href: "/compare/looker-studio" },
+      { label: "Meaning vs Supermetrics", href: "/compare/supermetrics" },
+      { label: "Meaning vs PostHog", href: "/compare/posthog" },
     ],
   },
   {
     title: "Resources",
     links: [
       { label: "Documentation", href: "/docs" },
+      { label: "Blog", href: "/blog" },
       { label: "Pricing", href: "/pricing" },
     ],
   },
@@ -32,10 +43,7 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer
-      className="relative z-10 px-6 py-16 md:px-12"
-      style={{ borderTop: "1px solid var(--border-color)" }}
-    >
+    <footer className="hairline-t relative z-10 px-6 py-16 md:px-12">
       <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-[1fr_auto]">
         {/* Left column — brand */}
         <div className="flex flex-col items-start gap-6">
@@ -46,26 +54,19 @@ export function Footer() {
             height={40}
             className="h-7 w-auto invert dark:invert-0"
           />
-          <p
-            className="max-w-xs text-sm leading-relaxed"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Chat with your Google Analytics data in plain English. Instant
-            insights, no dashboards needed.
+          <p className="max-w-xs text-sm leading-relaxed text-[color:var(--m-text-muted)]">
+            The AI analyst for your marketing stack. Ask anything across GA4,
+            Google Ads, LinkedIn, Mailchimp, and more — in plain English.
           </p>
           <div className="flex items-center gap-2">
-            <span
-              className="text-sm"
-              style={{ color: "var(--text-muted)" }}
-            >
+            <span className="text-sm text-[color:var(--m-text-muted)]">
               Built by
             </span>
             <a
               href="https://www.hivory.io"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium transition-opacity hover:opacity-80"
-              style={{ color: "var(--text-secondary)" }}
+              className="text-sm font-medium text-[color:var(--m-text-secondary)] transition-opacity hover:opacity-80"
             >
               Hivory
             </a>
@@ -73,22 +74,16 @@ export function Footer() {
         </div>
 
         {/* Right columns — links */}
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
           {columns.map((col) => (
             <div key={col.title}>
-              <p
-                className="mb-4 text-sm font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {col.title}
-              </p>
+              <p className="mono-label mb-4">{col.title}</p>
               <ul className="flex flex-col gap-3">
                 {col.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm transition-colors hover:opacity-80"
-                      style={{ color: "var(--text-muted)" }}
+                      className="text-sm text-[color:var(--m-text-muted)] transition-colors hover:opacity-80"
                     >
                       {link.label}
                     </Link>
@@ -103,15 +98,12 @@ export function Footer() {
       {/* Bottom bar */}
       <div
         className="mx-auto mt-12 flex max-w-6xl flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row"
-        style={{ borderColor: "var(--border-color)" }}
+        style={{ borderColor: "var(--m-hairline)" }}
       >
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs text-[color:var(--m-text-muted)]">
           &copy; {new Date().getFullYear()} Meaning. All rights reserved.
         </p>
-        <div
-          className="flex items-center gap-6 text-xs"
-          style={{ color: "var(--text-muted)" }}
-        >
+        <div className="flex items-center gap-6 text-xs text-[color:var(--m-text-muted)]">
           <Link href="/privacy" className="transition-opacity hover:opacity-80">
             Privacy Policy
           </Link>

@@ -1,13 +1,25 @@
 import type { Metadata } from "next";
-import { Martel } from "next/font/google";
+import { Martel, Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const martel = Martel({
   subsets: ["latin"],
-  weight: ["400"],
+  weight: ["200", "300", "400"],
   variable: "--font-martel",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -23,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={martel.variable}>
+    <html lang="en" suppressHydrationWarning className={`${martel.variable} ${inter.variable} ${mono.variable}`}>
       <head>
         {/* Prevent flash of wrong theme */}
         <script

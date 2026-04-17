@@ -32,8 +32,6 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
     };
 
     updateActiveId();
-    // Listen on document with capture to catch scroll events from any
-    // scrolling container (body, html, or nested elements).
     window.addEventListener("scroll", updateActiveId, { passive: true });
     document.addEventListener("scroll", updateActiveId, { passive: true, capture: true });
 
@@ -52,25 +50,32 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
   if (headings.length === 0) return null;
 
   return (
-    <nav
-      className="flex flex-col"
-      aria-label="Table of contents"
-    >
+    <nav className="flex flex-col" aria-label="Table of contents">
       <p
-        className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider"
-        style={{ color: "var(--text-muted)" }}
+        className="mb-3 flex items-center gap-2 text-xs font-medium"
+        style={{ color: "var(--m-text-muted)" }}
       >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
         On this page
       </p>
       <ul className="flex flex-col gap-0.5">
-        {headings.map(({ id, text }) => (
+        {headings.map(({ id, text, level }) => (
           <li key={id}>
             <a
               href={`#${id}`}
               onClick={(e) => handleClick(e, id)}
-              className="block rounded-lg px-3 py-2 text-sm transition-colors"
+              className="block py-1 text-sm transition-colors"
               style={{
-                color: activeId === id ? "var(--accent)" : "var(--text-secondary)",
+                paddingLeft: level === 3 ? "0.75rem" : undefined,
+                color: activeId === id ? "var(--m-text)" : "var(--m-text-muted)",
+                fontWeight: activeId === id ? 500 : 400,
               }}
             >
               {text}

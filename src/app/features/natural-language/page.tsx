@@ -1,432 +1,360 @@
 "use client";
 
-import { Navbar } from "@/components/Navbar";
-import { FadeInSection } from "@/components/FadeInSection";
-import { CtaSection } from "@/components/CtaSection";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { FeaturePageLayout } from "@/components/marketing/FeaturePageLayout";
+import { MarketingSection } from "@/components/marketing/MarketingSection";
+import { FeatureSplit } from "@/components/marketing/FeatureSplit";
+import { FeatureCard } from "@/components/marketing/FeatureCard";
+import { Reveal } from "@/components/marketing/system/Reveal";
 import {
   MessageSquare,
   Search,
-  Sparkles,
-  ArrowRight,
-  Globe,
   Zap,
+  Layers,
+  GitBranch,
+  Languages,
+  ShieldCheck,
+  Compass,
+  Repeat,
 } from "lucide-react";
+
+function spotMove(e: React.MouseEvent<HTMLDivElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+}
+
+const EXAMPLES = [
+  {
+    category: "Acquisition",
+    q: "What were my top 5 traffic sources last month and how did they convert?",
+  },
+  {
+    category: "Paid",
+    q: "Compare Google Ads and LinkedIn ROAS week over week for the last 8 weeks.",
+  },
+  {
+    category: "Email",
+    q: "Which Mailchimp campaign had the highest click-through rate this quarter?",
+  },
+  {
+    category: "SEO",
+    q: "What queries in Search Console have high impressions but CTR below 2%?",
+  },
+  {
+    category: "Funnel",
+    q: "Drop-off rate at each step of my signup funnel on mobile vs desktop.",
+  },
+  {
+    category: "Retention",
+    q: "Weekly returning user rate for users acquired in January.",
+  },
+  {
+    category: "Revenue",
+    q: "Revenue by channel in GBP for Q1, converted from source currency.",
+  },
+  {
+    category: "Cohorts",
+    q: "LTV after 30 days for users from paid social vs organic.",
+  },
+  {
+    category: "Anomalies",
+    q: "Which campaigns had CPC spike more than 25% this week?",
+  },
+];
+
+function ChatMockFull() {
+  return (
+    <div className="liquid-glass relative overflow-hidden rounded-2xl">
+      <span className="liquid-glass-shimmer" aria-hidden />
+      <div
+        className="flex items-center gap-2 px-4 py-3"
+        style={{ borderBottom: "1px solid var(--m-hairline)" }}
+      >
+        <div className="flex gap-1.5">
+          <div className="h-3 w-3 rounded-full bg-red-500 opacity-70" />
+          <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-70" />
+          <div className="h-3 w-3 rounded-full bg-green-500 opacity-70" />
+        </div>
+        <span className="ml-2 text-xs" style={{ color: "var(--m-text-muted)" }}>
+          Meaning · chat
+        </span>
+      </div>
+      <div className="flex flex-col gap-5 p-6">
+        <div className="flex justify-end">
+          <div
+            className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm"
+            style={{ background: "var(--user-bubble)", color: "var(--m-text)" }}
+          >
+            What were my top paid channels by ROAS last month?
+          </div>
+        </div>
+        <div className="w-full text-sm" style={{ color: "var(--m-text-secondary)", lineHeight: "1.7" }}>
+          <p className="mb-2" style={{ color: "var(--m-text)" }}>
+            Across Google Ads, Microsoft Ads, and LinkedIn, here's how each paid channel performed in March:
+          </p>
+          <div
+            className="overflow-hidden rounded-lg text-left text-xs"
+            style={{ border: "1px solid var(--m-hairline)" }}
+          >
+            <table className="w-full">
+              <thead>
+                <tr style={{ background: "var(--m-surface-elevated)" }}>
+                  <th className="px-3 py-2 text-left font-semibold" style={{ color: "var(--m-text)" }}>Channel</th>
+                  <th className="px-3 py-2 text-right font-semibold" style={{ color: "var(--m-text)" }}>Spend</th>
+                  <th className="px-3 py-2 text-right font-semibold" style={{ color: "var(--m-text)" }}>Revenue</th>
+                  <th className="px-3 py-2 text-right font-semibold" style={{ color: "var(--m-text)" }}>ROAS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Google Ads", "$12,400", "$52,080", "4.2×"],
+                  ["Microsoft Ads", "$3,100", "$10,850", "3.5×"],
+                  ["LinkedIn", "$8,200", "$17,220", "2.1×"],
+                ].map((r, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid var(--m-hairline)" }}>
+                    {r.map((c, j) => (
+                      <td
+                        key={j}
+                        className={`px-3 py-2 ${j === 0 ? "" : "text-right"}`}
+                        style={{ color: j === 0 ? "var(--brand)" : "var(--m-text)" }}
+                      >
+                        {c}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs" style={{ color: "var(--m-text-muted)" }}>
+            Google Ads delivered the highest return. LinkedIn spend is up 12% vs February but ROAS dropped — worth a creative refresh.
+          </p>
+        </div>
+        <div className="flex justify-end">
+          <div
+            className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm"
+            style={{ background: "var(--user-bubble)", color: "var(--m-text)" }}
+          >
+            Break LinkedIn down by campaign.
+          </div>
+        </div>
+        <div className="w-full text-sm" style={{ color: "var(--m-text-secondary)" }}>
+          <p style={{ color: "var(--m-text)" }}>
+            Here are the LinkedIn campaigns for March, ranked by spend…
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const STEPS = [
+  {
+    icon: <Compass className="h-5 w-5" />,
+    title: "1. Understands intent",
+    desc: "Meaning parses your question and figures out which connector, metric, and time range you mean.",
+  },
+  {
+    icon: <GitBranch className="h-5 w-5" />,
+    title: "2. Routes to the right source",
+    desc: "GA4, Google Ads, LinkedIn, Mailchimp — Meaning picks the data source automatically and queries it directly.",
+  },
+  {
+    icon: <Layers className="h-5 w-5" />,
+    title: "3. Joins across platforms",
+    desc: "When a question spans multiple sources, Meaning combines them in the answer — not in a spreadsheet later.",
+  },
+  {
+    icon: <Zap className="h-5 w-5" />,
+    title: "4. Renders the answer",
+    desc: "A chart, a table, and a plain-English summary arrive together. No dashboard configuration needed.",
+  },
+];
 
 export default function NaturalLanguagePage() {
   return (
-    <div
-      className="relative min-h-screen"
-      style={{ background: "var(--page-bg)" }}
+    <FeaturePageLayout
+      eyebrow="Chat"
+      title="Your analytics, in plain English."
+      subtitle="Type a question the way you'd ask a teammate. Meaning picks the right data source, runs the query, and returns an answer with the right chart attached — across every connector you've linked."
+      heroVisual={<ChatMockFull />}
+      faqs={[
+        {
+          question: "What languages are supported?",
+          answer:
+            "Meaning accepts questions in English today. Multilingual support is on the roadmap — get in touch if another language is important to you.",
+        },
+        {
+          question: "Can I ask follow-up questions?",
+          answer:
+            "Yes. Every chat keeps full context. Refine, compare, drill down, or change the time range without restating the original question.",
+        },
+        {
+          question: "Can a single question span multiple data sources?",
+          answer:
+            "Yes. Ask 'compare Google Ads spend to Mailchimp revenue' and Meaning will query both sources, join them, and return a single answer.",
+        },
+        {
+          question: "What happens if Meaning can't answer?",
+          answer:
+            "It tells you. If the required data isn't available — for example a connector isn't linked — Meaning says so explicitly instead of making anything up. Accuracy is the top priority.",
+        },
+        {
+          question: "Does it understand metric definitions?",
+          answer:
+            "Yes. Meaning knows the difference between sessions and users, CPA and CPC, open rate and CTR, and how each source defines them. Ask for a definition any time.",
+        },
+        {
+          question: "Can I save or share a chat?",
+          answer:
+            "You can pin any answer to a dashboard, or turn it into a scheduled email alert so the same question runs on a cadence.",
+        },
+      ]}
     >
-      {/* Background orbs */}
-      <div
-        className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
-        aria-hidden
-      >
-        <div
-          className="absolute left-1/4 h-[500px] w-[500px] rounded-full opacity-[0.10] blur-3xl"
-          style={{ top: "5%", background: "var(--accent)" }}
-        />
-        <div
-          className="absolute right-1/4 h-96 w-96 rounded-full opacity-[0.06] blur-3xl"
-          style={{ top: "35%", background: "#6366f1" }}
-        />
-        <div
-          className="absolute left-1/3 h-80 w-80 rounded-full opacity-[0.08] blur-3xl"
-          style={{ top: "65%", background: "var(--accent)" }}
-        />
-        <div
-          className="absolute right-1/3 h-72 w-72 rounded-full opacity-[0.06] blur-3xl"
-          style={{ top: "85%", background: "#6366f1" }}
-        />
-      </div>
-
-      <Navbar />
-
-      {/* ── HERO ── */}
-      <section className="relative z-10 flex min-h-[70vh] flex-col items-center justify-center px-6 py-24 text-center md:px-12">
-        <FadeInSection>
-          <div
-            className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium"
-            style={{
-              background: "rgba(16, 163, 127, 0.1)",
-              border: "1px solid rgba(16, 163, 127, 0.3)",
-              color: "var(--accent)",
-            }}
-          >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: "var(--accent)" }}
+      {/* Why it matters */}
+      <MarketingSection center maxWidth="5xl" heading="Built for how marketers actually work">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Reveal>
+            <FeatureCard
+              icon={<Search className="h-6 w-6" />}
+              title="No query languages"
+              description="No SQL, no GA4 dimension/metric memorisation, no report builders. Just ask the question."
             />
-            Core Feature
-          </div>
-        </FadeInSection>
+          </Reveal>
+          <Reveal delay={0.06}>
+            <FeatureCard
+              icon={<MessageSquare className="h-6 w-6" />}
+              title="Context-aware chat"
+              description="Follow-up questions remember filters, time ranges, and previous answers — like talking to a real analyst."
+            />
+          </Reveal>
+          <Reveal delay={0.12}>
+            <FeatureCard
+              icon={<Zap className="h-6 w-6" />}
+              title="Answer in seconds"
+              description="Meaning routes, queries, summarises, and charts in one pass. No waiting on a report to regenerate."
+            />
+          </Reveal>
+        </div>
+      </MarketingSection>
 
-        <FadeInSection delay={100}>
-          <h1
-            className="mx-auto mb-6 max-w-4xl text-4xl leading-tight md:text-6xl"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Ask{" "}
-            <span style={{ color: "var(--accent)" }}>anything</span> about
-            your data
-          </h1>
-        </FadeInSection>
-
-        <FadeInSection delay={200}>
-          <p
-            className="mx-auto mb-10 max-w-2xl text-lg md:text-xl"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Ask questions in plain English and get instant answers. No SQL, no
-            complex dashboards, no learning curve. Just you and your data,
-            talking naturally.
-          </p>
-        </FadeInSection>
-
-        <FadeInSection delay={300}>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href="/signup">
-              <Button className="rounded-full px-8 py-3 text-base font-semibold">
-                Get started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-sm font-medium transition-opacity hover:opacity-80"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              View pricing
-            </Link>
-          </div>
-        </FadeInSection>
-      </section>
-
-      {/* ── DEMO SECTION ── */}
-      <section className="relative z-10 px-6 py-24 md:px-12">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-          {/* Text */}
-          <FadeInSection>
-            <div>
-              <h2
-                className="mb-4 text-3xl md:text-4xl"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Just type your question
-              </h2>
-              <p
-                className="mb-6 text-lg leading-relaxed"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Meaning gives you a conversational interface to your Google
-                Analytics data. Type a question the way you would ask a
-                colleague, and get a clear, data-backed answer in seconds.
-              </p>
-              <p
-                className="text-base leading-relaxed"
-                style={{ color: "var(--text-muted)" }}
-              >
-                No training required. No complicated filters. If you can
-                describe what you want to know, Meaning can answer it.
-              </p>
-            </div>
-          </FadeInSection>
-
-          {/* Mock chat UI */}
-          <FadeInSection delay={200}>
-            <div
-              className="relative overflow-hidden rounded-2xl p-6"
-              style={{
-                background: "var(--card-bg)",
-                border: "1px solid var(--border-color)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div className="card-noise" aria-hidden />
-              <div className="relative z-10 flex flex-col gap-4">
-                {/* Chat header */}
-                <div className="flex items-center gap-2 pb-3" style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <MessageSquare className="h-4 w-4" style={{ color: "var(--accent)" }} />
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    Meaning Chat
-                  </span>
-                  <span
-                    className="ml-auto inline-block h-2 w-2 rounded-full"
-                    style={{ background: "var(--accent)" }}
-                  />
-                </div>
-
-                {/* User message */}
-                <div className="flex justify-end">
+      {/* How it works */}
+      <MarketingSection center maxWidth="5xl" heading="From question to answer in four steps">
+        <div className="grid gap-6 md:grid-cols-2">
+          {STEPS.map((s, i) => (
+            <Reveal key={s.title} delay={i * 0.06}>
+              <div className="liquid-glass relative h-full overflow-hidden rounded-2xl p-6">
+                <div className="relative z-10">
                   <div
-                    className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
+                    style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
                   >
-                    What were my top pages last week?
+                    {s.icon}
                   </div>
-                </div>
-
-                {/* AI response */}
-                <div className="flex justify-start">
-                  <div
-                    className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed"
-                    style={{
-                      background: "var(--card-bg)",
-                      border: "1px solid var(--border-color)",
-                      borderLeft: "3px solid var(--accent)",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    <p className="mb-2">
-                      Here are your <strong style={{ color: "var(--text-primary)" }}>top 5 pages</strong> from the past 7 days:
-                    </p>
-                    <ol className="mb-2 flex flex-col gap-1 pl-4 text-xs" style={{ color: "var(--text-muted)" }}>
-                      <li>1. /blog/analytics-tips — <span style={{ color: "var(--accent)" }}>2,841 views</span></li>
-                      <li>2. /pricing — <span style={{ color: "var(--accent)" }}>1,923 views</span></li>
-                      <li>3. /features — <span style={{ color: "var(--accent)" }}>1,547 views</span></li>
-                      <li>4. /blog/seo-guide — <span style={{ color: "var(--accent)" }}>1,210 views</span></li>
-                      <li>5. /home — <span style={{ color: "var(--accent)" }}>1,089 views</span></li>
-                    </ol>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      Your blog content is driving the most traffic. Want me to break this down by traffic source?
-                    </p>
-                  </div>
-                </div>
-
-                {/* Typing indicator */}
-                <div className="flex items-center gap-1.5 pl-1">
-                  <div
-                    className="h-1.5 w-1.5 animate-pulse rounded-full"
-                    style={{ background: "var(--accent)", animationDelay: "0ms" }}
-                  />
-                  <div
-                    className="h-1.5 w-1.5 animate-pulse rounded-full"
-                    style={{ background: "var(--accent)", animationDelay: "150ms" }}
-                  />
-                  <div
-                    className="h-1.5 w-1.5 animate-pulse rounded-full"
-                    style={{ background: "var(--accent)", animationDelay: "300ms" }}
-                  />
+                  <h3 className="mb-2 text-lg font-semibold" style={{ color: "var(--m-text)" }}>
+                    {s.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--m-text-secondary)" }}>
+                    {s.desc}
+                  </p>
                 </div>
               </div>
-            </div>
-          </FadeInSection>
+            </Reveal>
+          ))}
         </div>
-      </section>
+      </MarketingSection>
 
-      {/* ── CAPABILITIES SECTION ── */}
-      <section className="relative z-10 px-6 py-24 md:px-12">
-        <div className="mx-auto max-w-6xl">
-          <FadeInSection>
-            <div className="mb-16 text-center">
-              <h2
-                className="mb-4 text-3xl md:text-4xl"
-                style={{ color: "var(--text-primary)" }}
+      {/* Example questions grid */}
+      <MarketingSection center maxWidth="6xl" heading="What you can ask" subhead="Real questions marketers bring to Meaning every day.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {EXAMPLES.map((e, i) => (
+            <Reveal key={e.q} delay={i * 0.03}>
+              <div
+                className="liquid-glass spotlight relative flex h-full flex-col gap-2 rounded-xl p-4 text-left"
+                onMouseMove={spotMove}
               >
-                Understands what you mean
-              </h2>
-              <p
-                className="mx-auto max-w-2xl text-lg"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                From simple metrics to complex comparisons, Meaning parses your
-                intent and delivers exactly the data you need.
-              </p>
-            </div>
-          </FadeInSection>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                icon: Search,
-                title: "Any Metric",
-                description:
-                  "Ask about sessions, users, bounce rate, conversions, page views, and any other GA4 metric.",
-              },
-              {
-                icon: Sparkles,
-                title: "Date Ranges",
-                description:
-                  'Natural date parsing understands "last Tuesday", "past 90 days", "Q3 2025", and everything in between.',
-              },
-              {
-                icon: Zap,
-                title: "Comparisons",
-                description:
-                  '"Compare this month vs last month" or "How did traffic change year over year?" — answered instantly.',
-              },
-              {
-                icon: Globe,
-                title: "Segmentation",
-                description:
-                  "Break down results by device, country, traffic source, landing page, or any available dimension.",
-              },
-              {
-                icon: MessageSquare,
-                title: "Multi-property",
-                description:
-                  "Query across multiple GA4 properties at once. Compare sites, roll up data, or deep-dive into one.",
-              },
-              {
-                icon: ArrowRight,
-                title: "Follow-ups",
-                description:
-                  'Refine your questions naturally. Say "Now filter to mobile only" or "Show me just organic" to drill down.',
-              },
-            ].map((item, i) => (
-              <FadeInSection key={item.title} delay={i * 100} className="h-full">
-                <div
-                  className="relative h-full overflow-hidden rounded-2xl p-6"
-                  style={{
-                    background: "var(--card-bg)",
-                    border: "1px solid var(--border-color)",
-                    boxShadow: "var(--shadow-card)",
-                  }}
+                <span
+                  className="inline-block w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                  style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
                 >
-                  <div className="card-noise" aria-hidden />
-                  <div className="relative z-10">
-                    <div
-                      className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl"
-                      style={{
-                        background: "rgba(16, 163, 127, 0.1)",
-                        border: "1px solid rgba(16, 163, 127, 0.2)",
-                      }}
-                    >
-                      <item.icon
-                        className="h-5 w-5"
-                        style={{ color: "var(--accent)" }}
-                      />
-                    </div>
-                    <h3
-                      className="mb-2 text-lg font-semibold"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {item.title}
-                    </h3>
-                    <p
-                      className="text-sm leading-relaxed"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-              </FadeInSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── EXAMPLE QUERIES SECTION ── */}
-      <section className="relative z-10 px-6 py-24 md:px-12">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-          {/* Visual — example queries list */}
-          <FadeInSection>
-            <div
-              className="relative overflow-hidden rounded-2xl p-6"
-              style={{
-                background: "var(--card-bg)",
-                border: "1px solid var(--border-color)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div className="card-noise" aria-hidden />
-              <div className="relative z-10 flex flex-col gap-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <Search className="h-4 w-4" style={{ color: "var(--accent)" }} />
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    Try asking...
-                  </span>
-                </div>
-                {[
-                  "What's my bounce rate on mobile?",
-                  "Show me traffic from Google Ads last quarter",
-                  "Which landing pages convert best?",
-                  "Compare organic vs paid traffic this year",
-                  "What country drives the most revenue?",
-                  "How did signups change after the redesign?",
-                ].map((query, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors"
-                    style={{
-                      background:
-                        i % 2 === 0
-                          ? "rgba(16, 163, 127, 0.04)"
-                          : "transparent",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <MessageSquare
-                      className="h-4 w-4 shrink-0"
-                      style={{ color: "var(--accent)" }}
-                    />
-                    <span
-                      className="text-sm"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {query}
-                    </span>
-                  </div>
-                ))}
+                  {e.category}
+                </span>
+                <p className="text-sm" style={{ color: "var(--m-text)" }}>
+                  &quot;{e.q}&quot;
+                </p>
               </div>
-            </div>
-          </FadeInSection>
-
-          {/* Text */}
-          <FadeInSection delay={200}>
-            <div>
-              <h2
-                className="mb-4 text-3xl md:text-4xl"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Ask the questions that matter
-              </h2>
-              <p
-                className="mb-6 text-lg leading-relaxed"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Stop clicking through reports trying to find the right filter
-                combination. Just describe what you want to know, and Meaning
-                delivers a clear, actionable answer.
-              </p>
-              <p
-                className="mb-8 text-base leading-relaxed"
-                style={{ color: "var(--text-muted)" }}
-              >
-                From high-level performance overviews to granular breakdowns by
-                device, geography, or campaign — every question gets a precise
-                response backed by your real GA4 data.
-              </p>
-              <Link href="/signup">
-                <Button className="rounded-full px-8 py-3 text-base font-semibold">
-                  Try it now
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </FadeInSection>
+            </Reveal>
+          ))}
         </div>
-      </section>
+      </MarketingSection>
 
-      <FadeInSection>
-        <CtaSection
-          heading="Ready to talk to your data?"
-          description="Start asking questions in plain English and uncover insights you never knew were there."
-        />
-      </FadeInSection>
+      {/* Cross-platform split */}
+      <MarketingSection>
+        <Reveal>
+          <FeatureSplit
+            eyebrow="Cross-platform"
+            heading="One question. Every source."
+            subhead="Meaning brings GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console into a single conversation. Ask once, get the full picture — no CSVs, no stitching, no context switching."
+            bullets={[
+              "Join metrics across connectors in a single answer",
+              "Switch freshness and date range mid-conversation",
+              "Keep full chat history for every question asked",
+            ]}
+            visual={
+              <div className="liquid-glass relative overflow-hidden rounded-2xl p-6">
+                <span className="liquid-glass-shimmer" aria-hidden />
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--m-text-muted)" }}>
+                  Sources used
+                </p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { src: "Google Ads", rows: "1,204" },
+                    { src: "LinkedIn", rows: "412" },
+                    { src: "Mailchimp", rows: "88" },
+                    { src: "GA4 (BigQuery)", rows: "18,204" },
+                  ].map((r) => (
+                    <div
+                      key={r.src}
+                      className="flex items-center justify-between rounded-lg px-3 py-2"
+                      style={{ background: "var(--m-surface-elevated)", border: "1px solid var(--m-hairline)" }}
+                    >
+                      <span className="text-sm" style={{ color: "var(--m-text)" }}>{r.src}</span>
+                      <span className="text-xs" style={{ color: "var(--m-text-muted)" }}>{r.rows} rows scanned</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }
+          />
+        </Reveal>
+      </MarketingSection>
 
-      <Footer />
-    </div>
+      {/* Accuracy guardrails */}
+      <MarketingSection center maxWidth="5xl" heading="Accuracy over fluency" subhead="Meaning is built to refuse rather than invent. Here's what that means in practice.">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Reveal>
+            <FeatureCard
+              icon={<ShieldCheck className="h-6 w-6" />}
+              title="Never fabricates numbers"
+              description="Every value in an answer comes from a real query. If a number isn't available, Meaning says so."
+            />
+          </Reveal>
+          <Reveal delay={0.06}>
+            <FeatureCard
+              icon={<Repeat className="h-6 w-6" />}
+              title="Reproducible queries"
+              description="Ask the same question twice, get the same answer. The underlying query is deterministic."
+            />
+          </Reveal>
+          <Reveal delay={0.12}>
+            <FeatureCard
+              icon={<Languages className="h-6 w-6" />}
+              title="Definition-aware"
+              description="Meaning knows how each source defines sessions, conversions, and revenue — no silent inconsistencies."
+            />
+          </Reveal>
+        </div>
+      </MarketingSection>
+    </FeaturePageLayout>
   );
 }

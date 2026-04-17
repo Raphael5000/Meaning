@@ -28,6 +28,7 @@ import AccountPanel from "./AccountPanel";
 import TeamPanel from "./TeamPanel";
 import DashboardListPanel from "./DashboardListPanel";
 import DashboardPanel from "./DashboardPanel";
+import { OnboardingGuide } from "./OnboardingGuide";
 import {
   fetchChats,
   createChat,
@@ -167,6 +168,8 @@ export default function Chat() {
       .then((data) => {
         if (data?.teamMembership) {
           setUserPlan("Team");
+        } else if (data?.subscription?.status === "trialing") {
+          setUserPlan("Free Trial");
         } else if (data?.subscription?.status === "active" && data?.subscription?.plan) {
           const plan = data.subscription.plan;
           setUserPlan(plan.charAt(0).toUpperCase() + plan.slice(1));
@@ -407,11 +410,27 @@ export default function Chat() {
 
   const sortedChats = [...chats].sort((a, b) => b.createdAt - a.createdAt);
 
+  // Show onboarding guide for new users who haven't completed it
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (!session?.user) return;
+    try {
+      if (localStorage.getItem("meaning-onboarding-done")) return;
+    } catch {}
+    // Small delay so the sidebar renders first
+    const timer = setTimeout(() => setShowOnboarding(true), 800);
+    return () => clearTimeout(timer);
+  }, [session?.user]);
+
   return (
     <div
       className="flex h-screen"
       style={{ background: "var(--bg-primary)" }}
     >
+      <OnboardingGuide
+        show={showOnboarding}
+        onComplete={() => setShowOnboarding(false)}
+      />
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
@@ -435,6 +454,7 @@ export default function Chat() {
         {/* Account selector — hidden when collapsed */}
         {sidebarOpen && (
           <div className="pl-3 pr-4 pt-4">
+            <div data-onboarding="team-selector">
             <AccountSelector
               activeOrgId={activeOrgId}
               onSelect={(org) => {
@@ -448,6 +468,7 @@ export default function Chat() {
               }}
             />
           </div>
+          </div>
         )}
         {/* Nav buttons */}
         <div className={`space-y-0.5 ${sidebarOpen ? "px-3 py-2 pt-4" : "px-2 py-2 pt-4"}`}>
@@ -456,6 +477,7 @@ export default function Chat() {
             className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
             onClick={handleNewChat}
             title="New chat"
+            data-onboarding="new-chat"
           >
             <SquarePen className="sidebar-icon-write h-4 w-4 shrink-0" />
             {sidebarOpen && <span>New chat</span>}
@@ -476,6 +498,7 @@ export default function Chat() {
             onClick={() => { closeAllPanels(); setDashboardListOpen(true); }}
             aria-label="Dashboards"
             title="Dashboards"
+            data-onboarding="dashboards"
           >
             <LayoutDashboard className="sidebar-icon-dashboard h-4 w-4 shrink-0" />
             {sidebarOpen && <span>Dashboards</span>}
@@ -523,6 +546,7 @@ export default function Chat() {
         {session?.user && (
           <div
             ref={accountMenuRef}
+            data-onboarding="connections"
             className={`relative mt-auto border-t ${sidebarOpen ? "p-3" : "p-2"}`}
             style={{ borderColor: "var(--border-color)" }}
           >
@@ -688,15 +712,52 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
+              {/* Welcome wizard — show when no data sources connected or no org */}
+              {connectedSources.length === 0 ? (
+                <div className="flex max-w-md flex-col items-center text-center">
+                  <div
+                    className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl"
+                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-secondary)" }}>
+                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                      <path d="M2 17l10 5 10-5" />
+                      <path d="M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+                  <h2 className="mb-2 text-xl text-foreground">
+                    Welcome to Meaning
+                  </h2>
+                  <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
+                    {activeOrgId
+                      ? "Connect your first data source to start asking questions about your analytics in plain English."
+                      : "Create a team above, then connect your first data source to get started."}
+                  </p>
+                  {activeOrgId && (
+                    <button
+                      onClick={() => setConnectionsOpen(true)}
+                      className="mb-3 rounded-full px-6 py-2.5 text-sm font-medium transition-colors"
+                      style={{
+                        background: "var(--text-primary)",
+                        color: "var(--bg-primary)",
+                      }}
+                    >
+                      Connect a data source
+                    </button>
+                  )}
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console
+                  </p>
+                </div>
+              ) : (
+              <>
               <h2 className="mb-2 text-xl text-foreground">
                 {activeOrgName
                   ? `Ask about ${activeOrgName}`
                   : "Chat with your Analytics"}
               </h2>
               <p className="mb-8 max-w-md text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-                {activeOrgId
-                  ? "Ask any question about your website analytics in plain English."
-                  : "Select an account above to get started."}
+                Ask any question about your website analytics in plain English.
               </p>
 
               {activeOrgId && (
@@ -712,6 +773,8 @@ export default function Chat() {
                     </button>
                   ))}
                 </div>
+              )}
+              </>
               )}
             </div>
           ) : (

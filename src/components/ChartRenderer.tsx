@@ -341,6 +341,69 @@ function applySankeyTheme(
   };
 }
 
+/** Apply Robinhood-style glass gradient to bar series */
+function applyGlassBarStyle(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  series: any[],
+  isDark: boolean,
+  palette: string[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any[] {
+  return series.map((s, idx) => {
+    if (s.type !== "bar") return s;
+    const baseColor = palette[idx % palette.length];
+    // Parse hex to RGB
+    const r = parseInt(baseColor.slice(1, 3), 16);
+    const g = parseInt(baseColor.slice(3, 5), 16);
+    const b = parseInt(baseColor.slice(5, 7), 16);
+    // Brighter tint for left-edge highlight
+    const lr = Math.min(255, r + 60);
+    const lg = Math.min(255, g + 60);
+    const lb = Math.min(255, b + 60);
+    return {
+      ...s,
+      itemStyle: {
+        borderRadius: [4, 4, 0, 0],
+        color: {
+          type: "linear",
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: `rgba(${lr},${lg},${lb},0.9)` },
+            { offset: 0.3, color: `rgba(${r},${g},${b},0.65)` },
+            { offset: 0.6, color: `rgba(${r},${g},${b},0.35)` },
+            { offset: 0.85, color: `rgba(${r},${g},${b},0.1)` },
+            { offset: 1, color: `rgba(${r},${g},${b},0)` },
+          ],
+        },
+        shadowBlur: 12,
+        shadowColor: `rgba(${r},${g},${b},0.2)`,
+        shadowOffsetY: 4,
+        borderColor: `rgba(${lr},${lg},${lb},${isDark ? 0.15 : 0.2})`,
+        borderWidth: 0.5,
+        ...(s.itemStyle as Record<string, unknown> | undefined),
+        borderRadius: (s.itemStyle as Record<string, unknown> | undefined)?.borderRadius ?? [4, 4, 0, 0],
+      },
+      emphasis: {
+        itemStyle: {
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: `rgba(${lr},${lg},${lb},1)` },
+              { offset: 0.35, color: `rgba(${r},${g},${b},0.8)` },
+              { offset: 0.7, color: `rgba(${r},${g},${b},0.4)` },
+              { offset: 1, color: `rgba(${r},${g},${b},0.1)` },
+            ],
+          },
+          shadowBlur: 20,
+          shadowColor: `rgba(${r},${g},${b},0.4)`,
+        },
+        ...(s.emphasis as Record<string, unknown> | undefined),
+      },
+    };
+  });
+}
+
 function applyTheme(
   option: Record<string, unknown>,
   isDark: boolean
@@ -386,6 +449,19 @@ function applyTheme(
     xAxis: applyAxisTheme(option.xAxis, textColor, axisLineColor, splitLineColor),
     yAxis: applyAxisTheme(option.yAxis, textColor, axisLineColor, splitLineColor),
   };
+
+  // Apply glass-bar gradient to bar series
+  const themedSeries = themed.series;
+  if (Array.isArray(themedSeries)) {
+    const hasBar = themedSeries.some((s) => (s as Record<string, unknown>).type === "bar");
+    if (hasBar) {
+      themed.series = applyGlassBarStyle(
+        themedSeries as Record<string, unknown>[],
+        isDark,
+        ACCENT_PALETTE
+      );
+    }
+  }
 
   // Apply special sankey styling on top (with cycle removal)
   if (isSankeyChart(option)) {
