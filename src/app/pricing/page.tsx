@@ -214,7 +214,7 @@ export default function PricingPage() {
                     </button>
 
                     <p className="mt-3 text-center text-xs text-[color:var(--m-text-muted)]">
-                      No credit card required to start. Cancel anytime.
+                      14-day free trial. Cancel anytime.
                     </p>
                   </div>
                 </div>

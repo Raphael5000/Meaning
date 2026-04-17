@@ -3,7 +3,7 @@ import { DisplayHeading } from "@/components/marketing/system/DisplayHeading";
 
 export function MarketingCta({
   heading = "Ready to try Meaning?",
-  subtitle = "Start your 14-day free trial. No credit card required.",
+  subtitle = "Start your 14-day free trial. Cancel anytime.",
   primaryText = "Get started free",
   primaryHref = "/signup",
   secondaryText = "View pricing",

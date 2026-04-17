@@ -119,7 +119,7 @@ const data: ComparisonPageData = {
       details: [
         "Every connector, dashboard, alert, and chat query included",
         "No per-event or per-recording billing",
-        "14-day free trial, no credit card required",
+        "14-day free trial, cancel anytime",
         "Seat-based billing with prorated changes",
       ],
     },

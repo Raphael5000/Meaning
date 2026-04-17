@@ -60,10 +60,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(() => setLoaded(true));
     } else {
-      // Not logged in – use localStorage or default
+      // Not logged in – use localStorage or default to dark (marketing pages)
       const stored = localStorage.getItem("theme") as Theme | null;
       if (stored && ["light", "dark", "system"].includes(stored)) {
         setThemeState(stored);
+      } else {
+        setThemeState("dark");
       }
       setLoaded(true);
     }

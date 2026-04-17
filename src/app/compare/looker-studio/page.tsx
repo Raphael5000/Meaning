@@ -141,7 +141,7 @@ const data: ComparisonPageData = {
       details: [
         "All connectors included — GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console",
         "Unlimited dashboards, alerts, and chat queries",
-        "14-day free trial with no credit card required",
+        "14-day free trial, cancel anytime",
         "Seat-based billing with prorated add/remove",
       ],
     },

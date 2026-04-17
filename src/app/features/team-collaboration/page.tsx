@@ -112,7 +112,7 @@ export default function TeamCollaborationPage() {
         {
           question: "Is there a free trial?",
           answer:
-            "Yes. Every team starts with a 14-day free trial. No credit card required up front.",
+            "Yes. Every team starts with a 14-day free trial. Cancel anytime.",
         },
       ]}
     >

@@ -135,7 +135,7 @@ const data: ComparisonPageData = {
         "Every connector, dashboard, alert, and query included",
         "No extra fees for destinations, sources, or account connections",
         "Unified analytics UI — no other tool required",
-        "14-day free trial with no credit card",
+        "14-day free trial, cancel anytime",
       ],
     },
   },
