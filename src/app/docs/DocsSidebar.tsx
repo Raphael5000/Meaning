@@ -344,17 +344,19 @@ export function DocsSidebar({
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1">
-          {/* Introduction / home link */}
-          <Link
-            href="/docs"
-            className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-            style={{
-              color: pathname === "/docs" ? "var(--m-text)" : "var(--m-text-muted)",
-              background: pathname === "/docs" ? "var(--m-surface-elevated)" : "transparent",
-            }}
-          >
-            Introduction
-          </Link>
+          {/* Introduction link — only show on main docs page, not in section views */}
+          {!currentSection && (
+            <Link
+              href="/docs"
+              className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                color: pathname === "/docs" ? "var(--m-text)" : "var(--m-text-muted)",
+                background: pathname === "/docs" ? "var(--m-surface-elevated)" : "transparent",
+              }}
+            >
+              Introduction
+            </Link>
+          )}
 
           {/* Category sections — flat list when viewing a specific section tab */}
           {grouped.length === 1 && currentSection ? (

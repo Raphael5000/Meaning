@@ -1742,6 +1742,989 @@ function ChartTypesDemo() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Connectors Overview Demo                                           */
+/* ------------------------------------------------------------------ */
+
+const connectorSteps = [
+  {
+    num: 1,
+    label: "Connect",
+    detail: "Authenticate via OAuth",
+  },
+  {
+    num: 2,
+    label: "Select",
+    detail: "Choose your account",
+  },
+  {
+    num: 3,
+    label: "Syncing",
+    detail: "Data flows automatically",
+  },
+];
+
+function ConnectorsOverviewDemo() {
+  const [visibleSteps, setVisibleSteps] = useState(0);
+  const [syncDone, setSyncDone] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState(false);
+  const cycleRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    function runCycle() {
+      setVisibleSteps(0);
+      setSyncDone(false);
+      setSelectedAccount(false);
+
+      // Step 1 appears
+      const t1 = setTimeout(() => setVisibleSteps(1), 400);
+      // Step 2 appears
+      const t2 = setTimeout(() => setVisibleSteps(2), 1600);
+      // Account gets selected
+      const t3 = setTimeout(() => setSelectedAccount(true), 2400);
+      // Step 3 appears
+      const t4 = setTimeout(() => setVisibleSteps(3), 3200);
+      // Sync completes
+      const t5 = setTimeout(() => setSyncDone(true), 4400);
+      // Restart cycle
+      const t6 = setTimeout(() => runCycle(), 6400);
+
+      cycleRef.current = t6;
+      return [t1, t2, t3, t4, t5, t6];
+    }
+
+    const timers = runCycle();
+    return () => {
+      timers.forEach(clearTimeout);
+      if (cycleRef.current) clearTimeout(cycleRef.current);
+    };
+  }, []);
+
+  return (
+    <div style={card}>
+      <div style={label}>Connection Flow</div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
+        {connectorSteps.map((step, i) => (
+          <div
+            key={step.num}
+            style={{
+              flex: "1 1 160px",
+              maxWidth: 220,
+              opacity: visibleSteps > i ? 1 : 0,
+              transform: visibleSteps > i ? "translateY(0)" : "translateY(12px)",
+              transition: "all 0.5s ease",
+              background: "var(--m-surface-elevated)",
+              border: "1px solid var(--border-color)",
+              borderRadius: 12,
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            {/* Numbered circle */}
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: visibleSteps > i ? "var(--accent)" : "var(--m-surface)",
+                color: visibleSteps > i ? "#fff" : "var(--text-muted)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 700,
+                marginBottom: 8,
+                transition: "all 0.4s ease",
+              }}
+            >
+              {step.num}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+              {step.label}
+            </div>
+
+            {/* Step-specific content */}
+            {i === 0 && (
+              <div
+                style={{
+                  marginTop: 8,
+                  background: "var(--m-surface)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 8,
+                  padding: "6px 8px",
+                  fontSize: 11,
+                }}
+              >
+                <div
+                  style={{
+                    background: "var(--accent)",
+                    color: "#fff",
+                    borderRadius: 6,
+                    padding: "4px 10px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    display: "inline-block",
+                    animation: visibleSteps > 0 ? "connPulse 1.5s ease infinite" : "none",
+                  }}
+                >
+                  Sign in with Google
+                </div>
+              </div>
+            )}
+
+            {i === 1 && (
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                {["Decentral Energy", "Marketing Account"].map((acct, ai) => (
+                  <div
+                    key={acct}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      marginBottom: 3,
+                      fontSize: 11,
+                      background:
+                        selectedAccount && ai === 0
+                          ? "var(--accent)"
+                          : "var(--m-surface)",
+                      color:
+                        selectedAccount && ai === 0
+                          ? "#fff"
+                          : "var(--text-muted)",
+                      border: "1px solid var(--border-color)",
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    {acct}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {i === 2 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: syncDone ? "var(--success)" : "var(--text-muted)", transition: "color 0.4s ease" }}>
+                {syncDone ? (
+                  <span style={{ fontWeight: 600 }}>&#10003; Connected</span>
+                ) : (
+                  <span style={{ animation: "connPulse 1.2s ease infinite", display: "inline-block" }}>
+                    Syncing data...
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <style>{`
+        @keyframes connPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Connector Data Flow Demo                                           */
+/* ------------------------------------------------------------------ */
+
+const flowPlatforms = [
+  { name: "GA4", color: "#e37400" },
+  { name: "Google Ads", color: "#4285f4" },
+  { name: "LinkedIn", color: "#0a66c2" },
+];
+
+const flowDestinations = ["Chat", "Dashboards", "Alerts"];
+
+function ConnectorDataDemo() {
+  const [activeSource, setActiveSource] = useState(0);
+  const [activeDest, setActiveDest] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveSource((prev) => (prev + 1) % flowPlatforms.length);
+      setActiveDest((prev) => (prev + 1) % flowDestinations.length);
+    }, 1400);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={card}>
+      <div style={label}>Data Pipeline</div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          maxHeight: 140,
+        }}
+      >
+        {/* Source pills */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto" }}>
+          {flowPlatforms.map((p, i) => (
+            <div
+              key={p.name}
+              style={{
+                padding: "5px 14px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 600,
+                border: "1px solid var(--border-color)",
+                background: i === activeSource ? p.color : "var(--m-surface-elevated)",
+                color: i === activeSource ? "#fff" : "var(--text-muted)",
+                transition: "all 0.35s ease",
+                boxShadow: i === activeSource ? `0 0 12px ${p.color}40` : "none",
+              }}
+            >
+              {p.name}
+            </div>
+          ))}
+        </div>
+
+        {/* Animated data flow */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            height: 32,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "50%",
+              height: 2,
+              background: "var(--border-color)",
+            }}
+          />
+          {[0, 1, 2, 3].map((dot) => (
+            <div
+              key={dot}
+              style={{
+                position: "absolute",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                animation: `connFlowDot 1.4s ease-in-out ${dot * 0.3}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Destination labels */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto" }}>
+          {flowDestinations.map((d, i) => (
+            <div
+              key={d}
+              style={{
+                padding: "5px 14px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 600,
+                border: "1px solid var(--border-color)",
+                background: i === activeDest ? "var(--accent)" : "var(--m-surface-elevated)",
+                color: i === activeDest ? "#fff" : "var(--text-muted)",
+                transition: "all 0.35s ease",
+                boxShadow: i === activeDest ? "0 0 12px rgba(99,102,241,0.3)" : "none",
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        @keyframes connFlowDot {
+          0% { left: 10%; opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { left: 90%; opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Alerts Overview Demo                                               */
+/* ------------------------------------------------------------------ */
+
+function AlertsOverviewDemo() {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const durations = [2000, 1500, 2000, 1000];
+    let timeout: ReturnType<typeof setTimeout>;
+    const advance = () => {
+      timeout = setTimeout(() => {
+        setPhase((p) => {
+          const next = (p + 1) % 4;
+          return next;
+        });
+        advance();
+      }, durations[phase]);
+    };
+    advance();
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const formCard: React.CSSProperties = {
+    background: "var(--m-surface-elevated)",
+    border: "1px solid var(--border-color)",
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 12,
+    transition: "all 0.5s ease",
+  };
+
+  const fieldRow: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "6px 0",
+    borderBottom: "1px solid var(--border-color)",
+  };
+
+  return (
+    <div style={card}>
+      <div style={label}>Alerts</div>
+      <div style={{ position: "relative", minHeight: 160, overflow: "hidden" }}>
+        {/* Phase 0-1: Form */}
+        <div style={{
+          ...formCard,
+          opacity: phase <= 1 ? 1 : 0,
+          transform: phase <= 1 ? "translateY(0)" : "translateY(-10px)",
+          position: phase >= 2 ? "absolute" : "relative",
+          top: 0,
+          left: 0,
+          right: 0,
+        }}>
+          <div style={fieldRow}>
+            <span style={{ color: "var(--text-muted)" }}>Type</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>Weekly Snapshot</span>
+          </div>
+          <div style={fieldRow}>
+            <span style={{ color: "var(--text-muted)" }}>Recipients</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>team@company.com</span>
+          </div>
+          <div style={{ ...fieldRow, borderBottom: "none" }}>
+            <span style={{ color: "var(--text-muted)" }}>Schedule</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>Every Monday at 09:00</span>
+          </div>
+          {phase === 1 && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 10,
+              paddingTop: 10,
+              borderTop: "1px solid var(--border-color)",
+              animation: "alertsFadeIn 0.4s ease",
+            }}>
+              <div style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "var(--success)",
+                boxShadow: "0 0 6px var(--success)",
+              }} />
+              <span style={{ color: "var(--success)", fontWeight: 600, fontSize: 12 }}>Enabled</span>
+              <span style={{ color: "var(--text-muted)", fontSize: 11, marginLeft: "auto" }}>Alert scheduled</span>
+            </div>
+          )}
+        </div>
+
+        {/* Phase 2-3: Email */}
+        {phase >= 2 && (
+          <div style={{
+            position: phase >= 2 ? "relative" : "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+            animation: "alertsEmailIn 0.6s ease",
+          }}>
+            {phase === 2 && (
+              <div style={{
+                fontSize: 36,
+                animation: "alertsEnvelopePulse 0.6s ease",
+              }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M22 4L12 13L2 4" />
+                </svg>
+              </div>
+            )}
+            {phase === 3 && (
+              <div style={{
+                ...formCard,
+                width: "100%",
+                animation: "alertsFadeIn 0.4s ease",
+              }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }}>
+                  Weekly Snapshot — Decentral Energy
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span style={{ color: "var(--text-muted)" }}>Sessions</span>
+                    <span style={{ color: "var(--text-primary)" }}>
+                      12,847 <span style={{ color: "var(--success)", fontWeight: 600 }}>+23%</span>
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span style={{ color: "var(--text-muted)" }}>Top page</span>
+                    <span style={{ color: "var(--text-primary)" }}>/blog/analytics-guide</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span style={{ color: "var(--text-muted)" }}>Users</span>
+                    <span style={{ color: "var(--text-primary)" }}>
+                      9,204 <span style={{ color: "var(--success)", fontWeight: 600 }}>+18%</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <style>{`
+        @keyframes alertsFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes alertsEmailIn {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes alertsEnvelopePulse {
+          0% { transform: scale(0.5); opacity: 0; }
+          60% { transform: scale(1.15); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Alert Types Demo                                                   */
+/* ------------------------------------------------------------------ */
+
+function AlertTypesDemo() {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setActive((prev) => (prev + 1) % 4), 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const types = [
+    {
+      name: "Weekly Snapshot",
+      sub: "vs last week",
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      ),
+    },
+    {
+      name: "Traffic Report",
+      sub: "by source",
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="12" width="4" height="8" />
+          <rect x="10" y="8" width="4" height="12" />
+          <rect x="17" y="4" width="4" height="16" />
+        </svg>
+      ),
+    },
+    {
+      name: "Top Pages",
+      sub: "ranked by views",
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      ),
+    },
+    {
+      name: "Custom Report",
+      sub: "your prompt",
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3l1.912 5.813a2 2 0 001.272 1.272L21 12l-5.813 1.912a2 2 0 00-1.272 1.272L12 21l-1.912-5.813a2 2 0 00-1.272-1.272L3 12l5.813-1.912a2 2 0 001.272-1.272L12 3z" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div style={card}>
+      <div style={label}>Alert types</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        {types.map((t, i) => (
+          <div
+            key={t.name}
+            style={{
+              flex: 1,
+              background: "var(--m-surface-elevated, var(--bg-secondary))",
+              border: active === i ? "1.5px solid var(--accent)" : "1px solid var(--border-color)",
+              borderRadius: 12,
+              padding: "14px 10px",
+              textAlign: "center",
+              transition: "all 0.35s ease",
+              boxShadow: active === i ? "0 0 16px rgba(16,163,127,0.15)" : "none",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <div style={{ color: active === i ? "var(--accent)" : "var(--text-muted)", transition: "color 0.35s ease" }}>
+              {t.icon}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.2 }}>{t.name}</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{t.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Alert Schedule Demo                                                */
+/* ------------------------------------------------------------------ */
+
+function AlertScheduleDemo() {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const durations = [2500, 2500, 2000];
+    let timeout: ReturnType<typeof setTimeout>;
+    const advance = () => {
+      timeout = setTimeout(() => {
+        setPhase((p) => (p + 1) % 3);
+        advance();
+      }, durations[phase]);
+    };
+    advance();
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+  const selectedPhase0 = [0]; // Monday
+  const selectedPhase1 = [2, 4]; // Wednesday, Friday
+
+  const selectedDays = phase === 0 ? selectedPhase0 : selectedPhase1;
+  const time = phase === 0 ? "09:00" : "08:00";
+  const interval = phase === 0 ? "Every week" : "Every 2 weeks";
+
+  return (
+    <div style={card}>
+      <div style={label}>Schedule</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Day buttons */}
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          {days.map((d, i) => (
+            <div
+              key={`${d}-${i}`}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 600,
+                transition: "all 0.35s ease",
+                background: selectedDays.includes(i) ? "var(--accent)" : "var(--m-surface-elevated)",
+                color: selectedDays.includes(i) ? "#fff" : "var(--text-muted)",
+                border: selectedDays.includes(i) ? "1.5px solid var(--accent)" : "1px solid var(--border-color)",
+                boxShadow: selectedDays.includes(i) ? "0 0 10px rgba(16,163,127,0.25)" : "none",
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Time and interval */}
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <div style={{
+            background: "var(--m-surface-elevated)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 8,
+            padding: "8px 16px",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            transition: "all 0.35s ease",
+            fontVariantNumeric: "tabular-nums",
+          }}>
+            {time}
+          </div>
+          <div style={{
+            background: "var(--m-surface-elevated)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 8,
+            padding: "8px 16px",
+            fontSize: 13,
+            color: "var(--text-primary)",
+            transition: "all 0.35s ease",
+          }}>
+            {interval}
+          </div>
+        </div>
+
+        {/* Timeline dots */}
+        <div style={{ position: "relative", height: 24 }}>
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "8%",
+            right: "8%",
+            height: 2,
+            background: "var(--border-color)",
+            transform: "translateY(-50%)",
+          }} />
+          {days.map((_, i) => (
+            <div
+              key={`dot-${i}`}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: `${8 + i * (84 / 6)}%`,
+                width: selectedDays.includes(i) ? 10 : 6,
+                height: selectedDays.includes(i) ? 10 : 6,
+                borderRadius: "50%",
+                background: selectedDays.includes(i) ? "var(--accent)" : "var(--border-color)",
+                transform: "translate(-50%, -50%)",
+                transition: "all 0.35s ease",
+                boxShadow: selectedDays.includes(i) ? "0 0 8px rgba(16,163,127,0.3)" : "none",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Teams Overview Demo                                                */
+/* ------------------------------------------------------------------ */
+
+function TeamsOverviewDemo() {
+  const [visibleMembers, setVisibleMembers] = useState(0);
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setVisibleMembers(1), 600),
+      setTimeout(() => setVisibleMembers(2), 1100),
+      setTimeout(() => setVisibleMembers(3), 1600),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const members = [
+    { name: "Matt Quarta", role: "Owner", accent: true },
+    { name: "Sarah Chen", role: "Member", accent: false },
+    { name: "James Wilson", role: "Member", accent: false },
+  ];
+
+  const platforms = ["GA4", "Google Ads", "LinkedIn"];
+
+  const memberRow: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 0",
+    borderBottom: "1px solid var(--border-color)",
+    fontSize: 13,
+  };
+
+  return (
+    <div style={card}>
+      <div style={label}>Team Workspace</div>
+
+      {/* Team header */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 16,
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: "var(--success)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontWeight: 700,
+          fontSize: 12,
+          flexShrink: 0,
+        }}>
+          DE
+        </div>
+        <span style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>
+          Decentral Energy
+        </span>
+      </div>
+
+      {/* Members */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {members.map((m, i) => (
+          <div
+            key={m.name}
+            style={{
+              ...memberRow,
+              opacity: visibleMembers > i ? 1 : 0,
+              transform: visibleMembers > i ? "translateY(0)" : "translateY(6px)",
+              transition: "opacity 0.4s ease, transform 0.4s ease",
+              ...(i === members.length - 1 ? { borderBottom: "none" } : {}),
+            }}
+          >
+            <span style={{ color: "var(--text-primary)" }}>{m.name}</span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "2px 8px",
+              borderRadius: 4,
+              background: m.accent ? "color-mix(in srgb, var(--accent) 15%, transparent)" : "var(--m-surface-elevated)",
+              color: m.accent ? "var(--accent)" : "var(--text-muted)",
+            }}>
+              {m.role}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Platform pills */}
+      <div style={{
+        display: "flex",
+        gap: 6,
+        marginTop: 14,
+        flexWrap: "wrap",
+      }}>
+        {platforms.map((p) => (
+          <span
+            key={p}
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              padding: "3px 10px",
+              borderRadius: 20,
+              background: "var(--m-surface-elevated)",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-muted)",
+            }}
+          >
+            {p}
+          </span>
+        ))}
+      </div>
+
+      <div style={{
+        fontSize: 11,
+        color: "var(--text-muted)",
+        marginTop: 10,
+        fontStyle: "italic",
+      }}>
+        All members can query all connected data
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Team Invite Demo                                                   */
+/* ------------------------------------------------------------------ */
+
+function TeamInviteDemo() {
+  const [phase, setPhase] = useState(0);
+  const [emailChars, setEmailChars] = useState(0);
+  const email = "sarah@company.com";
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    // Phase 0: type email
+    // Phase 1: button click
+    // Phase 2: envelope fly
+    // Phase 3: member appears
+    const runSequence = () => {
+      setPhase(0);
+      setEmailChars(0);
+
+      // Type email
+      let i = 0;
+      intervalRef.current = setInterval(() => {
+        i++;
+        setEmailChars(i);
+        if (i >= email.length) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          // Phase 1: button click
+          setTimeout(() => setPhase(1), 400);
+          // Phase 2: envelope
+          setTimeout(() => setPhase(2), 1200);
+          // Phase 3: member row
+          setTimeout(() => setPhase(3), 2800);
+        }
+      }, 45);
+    };
+
+    runSequence();
+    const loopTimer = setInterval(runSequence, 6000);
+
+    return () => {
+      clearInterval(loopTimer);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const inputStyle: React.CSSProperties = {
+    background: "var(--m-surface-elevated)",
+    border: "1px solid var(--border-color)",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontSize: 13,
+    color: "var(--text-primary)",
+    width: "100%",
+    outline: "none",
+  };
+
+  return (
+    <div style={card}>
+      <div style={label}>Invite Flow</div>
+
+      {/* Email input */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={inputStyle}>
+          {email.slice(0, emailChars)}
+          {phase === 0 && <span className="teams-invite-cursor">|</span>}
+        </div>
+      </div>
+
+      {/* Send button */}
+      <div style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 18px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            background: phase === 1 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 80%, transparent)",
+            color: "#fff",
+            transition: "all 0.3s ease",
+            transform: phase === 1 ? "scale(0.96)" : "scale(1)",
+          }}
+          className={phase === 1 ? "teams-invite-btn-pulse" : ""}
+        >
+          Send Invite
+        </div>
+      </div>
+
+      {/* Envelope + confirmation */}
+      <div style={{ minHeight: 60, position: "relative" }}>
+        {phase === 2 && (
+          <div style={{ textAlign: "center" }} className="teams-invite-envelope-fly">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M22 4L12 13L2 4" />
+            </svg>
+            <div style={{
+              fontSize: 12,
+              color: "var(--text-muted)",
+              marginTop: 6,
+            }}>
+              Invite sent — expires in 7 days
+            </div>
+          </div>
+        )}
+
+        {phase === 3 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 12px",
+              background: "var(--m-surface-elevated)",
+              border: "1px solid var(--border-color)",
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+            className="teams-invite-member-in"
+          >
+            <span style={{ color: "var(--text-primary)" }}>Sarah Chen — Member</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .teams-invite-cursor {
+          animation: docs-demo-blink 0.8s step-end infinite;
+          color: var(--accent);
+          font-weight: 300;
+        }
+        .teams-invite-btn-pulse {
+          animation: teamsInvitePulse 0.3s ease;
+        }
+        @keyframes teamsInvitePulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(0.94); }
+          100% { transform: scale(1); }
+        }
+        .teams-invite-envelope-fly {
+          animation: teamsEnvelopeFly 0.5s ease-out both;
+        }
+        @keyframes teamsEnvelopeFly {
+          from { opacity: 0; transform: translateY(12px) scale(0.8); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .teams-invite-member-in {
+          animation: teamsInviteMemberIn 0.4s ease-out both;
+        }
+        @keyframes teamsInviteMemberIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main export                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -1756,7 +2739,14 @@ type DemoType =
   | "widget-types"
   | "drag-resize"
   | "date-range"
-  | "chart-types";
+  | "chart-types"
+  | "connectors-overview"
+  | "connector-data"
+  | "alerts-overview"
+  | "alert-types"
+  | "alert-schedule"
+  | "teams-overview"
+  | "team-invite";
 
 export function DocsDemo({ type }: { type: DemoType }) {
   switch (type) {
@@ -1782,6 +2772,20 @@ export function DocsDemo({ type }: { type: DemoType }) {
       return <DateRangeDemo />;
     case "chart-types":
       return <ChartTypesDemo />;
+    case "connectors-overview":
+      return <ConnectorsOverviewDemo />;
+    case "connector-data":
+      return <ConnectorDataDemo />;
+    case "alerts-overview":
+      return <AlertsOverviewDemo />;
+    case "alert-types":
+      return <AlertTypesDemo />;
+    case "alert-schedule":
+      return <AlertScheduleDemo />;
+    case "teams-overview":
+      return <TeamsOverviewDemo />;
+    case "team-invite":
+      return <TeamInviteDemo />;
     default:
       return null;
   }
