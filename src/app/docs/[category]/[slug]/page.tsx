@@ -5,7 +5,7 @@ import { DocsSidebar } from "../../DocsSidebar";
 import { TableOfContents } from "@/components/TableOfContents";
 import { getArticleData } from "@/lib/mdx";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function ArticlePage({
   params,

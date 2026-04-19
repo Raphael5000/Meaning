@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { LayoutItem } from "react-grid-layout";
-import { Loader2, ArrowLeft, Plus, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, RefreshCw, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardGrid from "./DashboardGrid";
 import AddWidgetDialog from "./AddWidgetDialog";
 import DateRangePicker from "./DateRangePicker";
+import DashboardChatSidebar from "./DashboardChatSidebar";
 
 interface Widget {
   id: string;
@@ -31,9 +32,11 @@ interface Dashboard {
 interface DashboardPanelProps {
   dashboardId: string;
   onClose: () => void;
+  orgId?: string | null;
 }
 
-export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelProps) {
+export default function DashboardPanel({ dashboardId, onClose, orgId }: DashboardPanelProps) {
+  const [chatOpen, setChatOpen] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -255,106 +258,129 @@ export default function DashboardPanel({ dashboardId, onClose }: DashboardPanelP
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          {editingTitle ? (
-            <input
-              autoFocus
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle();
-                if (e.key === "Escape") { setTitleDraft(dashboard.title); setEditingTitle(false); }
-              }}
-              className="w-full rounded border border-border bg-transparent px-2 py-0.5 text-sm font-semibold text-foreground outline-none focus:border-[var(--accent)]"
-            />
+    <div className="flex h-full">
+      {/* Dashboard content */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") { setTitleDraft(dashboard.title); setEditingTitle(false); }
+                }}
+                className="w-full rounded border border-border bg-transparent px-2 py-0.5 text-sm font-semibold text-foreground outline-none focus:border-[var(--accent)]"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingTitle(true)}
+                className="truncate text-sm font-semibold text-foreground hover:underline"
+              >
+                {dashboard.title}
+              </button>
+            )}
+          </div>
+          <DateRangePicker
+            dateRange={dashboard.dateRange}
+            dateFrom={dashboard.dateFrom}
+            dateTo={dashboard.dateTo}
+            onChange={handleDateRangeChange}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo)}
+            disabled={refreshing}
+            title="Refresh data"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            style={{ background: "var(--accent)", color: "white" }}
+            onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
+          >
+            <Plus className="mr-1.5 h-3 w-3" />
+            Add Widget
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setChatOpen((o) => !o)}
+            title="Chat with your data"
+            style={{
+              background: chatOpen ? "var(--accent)" : undefined,
+              color: chatOpen ? "white" : undefined,
+            }}
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Add Widget Dialog */}
+        <AddWidgetDialog
+          open={addWidgetOpen}
+          onClose={() => { setAddWidgetOpen(false); setEditWidgetId(null); setEditPrompt(""); }}
+          onSubmit={handleEditSubmit}
+          initialPrompt={editPrompt}
+        />
+
+        {/* Grid area */}
+        <div className="flex-1 overflow-y-auto px-2 py-4">
+          {dashboard.widgets.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div
+                className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl"
+                style={{ background: "var(--bg-secondary)" }}
+              >
+                <Plus className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="mb-1 text-sm font-medium text-foreground">Empty dashboard</p>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Describe what you want to see and AI will create it.
+              </p>
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                style={{ background: "var(--accent)", color: "white" }}
+                onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
+              >
+                <Plus className="mr-1.5 h-3 w-3" />
+                Add your first widget
+              </Button>
+            </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setEditingTitle(true)}
-              className="truncate text-sm font-semibold text-foreground hover:underline"
-            >
-              {dashboard.title}
-            </button>
+            <DashboardGrid
+              layout={dashboard.layout}
+              widgets={dashboard.widgets}
+              dashboardId={dashboardId}
+              onLayoutChange={handleLayoutChange}
+              onDeleteWidget={handleDeleteWidget}
+              onEditWidget={handleEditWidget}
+              refreshing={refreshing}
+            />
           )}
         </div>
-        <DateRangePicker
-          dateRange={dashboard.dateRange}
-          dateFrom={dashboard.dateFrom}
-          dateTo={dashboard.dateTo}
-          onChange={handleDateRangeChange}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={() => refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo)}
-          disabled={refreshing}
-          title="Refresh data"
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-        </Button>
-        <Button
-          size="sm"
-          className="h-8 text-xs shrink-0"
-          style={{ background: "var(--accent)", color: "white" }}
-          onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
-        >
-          <Plus className="mr-1.5 h-3 w-3" />
-          Add Widget
-        </Button>
       </div>
 
-      {/* Add Widget Dialog */}
-      <AddWidgetDialog
-        open={addWidgetOpen}
-        onClose={() => { setAddWidgetOpen(false); setEditWidgetId(null); setEditPrompt(""); }}
-        onSubmit={handleEditSubmit}
-        initialPrompt={editPrompt}
+      {/* Chat sidebar */}
+      <DashboardChatSidebar
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        orgId={orgId ?? null}
       />
-
-      {/* Grid area */}
-      <div className="flex-1 overflow-y-auto px-2 py-4">
-        {dashboard.widgets.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div
-              className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl"
-              style={{ background: "var(--bg-secondary)" }}
-            >
-              <Plus className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <p className="mb-1 text-sm font-medium text-foreground">Empty dashboard</p>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Describe what you want to see and AI will create it.
-            </p>
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              style={{ background: "var(--accent)", color: "white" }}
-              onClick={() => { setEditWidgetId(null); setEditPrompt(""); setAddWidgetOpen(true); }}
-            >
-              <Plus className="mr-1.5 h-3 w-3" />
-              Add your first widget
-            </Button>
-          </div>
-        ) : (
-          <DashboardGrid
-            layout={dashboard.layout}
-            widgets={dashboard.widgets}
-            dashboardId={dashboardId}
-            onLayoutChange={handleLayoutChange}
-            onDeleteWidget={handleDeleteWidget}
-            onEditWidget={handleEditWidget}
-            refreshing={refreshing}
-          />
-        )}
-      </div>
     </div>
   );
 }

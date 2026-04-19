@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { DisplayHeading } from "@/components/marketing/system/DisplayHeading";
-import { GlowPill } from "@/components/marketing/system/MonoLabel";
 import { Reveal } from "@/components/marketing/system/Reveal";
 import { DottedGrid } from "@/components/marketing/system/Backgrounds";
 
@@ -84,9 +83,14 @@ export default function PricingPage() {
       <section className="relative z-10 flex flex-col items-center px-6 pt-32 pb-24 md:pt-40 text-center">
         <div className="mx-auto max-w-4xl">
           <Reveal>
-            <GlowPill className="mb-6">
-              14-day free trial
-            </GlowPill>
+            <span className="launch-pill mb-6">
+              <span className="launch-pill-star">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                </svg>
+              </span>
+              Launch Offer
+            </span>
 
             <DisplayHeading size="xl" as="h1" className="mb-4">
               One plan, everything included
@@ -150,7 +154,7 @@ export default function PricingPage() {
                   </div>
 
                   <p className="mb-1 text-sm font-medium text-[color:var(--brand)]">
-                    Monthly
+                    Launch Price — locked in forever
                   </p>
                   <div className="mb-1 flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-[color:var(--m-text)]">
@@ -161,7 +165,7 @@ export default function PricingPage() {
                     </span>
                   </div>
                   <p className="mb-6 text-sm text-[color:var(--m-text-muted)]">
-                    after 14-day free trial
+                    after 14-day free trial · this price won&apos;t increase
                   </p>
 
                   <ul className="mb-8 flex flex-col gap-3">
@@ -224,7 +228,7 @@ export default function PricingPage() {
           </Reveal>
 
           <p className="mt-8 text-sm text-[color:var(--m-text-muted)]">
-            Offer valid until 30 April 2026.
+            Launch offer expires 19 July 2026. Subscribe before then to lock in this price forever.
           </p>
         </div>
       </section>

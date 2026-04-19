@@ -142,6 +142,20 @@ function Hero() {
         style={{ scale, opacity, y }}
         className="relative z-10 mx-auto w-full max-w-6xl origin-top"
       >
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05, duration: 0.7, ease: EASE }}
+          className="mb-6"
+        >
+          <span className="launch-pill">
+            <span className="launch-pill-star">
+              <Sparkles size={14} />
+            </span>
+            Launch Offer
+          </span>
+        </motion.div>
+
         <h1 className="display-xl max-w-[9ch] text-[clamp(2.25rem,5.2vw,4rem)] lg:max-w-[10ch]">
           <span className="block">
             {HERO_LINE_1.map((word, i) => (

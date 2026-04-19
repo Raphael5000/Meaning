@@ -16,7 +16,11 @@ import {
   LayoutGrid,
   Plug,
   Sparkles,
+  Zap,
+  MessageCircle,
+  Layers,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { Button } from "@/components/ui/button";
@@ -27,42 +31,48 @@ import { motion, AnimatePresence } from "framer-motion";
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
-const docCategories = [
+const docCategories: { slug: string; label: string; description: string; icon: LucideIcon; iconClass: string }[] = [
   {
     slug: "getting-started",
     label: "Getting Started",
     description: "Set up your account and connect your first source.",
-    icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+    icon: Zap,
+    iconClass: "nav-icon-zap",
   },
   {
     slug: "ai-chat",
     label: "Chat",
     description: "Ask questions in plain English across all your data.",
-    icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+    icon: MessageCircle,
+    iconClass: "nav-icon-chat",
   },
   {
     slug: "dashboards",
     label: "Dashboards",
     description: "Build and share drag-and-drop dashboards.",
-    icon: "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
+    icon: LayoutGrid,
+    iconClass: "nav-icon-grid",
   },
   {
     slug: "connectors",
     label: "Connectors",
     description: "GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console.",
-    icon: "M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5",
+    icon: Layers,
+    iconClass: "nav-icon-layers",
   },
   {
     slug: "alerts",
     label: "Alerts",
     description: "Schedule AI-powered email reports on any cadence.",
-    icon: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0",
+    icon: Bell,
+    iconClass: "nav-icon-bell",
   },
   {
     slug: "teams",
     label: "Teams",
     description: "Manage roles, permissions, and billing.",
-    icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    icon: Users,
+    iconClass: "nav-icon-users",
   },
 ];
 
@@ -72,36 +82,42 @@ const featureItems = [
     label: "Chat",
     description: "Ask in plain English across every connector",
     icon: Search,
+    iconClass: "nav-icon-search",
   },
   {
     href: "/features/dashboards",
     label: "Dashboards",
     description: "AI-generated widgets on a drag-and-drop grid",
     icon: LayoutGrid,
+    iconClass: "nav-icon-grid",
   },
   {
     href: "/features/email-alerts",
     label: "Alerts",
     description: "Scheduled, prompt-driven email reports",
     icon: Bell,
+    iconClass: "nav-icon-bell",
   },
   {
     href: "/features/connectors",
     label: "Connectors",
     description: "GA4, Google Ads, LinkedIn, Mailchimp, and more",
     icon: Plug,
+    iconClass: "nav-icon-plug",
   },
   {
     href: "/features/team-collaboration",
     label: "Teams",
     description: "Roles, seats, and property-level access",
     icon: Users,
+    iconClass: "nav-icon-users",
   },
   {
     href: "/features/ai-insights",
     label: "AI Insights",
     description: "Summaries and next-step recommendations",
     icon: Sparkles,
+    iconClass: "nav-icon-sparkles",
   },
 ];
 
@@ -148,7 +164,7 @@ function FeaturesContent() {
               className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[rgba(128,128,128,0.08)]"
             >
               <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: "rgba(128,128,128,0.08)" }}>
-                <Icon className="h-3.5 w-3.5 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]" />
+                <Icon className={`h-3.5 w-3.5 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)] ${item.iconClass}`} />
               </div>
               <div>
                 <div className="text-sm font-medium text-[var(--text-primary)]">
@@ -225,37 +241,29 @@ function FeaturesContent() {
 
 function DocsContent() {
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-1 pb-1">
-      {docCategories.map((cat) => (
-        <Link
-          key={cat.slug}
-          href={`/docs?section=${cat.slug}`}
-          className="group flex items-start gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-[rgba(128,128,128,0.08)]"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mt-0.5 shrink-0"
-            style={{ color: "var(--text-muted)" }}
+    <div className="flex flex-col gap-0.5 pb-1">
+      {docCategories.map((cat) => {
+        const Icon = cat.icon;
+        return (
+          <Link
+            key={cat.slug}
+            href={`/docs?section=${cat.slug}`}
+            className="group flex items-start gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-[rgba(128,128,128,0.08)]"
           >
-            <path d={cat.icon} />
-          </svg>
-          <div>
-            <div className="text-sm font-medium text-[var(--text-primary)]">
-              {cat.label}
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: "rgba(128,128,128,0.08)" }}>
+              <Icon className={`h-3.5 w-3.5 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)] ${cat.iconClass}`} />
             </div>
-            <div className="text-xs text-[var(--text-muted)]">
-              {cat.description}
+            <div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {cat.label}
+              </div>
+              <div className="text-xs text-[var(--text-muted)]">
+                {cat.description}
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }

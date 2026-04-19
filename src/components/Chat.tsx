@@ -410,17 +410,22 @@ export default function Chat() {
 
   const sortedChats = [...chats].sort((a, b) => b.createdAt - a.createdAt);
 
-  // Show onboarding guide for new users who haven't completed it
+  // Show onboarding guide only for genuine first-time users
   const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
     if (!session?.user) return;
     try {
       if (localStorage.getItem("meaning-onboarding-done")) return;
     } catch {}
+    // If the user already has chats, they're not new — mark done and skip
+    if (chats.length > 0) {
+      try { localStorage.setItem("meaning-onboarding-done", "true"); } catch {}
+      return;
+    }
     // Small delay so the sidebar renders first
     const timer = setTimeout(() => setShowOnboarding(true), 800);
     return () => clearTimeout(timer);
-  }, [session?.user]);
+  }, [session?.user, chats.length]);
 
   return (
     <div
@@ -699,6 +704,7 @@ export default function Chat() {
           <DashboardPanel
             dashboardId={activeDashboardId}
             onClose={() => { setActiveDashboardId(null); setDashboardListOpen(true); }}
+            orgId={activeOrgId}
           />
         ) : dashboardListOpen ? (
           <DashboardListPanel

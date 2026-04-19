@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 
 interface Property {
   propertyId: string;
@@ -321,13 +320,10 @@ function ConnectAnalyticsContent() {
 
   if (status === "loading" || (status === "authenticated" && checkingConnection && !hasToken)) {
     return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: "var(--bg-primary)" }}
-      >
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div
-          className="h-8 w-8 animate-spin rounded-full border-2 border-current"
-          style={{ color: "var(--accent)", borderTopColor: "transparent" }}
+          className="h-8 w-8 animate-spin rounded-full border-2 border-white"
+          style={{ borderTopColor: "transparent" }}
         />
       </div>
     );
@@ -339,80 +335,64 @@ function ConnectAnalyticsContent() {
   }
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center px-4"
-      style={{
-        background:
-          "var(--page-bg)",
-      }}
-    >
-      <div
-        className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl p-8"
-        style={{
-          background:
-            "var(--card-bg)",
-          border: "1px solid var(--border-color)",
-          boxShadow: "var(--shadow-card)",
-        }}
+    <div className="relative flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4">
+      {/* Back link */}
+      <a
+        href="/"
+        className="absolute left-5 top-5 inline-flex items-center gap-1.5 text-sm text-[rgba(255,255,255,0.4)] transition-colors hover:text-white"
       >
-        <div className="card-noise" aria-hidden />
-        <div className="relative z-10">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Home
+      </a>
+
+      <div className="w-full max-w-md">
           {/* Step indicator: Account → Plan → Analytics */}
           <div className="mb-6 flex items-center justify-center gap-2">
             <div className="flex items-center gap-1.5">
               <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                style={{ background: "var(--accent)", color: "white" }}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold bg-white text-black"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Account</span>
+              <span className="text-xs font-medium text-[rgba(255,255,255,0.4)]">Account</span>
             </div>
-            <div className="h-px w-6" style={{ background: "var(--border-color)" }} />
+            <div className="h-px w-6 bg-[rgba(255,255,255,0.1)]" />
             <div className="flex items-center gap-1.5">
               <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                style={{ background: "var(--accent)", color: "white" }}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold bg-white text-black"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Plan</span>
+              <span className="text-xs font-medium text-[rgba(255,255,255,0.4)]">Plan</span>
             </div>
-            <div className="h-px w-6" style={{ background: "var(--border-color)" }} />
+            <div className="h-px w-6 bg-[rgba(255,255,255,0.1)]" />
             <div className="flex items-center gap-1.5">
               <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                style={{ background: "var(--accent)", color: "white" }}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold bg-white text-black"
               >
                 3
               </div>
-              <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Analytics</span>
+              <span className="text-xs font-medium text-white">Analytics</span>
             </div>
           </div>
 
           <div className="mb-6 text-center">
-            <Image
-              className="mx-auto mb-4 invert dark:invert-0"
-              src="/Logo.svg"
-              alt="Meaning logo"
-              width={120}
-              height={43}
-              priority
-            />
-            <h1
-              className="text-xl"
-              style={{ color: "var(--text-primary)" }}
-            >
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <svg width="28" height="28" viewBox="0 0 436 436" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M352.65 128.054L234.755 58.7598C225.248 53.1732 213.469 53.0716 203.872 58.516L84.8758 125.941C75.2785 131.376 69.308 141.523 69.2171 152.554L68.1261 289.273C68.0351 300.304 73.844 310.543 83.3503 316.14L201.255 385.454C210.772 391.041 222.541 391.143 232.138 385.698L351.134 318.273C360.732 312.839 366.702 302.691 366.793 291.66L367.874 154.931C367.965 143.9 362.156 133.661 352.65 128.074V128.054ZM362.611 187.303L338.82 308.816C336.9 318.618 329.899 326.653 320.443 329.893L203.276 370.046C193.82 373.286 183.364 371.234 175.828 364.672L82.4512 283.311C74.9149 276.749 71.4598 266.663 73.3793 256.861L97.1805 135.357C99.1 125.555 106.101 117.521 115.557 114.281L232.724 74.128C242.18 70.8878 252.636 72.9396 260.172 79.5013L353.539 160.842C361.075 167.404 364.53 177.49 362.611 187.292V187.303Z" />
+                <path d="M340.65 191.158L274.712 109.055C269.388 102.433 260.942 99.1519 252.547 100.442L148.442 116.481C140.047 117.771 132.975 123.449 129.894 131.361L91.7273 229.493C88.646 237.405 90.0301 246.364 95.354 252.987L161.302 335.1C166.626 341.722 175.072 345.013 183.467 343.713L287.572 327.685C295.967 326.395 303.039 320.717 306.12 312.804L344.277 214.652C347.358 206.74 345.974 197.771 340.65 191.158ZM324.769 244.404L270.843 317.477C266.488 323.368 259.326 326.496 252.042 325.674L161.777 315.526C154.493 314.704 148.2 310.072 145.27 303.358L108.932 220.127C106.002 213.413 106.871 205.643 111.225 199.751L165.151 126.689C169.506 120.797 176.668 117.669 183.952 118.492L274.217 128.649C281.501 129.472 287.784 134.104 290.724 140.818L327.062 224.028C329.992 230.742 329.123 238.512 324.769 244.404Z" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-semibold text-white">
               Connect Google Analytics
             </h1>
-            <p
-              className="mt-1 text-sm"
-              style={{ color: "var(--text-secondary)" }}
-            >
+            <p className="mt-2 text-sm text-[rgba(255,255,255,0.5)]">
               Link your Google Analytics so Meaning can read your data
             </p>
           </div>
@@ -423,7 +403,7 @@ function ConnectAnalyticsContent() {
               className="mb-4 rounded-lg px-4 py-3 text-sm"
               style={{
                 background: "rgba(239, 68, 68, 0.1)",
-                color: "var(--error)",
+                color: "#f87171",
                 border: "1px solid rgba(239, 68, 68, 0.2)",
               }}
             >
@@ -437,35 +417,14 @@ function ConnectAnalyticsContent() {
           {/* STATE: No Google token — show Connect button */}
           {!hasToken && !connected && (
             <div className="flex flex-col items-center gap-4">
-              <div
-                className="flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: "rgba(16, 163, 127, 0.1)" }}
-              >
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--accent)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 20V10" />
-                  <path d="M12 20V4" />
-                  <path d="M6 20v-6" />
-                </svg>
-              </div>
-              <p
-                className="text-center text-sm"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-center text-sm text-[rgba(255,255,255,0.5)]">
                 Authorize Meaning to access your Google Analytics data. We only
-                request <strong>read-only</strong> access.
+                request <strong className="text-white">read-only</strong> access.
               </p>
               <a
                 href="/api/auth/connect-google"
-                className="btn-google"
+                className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[rgba(255,255,255,0.1)]"
+                style={{ border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path
@@ -494,16 +453,10 @@ function ConnectAnalyticsContent() {
           {!hasToken && connected && (
             <div className="flex flex-col items-center gap-3 py-4">
               <div
-                className="h-8 w-8 animate-spin rounded-full border-2 border-current"
-                style={{
-                  color: "var(--accent)",
-                  borderTopColor: "transparent",
-                }}
+                className="h-8 w-8 animate-spin rounded-full border-2 border-white"
+                style={{ borderTopColor: "transparent" }}
               />
-              <p
-                className="text-sm"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-sm text-[rgba(255,255,255,0.5)]">
                 Finishing connection...
               </p>
             </div>
@@ -515,16 +468,10 @@ function ConnectAnalyticsContent() {
               {loadingProps ? (
                 <div className="flex flex-col items-center gap-3 py-4">
                   <div
-                    className="h-8 w-8 animate-spin rounded-full border-2 border-current"
-                    style={{
-                      color: "var(--accent)",
-                      borderTopColor: "transparent",
-                    }}
+                    className="h-8 w-8 animate-spin rounded-full border-2 border-white"
+                    style={{ borderTopColor: "transparent" }}
                   />
-                  <p
-                    className="text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
+                  <p className="text-sm text-[rgba(255,255,255,0.5)]">
                     Loading your analytics properties...
                   </p>
                 </div>
@@ -532,25 +479,22 @@ function ConnectAnalyticsContent() {
                 <>
                   <div
                     className="flex h-12 w-12 items-center justify-center rounded-full"
-                    style={{ background: "rgba(16, 163, 127, 0.15)" }}
+                    style={{ background: "rgba(255,255,255,0.06)" }}
                   >
                     <svg
                       width="24"
                       height="24"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="var(--accent)"
+                      stroke="white"
                       strokeWidth="2"
                     >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <p
-                    className="text-center text-sm"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
+                  <p className="text-center text-sm text-[rgba(255,255,255,0.5)]">
                     Google Analytics connected! We found{" "}
-                    <strong style={{ color: "var(--text-primary)" }}>
+                    <strong className="text-white">
                       {properties.length}{" "}
                       {properties.length === 1 ? "property" : "properties"}
                     </strong>{" "}
@@ -564,11 +508,8 @@ function ConnectAnalyticsContent() {
                       return (
                         <li
                           key={prop.propertyId}
-                          className="rounded-lg px-4 py-3"
-                          style={{
-                            background: "var(--bg-primary)",
-                            border: "1px solid var(--border-color)",
-                          }}
+                          className="rounded-lg bg-[rgba(255,255,255,0.06)] px-4 py-3"
+                          style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                         >
                           <div className="flex items-center gap-3">
                             <svg
@@ -576,7 +517,7 @@ function ConnectAnalyticsContent() {
                               height="16"
                               viewBox="0 0 24 24"
                               fill="none"
-                              stroke="var(--accent)"
+                              stroke="rgba(255,255,255,0.5)"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -586,16 +527,10 @@ function ConnectAnalyticsContent() {
                               <path d="M6 20v-6" />
                             </svg>
                             <div className="min-w-0 flex-1">
-                              <p
-                                className="truncate text-sm font-medium"
-                                style={{ color: "var(--text-primary)" }}
-                              >
+                              <p className="truncate text-sm font-medium text-white">
                                 {prop.displayName}
                               </p>
-                              <p
-                                className="truncate text-xs"
-                                style={{ color: "var(--text-muted)" }}
-                              >
+                              <p className="truncate text-xs text-[rgba(255,255,255,0.4)]">
                                 {prop.account}
                               </p>
                             </div>
@@ -604,26 +539,20 @@ function ConnectAnalyticsContent() {
                           {/* BigQuery status */}
                           <div className="mt-2">
                             {isChecking ? (
-                              <span
-                                className="text-xs"
-                                style={{ color: "var(--text-muted)" }}
-                              >
+                              <span className="text-xs text-[rgba(255,255,255,0.4)]">
                                 Checking...
                               </span>
                             ) : bq?.hasExport ? (
                               bq.dataSource?.status === "BACKFILLING" ? (
-                                <div className="flex items-center gap-2 text-xs" style={{ color: "var(--accent)" }}>
+                                <div className="flex items-center gap-2 text-xs text-white">
                                   <div
-                                    className="h-3 w-3 animate-spin rounded-full border-2 border-current"
+                                    className="h-3 w-3 animate-spin rounded-full border-2 border-white"
                                     style={{ borderTopColor: "transparent" }}
                                   />
                                   Importing your historical data... this takes about a minute
                                 </div>
                               ) : (
-                                <span
-                                  className="inline-flex items-center gap-1 text-xs"
-                                  style={{ color: "var(--accent)" }}
-                                >
+                                <span className="inline-flex items-center gap-1 text-xs text-white">
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                     <polyline points="20 6 9 17 4 12" />
                                   </svg>
@@ -635,9 +564,8 @@ function ConnectAnalyticsContent() {
                                 <button
                                   onClick={() => startBqEnable(prop.propertyId)}
                                   disabled={enablingBq[prop.propertyId]}
-                                  className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity"
+                                  className="inline-flex items-center gap-1.5 text-xs font-medium text-white transition-opacity"
                                   style={{
-                                    color: "var(--accent)",
                                     opacity: enablingBq[prop.propertyId] ? 0.5 : 1,
                                   }}
                                 >
@@ -650,18 +578,14 @@ function ConnectAnalyticsContent() {
                                 </button>
                                 <button
                                   onClick={() => checkBqStatus(prop.propertyId)}
-                                  className="text-xs"
-                                  style={{ color: "var(--text-muted)" }}
+                                  className="text-xs text-[rgba(255,255,255,0.4)]"
                                 >
                                   Refresh
                                 </button>
                               </div>
                             ) : null}
                             {bqErrors[prop.propertyId] && (
-                              <p
-                                className="mt-1 text-xs"
-                                style={{ color: "var(--error)" }}
-                              >
+                              <p className="mt-1 text-xs text-red-400">
                                 {bqErrors[prop.propertyId]}
                               </p>
                             )}
@@ -672,10 +596,7 @@ function ConnectAnalyticsContent() {
                   </ul>
                 </>
               ) : (
-                <p
-                  className="text-center text-sm"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <p className="text-center text-sm text-[rgba(255,255,255,0.5)]">
                   Google connected, but no GA4 properties were found. Make sure
                   your Google account has access to at least one GA4 property.
                 </p>
@@ -683,11 +604,8 @@ function ConnectAnalyticsContent() {
 
               {/* Google Ads section */}
               <div
-                className="w-full rounded-lg p-4"
-                style={{
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border-color)",
-                }}
+                className="w-full rounded-lg bg-[rgba(255,255,255,0.06)] p-4"
+                style={{ border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <div className="flex items-center gap-2 mb-3">
                   <svg
@@ -695,7 +613,7 @@ function ConnectAnalyticsContent() {
                     height="16"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="var(--text-primary)"
+                    stroke="white"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -705,17 +623,11 @@ function ConnectAnalyticsContent() {
                     <line x1="9" y1="9" x2="9.01" y2="9" />
                     <line x1="15" y1="9" x2="15.01" y2="9" />
                   </svg>
-                  <h3
-                    className="text-sm font-medium"
-                    style={{ color: "var(--text-primary)" }}
-                  >
+                  <h3 className="text-sm font-medium text-white">
                     Google Ads (Optional)
                   </h3>
                 </div>
-                <p
-                  className="text-xs mb-3"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <p className="text-xs mb-3 text-[rgba(255,255,255,0.5)]">
                   Connect Google Ads to see campaign attribution, keyword-level
                   ROI, and which ads drive conversions.
                 </p>
@@ -724,11 +636,8 @@ function ConnectAnalyticsContent() {
                   <button
                     onClick={startAdsConnect}
                     disabled={loadingAds}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity"
-                    style={{
-                      color: "var(--accent)",
-                      opacity: loadingAds ? 0.5 : 1,
-                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-white transition-opacity"
+                    style={{ opacity: loadingAds ? 0.5 : 1 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 5v14M5 12h14" />
@@ -742,24 +651,15 @@ function ConnectAnalyticsContent() {
                       return (
                         <li
                           key={cid}
-                          className="flex items-center justify-between rounded px-3 py-2"
-                          style={{
-                            background: "var(--card-bg)",
-                            border: "1px solid var(--border-color)",
-                          }}
+                          className="flex items-center justify-between rounded-lg bg-[rgba(255,255,255,0.04)] px-3 py-2"
+                          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
                         >
                           <div>
-                            <p
-                              className="text-xs font-medium"
-                              style={{ color: "var(--text-primary)" }}
-                            >
+                            <p className="text-xs font-medium text-white">
                               Account {cid}
                             </p>
                             {status?.status === "ACTIVE" && (
-                              <span
-                                className="inline-flex items-center gap-1 text-xs"
-                                style={{ color: "var(--accent)" }}
-                              >
+                              <span className="inline-flex items-center gap-1 text-xs text-white">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
@@ -767,16 +667,16 @@ function ConnectAnalyticsContent() {
                               </span>
                             )}
                             {status?.status === "BACKFILLING" && (
-                              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--accent)" }}>
+                              <div className="flex items-center gap-2 text-xs text-white">
                                 <div
-                                  className="h-3 w-3 animate-spin rounded-full border-2 border-current"
+                                  className="h-3 w-3 animate-spin rounded-full border-2 border-white"
                                   style={{ borderTopColor: "transparent" }}
                                 />
                                 Syncing...
                               </div>
                             )}
                             {status?.status === "ERROR" && (
-                              <span className="text-xs" style={{ color: "var(--error)" }}>
+                              <span className="text-xs text-red-400">
                                 Sync error
                               </span>
                             )}
@@ -785,17 +685,14 @@ function ConnectAnalyticsContent() {
                             <button
                               onClick={() => enableAdsExport(cid)}
                               disabled={enablingAds[cid]}
-                              className="text-xs font-medium"
-                              style={{
-                                color: "var(--accent)",
-                                opacity: enablingAds[cid] ? 0.5 : 1,
-                              }}
+                              className="text-xs font-medium text-white"
+                              style={{ opacity: enablingAds[cid] ? 0.5 : 1 }}
                             >
                               {enablingAds[cid] ? "Enabling..." : "Enable"}
                             </button>
                           )}
                           {adsErrors[cid] && (
-                            <p className="text-xs" style={{ color: "var(--error)" }}>
+                            <p className="text-xs text-red-400">
                               {adsErrors[cid]}
                             </p>
                           )}
@@ -809,13 +706,13 @@ function ConnectAnalyticsContent() {
               <button
                 onClick={handleContinue}
                 disabled={completing}
-                className="btn-primary-gradient w-full"
+                className="w-full rounded-lg py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}
               >
                 {completing ? "Setting up..." : "Continue to Dashboard"}
               </button>
             </div>
           )}
-        </div>
       </div>
     </div>
   );
@@ -825,13 +722,10 @@ export default function ConnectAnalyticsPage() {
   return (
     <Suspense
       fallback={
-        <div
-          className="flex min-h-screen items-center justify-center"
-          style={{ background: "var(--bg-primary)" }}
-        >
+        <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
           <div
-            className="h-8 w-8 animate-spin rounded-full border-2 border-current"
-            style={{ color: "var(--accent)", borderTopColor: "transparent" }}
+            className="h-8 w-8 animate-spin rounded-full border-2 border-white"
+            style={{ borderTopColor: "transparent" }}
           />
         </div>
       }
