@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { Label } from "@/components/ui/label";
 
 interface OrgMember {
@@ -101,19 +102,22 @@ export default function TeamPanel({ onClose, orgId, orgName }: TeamPanelProps) {
   }
 
   async function sendInvite() {
-    if (!inviteEmail.trim() || !selectedOrgId) return;
+    const emails = inviteEmail.split(",").map((e) => e.trim()).filter(Boolean);
+    if (emails.length === 0 || !selectedOrgId) return;
     setInviting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/organizations/${selectedOrgId}/invite`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to send invite");
-        return;
+      for (const email of emails) {
+        const res = await fetch(`/api/organizations/${selectedOrgId}/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.error || `Failed to invite ${email}`);
+          return;
+        }
       }
       setInviteEmail("");
       setInviteSuccess(true);
@@ -288,13 +292,10 @@ export default function TeamPanel({ onClose, orgId, orgName }: TeamPanelProps) {
                     <div className="rounded-xl border border-border p-4 space-y-4" style={{ background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Email address</Label>
-                        <Input
-                          type="email"
-                          placeholder="teammate@company.com"
+                        <EmailTagInput
                           value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && sendInvite()}
-                          className="h-8 text-xs"
+                          onChange={setInviteEmail}
+                          placeholder="teammate@company.com"
                         />
                       </div>
 

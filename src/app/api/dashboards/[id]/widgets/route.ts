@@ -554,15 +554,47 @@ export async function POST(
     const rawLayout = (dashboard.layout as Array<{ i: string; x: number; y: number; w: number; h: number }>) || [];
     // Filter out layout entries for deleted widgets
     const layout = rawLayout.filter((item) => existingIds.has(item.i));
-    const sizes: Record<string, { w: number; h: number }> = {
-      chart: { w: 12, h: 5 },
-      scorecard: { w: 4, h: 3 },
-      table: { w: 12, h: 4 },
-    };
-    const size = sizes[parsed.widgetType] || sizes.chart;
+    // Smart default sizes based on widget and chart type
+    function getWidgetSize(widgetType: string, displayConfig: unknown): { w: number; h: number } {
+      if (widgetType === "scorecard") return { w: 3, h: 2 };
+      if (widgetType === "table") return { w: 6, h: 4 };
+      if (widgetType === "chart" && displayConfig) {
+        const config = displayConfig as Record<string, unknown>;
+        const series = config.series;
+        const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
+        const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
+        switch (chartType) {
+          case "pie": return { w: 6, h: 4 };
+          case "gauge": return { w: 4, h: 4 };
+          case "radar": return { w: 6, h: 4 };
+          case "funnel": return { w: 6, h: 4 };
+          case "bar": return seriesArr.length > 1 ? { w: 6, h: 4 } : { w: 6, h: 4 };
+          case "line": return { w: 6, h: 4 };
+          case "scatter": return { w: 6, h: 4 };
+          case "sankey": return { w: 12, h: 6 };
+          case "treemap": return { w: 6, h: 4 };
+          case "map": return { w: 12, h: 5 };
+          default: return { w: 6, h: 4 };
+        }
+      }
+      return { w: 6, h: 4 };
+    }
+
+    const size = getWidgetSize(parsed.widgetType, parsed.displayConfig);
     const maxBottom = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
 
-    layout.push({ i: widget.id, x: 0, y: maxBottom, w: size.w, h: size.h });
+    // Try to place side-by-side if there's room on the last row
+    let x = 0;
+    const lastRowY = layout.length > 0 ? Math.max(...layout.map((item) => item.y)) : 0;
+    const lastRowItems = layout.filter((item) => item.y === lastRowY);
+    const lastRowRight = lastRowItems.reduce((max, item) => Math.max(max, item.x + item.w), 0);
+    if (lastRowRight + size.w <= 12) {
+      // Fits next to existing widgets on the same row
+      x = lastRowRight;
+      layout.push({ i: widget.id, x, y: lastRowY, w: size.w, h: size.h });
+    } else {
+      layout.push({ i: widget.id, x: 0, y: maxBottom, w: size.w, h: size.h });
+    }
 
     await prisma.dashboard.update({
       where: { id: dashboardId },

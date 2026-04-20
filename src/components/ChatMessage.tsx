@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import ChartRenderer, { type ChartRendererHandle } from "./ChartRenderer";
+import ChartRenderer, { type ChartRendererHandle, extractPieData, extractBarLegendData, getPieMetricLabel, ACCENT_PALETTE } from "./ChartRenderer";
 import ChartShareMenu from "./ChartShareMenu";
 
 interface ChatMessageProps {
@@ -82,6 +82,16 @@ export default function ChatMessage({
     ? parts.slice(0, visiblePartCount).join("")
     : content;
 
+  // Compute legend data for chart image export
+  const chartLegendData = useMemo(() => {
+    if (!chart) return null;
+    return extractPieData(chart, ACCENT_PALETTE) || extractBarLegendData(chart, ACCENT_PALETTE);
+  }, [chart]);
+  const chartMetricLabel = useMemo(() => {
+    if (!chart) return undefined;
+    return getPieMetricLabel(chart);
+  }, [chart]);
+
   return (
     <div className="flex w-full justify-center px-4 py-6">
       <div
@@ -139,6 +149,8 @@ export default function ChatMessage({
               <div className="absolute right-3 top-3 z-10">
                 <ChartShareMenu
                   getDataURL={() => chartRef.current?.getDataURL() ?? null}
+                  legendData={chartLegendData}
+                  legendMetricLabel={chartMetricLabel}
                 />
               </div>
               <ChartRenderer ref={chartRef} option={chart} />
@@ -290,7 +302,7 @@ function formatContentInner(text: string): string {
 }
 
 const REC_TICK_SVG =
-  '<svg class="rec-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+  '<svg class="rec-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>';
 
 function escapeHtml(text: string): string {
   return text

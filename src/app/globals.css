@@ -751,6 +751,48 @@ body {
   100% { transform: rotate(0deg); }
 }
 
+/* ── Pin icon: pushes down like pinning to a board ── */
+*:hover > .lucide-pin {
+  animation: pin-push 0.4s ease-in-out;
+  transform-origin: 50% 100%;
+}
+
+@keyframes pin-push {
+  0% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-2px) rotate(-8deg); }
+  60% { transform: translateY(1px) rotate(2deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* ── PinOff icon: pulls up like unpinning ── */
+*:hover > .lucide-pin-off {
+  animation: pin-pull 0.4s ease-in-out;
+  transform-origin: 50% 0%;
+}
+
+@keyframes pin-pull {
+  0% { transform: translateY(0) rotate(0deg); }
+  40% { transform: translateY(-3px) rotate(6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* ── Ellipsis (three dot menu): dots bounce ── */
+*:hover > .lucide-ellipsis circle:nth-child(1) {
+  animation: dot-bounce 0.35s ease-in-out;
+}
+*:hover > .lucide-ellipsis circle:nth-child(2) {
+  animation: dot-bounce 0.35s ease-in-out 0.06s;
+}
+*:hover > .lucide-ellipsis circle:nth-child(3) {
+  animation: dot-bounce 0.35s ease-in-out 0.12s;
+}
+
+@keyframes dot-bounce {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
 /* ── Sidebar toggle arrow animation ── */
 @keyframes arrow-loop {
   0% { transform: translateX(0); opacity: 1; }

@@ -54,7 +54,7 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-const ACCENT_PALETTE = [
+export const ACCENT_PALETTE = [
   "#10a37f",
   "#6366f1",
   "#f59e0b",
@@ -431,11 +431,30 @@ function applyTheme(
       },
     },
     legend: {
+      type: "scroll",
+      bottom: 0,
+      left: "center",
+      orient: "horizontal",
+      itemGap: 16,
+      itemWidth: 12,
+      itemHeight: 12,
+      icon: "roundRect",
+      pageIconColor: isDark ? "#aaa" : "#666",
+      pageTextStyle: { color: textColor },
       ...(option.legend as Record<string, unknown> | undefined),
       textStyle: {
         color: textColor,
+        fontSize: 12,
         ...((option.legend as Record<string, unknown>)?.textStyle as Record<string, unknown> | undefined),
       },
+    },
+    grid: {
+      left: 48,
+      right: 24,
+      top: 40,
+      bottom: 48,
+      containLabel: true,
+      ...(option.grid as Record<string, unknown> | undefined),
     },
     tooltip: {
       ...(option.tooltip as Record<string, unknown> | undefined),
@@ -460,6 +479,46 @@ function applyTheme(
         isDark,
         ACCENT_PALETTE
       );
+    }
+  }
+
+  // Apply label styling to pie/donut/funnel/treemap series
+  if (Array.isArray(themed.series)) {
+    themed.series = (themed.series as Record<string, unknown>[]).map((s) => {
+      const type = s.type as string;
+      if (type === "pie") {
+        return {
+          ...s,
+          center: ["50%", "55%"],
+          radius: s.radius || ["30%", "60%"],
+          label: { show: false },
+          labelLine: { show: false },
+          emphasis: {
+            label: { show: false },
+            ...(s.emphasis as Record<string, unknown> | undefined),
+          },
+        };
+      }
+      if (type === "funnel" || type === "treemap") {
+        return {
+          ...s,
+          label: {
+            color: textColor,
+            ...(s.label as Record<string, unknown> | undefined),
+          },
+        };
+      }
+      return s;
+    });
+    const seriesArr = themed.series as Record<string, unknown>[];
+    const hasPie = seriesArr.some((s) => s.type === "pie");
+    const hasMultiBarLegend = !hasPie && extractBarLegendData(themed, ACCENT_PALETTE) !== null;
+
+    // Hide default legend and left-align title when we render a custom table
+    if (hasPie || hasMultiBarLegend) {
+      (themed.legend as Record<string, unknown>).show = false;
+      (themed.title as Record<string, unknown>).left = "4%";
+      (themed.title as Record<string, unknown>).top = 8;
     }
   }
 
@@ -522,6 +581,77 @@ function mergeAxisStyle(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Pie table legend helpers
+// ---------------------------------------------------------------------------
+
+export interface PieSlice {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export function extractPieData(option: Record<string, unknown>, palette: string[]): PieSlice[] | null {
+  const series = option.series;
+  if (!series) return null;
+  const arr = Array.isArray(series) ? series : [series];
+  const pieSeries = arr.find((s: Record<string, unknown>) => s.type === "pie") as Record<string, unknown> | undefined;
+  if (!pieSeries) return null;
+  const data = pieSeries.data as Array<{ name: string; value: number; itemStyle?: { color?: string } }> | undefined;
+  if (!data || !Array.isArray(data)) return null;
+  return data.map((d, i) => ({
+    name: d.name || `Item ${i + 1}`,
+    value: typeof d.value === "number" ? d.value : Number(d.value) || 0,
+    color: d.itemStyle?.color || palette[i % palette.length],
+  }));
+}
+
+export function getPieMetricLabel(option: Record<string, unknown>): string {
+  // Try to infer the metric name from the title
+  const title = option.title as Record<string, unknown> | undefined;
+  const text = (title?.text as string) || "";
+  const lower = text.toLowerCase();
+  if (lower.includes("user")) return "Users";
+  if (lower.includes("session")) return "Sessions";
+  if (lower.includes("pageview")) return "Pageviews";
+  if (lower.includes("revenue") || lower.includes("spend") || lower.includes("cost")) return "Value";
+  if (lower.includes("click")) return "Clicks";
+  if (lower.includes("impression")) return "Impressions";
+  if (lower.includes("conversion")) return "Conversions";
+  return "Value";
+}
+
+interface BarLegendEntry {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export function extractBarLegendData(option: Record<string, unknown>, palette: string[]): BarLegendEntry[] | null {
+  const series = option.series;
+  if (!series || !Array.isArray(series)) return null;
+  const barSeries = series.filter((s: Record<string, unknown>) => s.type === "bar" || s.type === "line");
+  // Only show table legend when there are 2+ named series
+  if (barSeries.length < 2) return null;
+  const hasNames = barSeries.every((s: Record<string, unknown>) => s.name);
+  if (!hasNames) return null;
+  return barSeries.map((s: Record<string, unknown>, i: number) => {
+    const data = s.data as number[] | Array<{ value: number }> | undefined;
+    let total = 0;
+    if (Array.isArray(data)) {
+      total = data.reduce((sum: number, d) => {
+        const v = typeof d === "number" ? d : (d as { value: number })?.value || 0;
+        return sum + v;
+      }, 0);
+    }
+    return {
+      name: (s.name as string) || `Series ${i + 1}`,
+      value: total,
+      color: (s.itemStyle as Record<string, unknown>)?.color as string || palette[i % palette.length],
+    };
+  });
+}
+
 export interface ChartRendererHandle {
   getDataURL: () => string | null;
 }
@@ -564,6 +694,9 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
 
     const themedOption = useMemo(() => applyTheme(option, isDark), [option, isDark]);
     const isSankey = useMemo(() => isSankeyChart(option), [option]);
+    const pieData = useMemo(() => extractPieData(themedOption, ACCENT_PALETTE), [themedOption]);
+    const pieMetricLabel = useMemo(() => getPieMetricLabel(option), [option]);
+    const barLegendData = useMemo(() => !pieData ? extractBarLegendData(themedOption, ACCENT_PALETTE) : null, [themedOption, pieData]);
     const chartHeight = isSankey ? "520px" : "400px";
 
     if (error) {
@@ -588,6 +721,193 @@ const ChartRenderer = forwardRef<ChartRendererHandle, ChartRendererProps>(
           style={{ color: "var(--text-secondary)" }}
         >
           Loading map...
+        </div>
+      );
+    }
+
+    // Pie/donut: side-by-side chart + table legend
+    if (pieData && !styleOverride) {
+      const total = pieData.reduce((sum, d) => sum + d.value, 0);
+      return (
+        <div className="flex" style={{ width: "100%", height: chartHeight }}>
+          <div style={{ flex: "1 1 55%", minWidth: 0 }}>
+            <ReactEChartsCore
+              ref={chartRef}
+              echarts={echarts}
+              option={themedOption}
+              style={{ width: "100%", height: "100%" }}
+              opts={{ devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio : 2 }}
+              notMerge
+              lazyUpdate
+            />
+          </div>
+          <div className="flex items-end justify-end" style={{ flex: "0 0 auto", padding: "24px 8px 24px 0" }}>
+            <table
+              className="rounded-lg text-sm"
+              style={{
+                borderCollapse: "separate",
+                borderSpacing: 0,
+                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <thead>
+                <tr>
+                  <th
+                    className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    Channel
+                  </th>
+                  <th
+                    className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    {pieMetricLabel}
+                  </th>
+                  <th
+                    className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    Share
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pieData.map((d, i) => (
+                  <tr key={i}>
+                    <td
+                      className="flex items-center gap-2 px-4 py-2 text-[13px]"
+                      style={{ color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: d.color }}
+                      />
+                      {d.name}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right text-[13px] tabular-nums"
+                      style={{ color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      {d.value.toLocaleString()}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right text-[13px] tabular-nums"
+                      style={{ color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      {total > 0 ? `${((d.value / total) * 100).toFixed(1)}%` : "0%"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td
+                    className="px-4 py-2 text-[13px] font-semibold"
+                    style={{ color: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)", borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` }}
+                  >
+                    Total
+                  </td>
+                  <td
+                    className="px-4 py-2 text-right text-[13px] font-semibold tabular-nums"
+                    style={{ color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)", borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` }}
+                  >
+                    {total.toLocaleString()}
+                  </td>
+                  <td
+                    className="px-4 py-2 text-right text-[13px] font-semibold tabular-nums"
+                    style={{ color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)", borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` }}
+                  >
+                    100%
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Bar/line with multiple named series: chart left + table legend right
+    if (barLegendData && !styleOverride) {
+      const total = barLegendData.reduce((sum, d) => sum + d.value, 0);
+      return (
+        <div className="flex" style={{ width: "100%", height: chartHeight }}>
+          <div style={{ flex: "1 1 55%", minWidth: 0 }}>
+            <ReactEChartsCore
+              ref={chartRef}
+              echarts={echarts}
+              option={themedOption}
+              style={{ width: "100%", height: "100%" }}
+              opts={{ devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio : 2 }}
+              notMerge
+              lazyUpdate
+            />
+          </div>
+          <div className="flex items-end justify-end" style={{ flex: "0 0 auto", padding: "24px 8px 24px 0" }}>
+            <table
+              className="rounded-lg text-sm"
+              style={{
+                borderCollapse: "separate",
+                borderSpacing: 0,
+                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <thead>
+                <tr>
+                  <th
+                    className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    Series
+                  </th>
+                  <th
+                    className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    Total
+                  </th>
+                  <th
+                    className="px-4 py-2 text-right text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}
+                  >
+                    Share
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {barLegendData.map((d, i) => (
+                  <tr key={i}>
+                    <td
+                      className="flex items-center gap-2 px-4 py-2 text-[13px]"
+                      style={{ color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+                      {d.name}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right text-[13px] tabular-nums"
+                      style={{ color: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      {d.value.toLocaleString()}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right text-[13px] tabular-nums"
+                      style={{ color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+                    >
+                      {total > 0 ? `${((d.value / total) * 100).toFixed(1)}%` : "0%"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       );
     }

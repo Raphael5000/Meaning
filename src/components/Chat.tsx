@@ -134,6 +134,7 @@ export default function Chat() {
   useEffect(() => {
     const sessionUserId = (session as { userId?: string } | null)?.userId;
     if (!sessionUserId) return;
+    setInitialLoaded(false);
     let cancelled = false;
     fetchChats(activeOrgId).then((loaded) => {
       if (!cancelled) {
@@ -612,16 +613,6 @@ export default function Chat() {
           <Button
             variant="ghost"
             className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
-            onClick={() => { closeAllPanels(); setAlertsOpen(true); }}
-            aria-label="Email alerts"
-            title="Alerts"
-          >
-            <Bell className="sidebar-icon-bell h-4 w-4 shrink-0" />
-            {sidebarOpen && <span>Alerts</span>}
-          </Button>
-          <Button
-            variant="ghost"
-            className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
             onClick={() => { closeAllPanels(); setDashboardListOpen(true); }}
             aria-label="Dashboards"
             title="Dashboards"
@@ -630,9 +621,28 @@ export default function Chat() {
             <LayoutDashboard className="sidebar-icon-dashboard h-4 w-4 shrink-0" />
             {sidebarOpen && <span>Dashboards</span>}
           </Button>
+          <Button
+            variant="ghost"
+            className={`sidebar-btn w-full ${sidebarOpen ? "justify-start gap-2" : "justify-center px-0"}`}
+            onClick={() => { closeAllPanels(); setAlertsOpen(true); }}
+            aria-label="Email alerts"
+            title="Alerts"
+          >
+            <Bell className="sidebar-icon-bell h-4 w-4 shrink-0" />
+            {sidebarOpen && <span>Alerts</span>}
+          </Button>
         </div>
         <div className={`flex-1 overflow-y-auto p-2 pt-4 ${sidebarOpen ? "" : "hidden md:hidden"}`}>
-          {chats.length === 0 ? (
+          {!initialLoaded ? (
+            <div className="space-y-1 px-2">
+              <div className="mb-3 h-3 w-16 animate-pulse rounded" style={{ background: "var(--bg-hover)" }} />
+              {[0.85, 0.7, 0.55, 0.9, 0.6, 0.75].map((w, i) => (
+                <div key={i} className="rounded-lg px-3 py-2.5">
+                  <div className="h-3.5 animate-pulse rounded" style={{ width: `${w * 100}%`, background: "var(--bg-hover)", animationDelay: `${i * 100}ms` }} />
+                </div>
+              ))}
+            </div>
+          ) : chats.length === 0 ? (
             <p className="px-2 text-sm text-muted-foreground">No chats yet</p>
           ) : (
             <>

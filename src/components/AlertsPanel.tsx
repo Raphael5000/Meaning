@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -503,14 +504,11 @@ export default function AlertsPanel({ onClose, orgId }: AlertsPanelProps) {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Recipient emails</Label>
-                <Input
-                  type="text"
+                <EmailTagInput
                   value={recipients}
-                  onChange={(e) => setRecipients(e.target.value)}
-                  placeholder="email@example.com, another@example.com"
-                  className="h-8 text-xs"
+                  onChange={setRecipients}
+                  placeholder="teammate@company.com"
                 />
-                <p className="text-[10px] text-muted-foreground">Separate multiple emails with commas</p>
               </div>
 
               <div className="flex gap-2 pt-1">

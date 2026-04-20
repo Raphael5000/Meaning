@@ -3,8 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import { Download, Linkedin, Share2, MessageSquare } from "lucide-react";
 
+interface LegendEntry {
+  name: string;
+  value: number;
+  color: string;
+}
+
 interface ChartShareMenuProps {
   getDataURL: () => string | null;
+  legendData?: LegendEntry[] | null;
+  legendMetricLabel?: string;
 }
 
 const PADDING = 60;
@@ -13,11 +21,26 @@ const LOGO_HEIGHT = 24;
 const WATERMARK_MARGIN = 16;
 
 /** Render a professional styled image from the raw chart PNG */
-async function createStyledImage(rawDataURL: string): Promise<string> {
+async function createStyledImage(
+  rawDataURL: string,
+  legendData?: LegendEntry[] | null,
+  legendMetricLabel?: string
+): Promise<string> {
   const chartImg = await loadImage(rawDataURL);
 
-  const width = chartImg.width + PADDING * 2;
-  const height = chartImg.height + PADDING * 2 + LOGO_HEIGHT + WATERMARK_MARGIN;
+  // If we have legend data, allocate space for the table on the right
+  const TABLE_COL_W = 380;
+  const TABLE_ROW_H = 48;
+  const TABLE_HEADER_H = 42;
+  const TABLE_PADDING = 24;
+  const hasTable = legendData && legendData.length > 0;
+  const tableHeight = hasTable ? TABLE_HEADER_H + legendData.length * TABLE_ROW_H + TABLE_ROW_H + TABLE_PADDING * 2 : 0;
+
+  const chartAreaW = chartImg.width;
+  const extraW = hasTable ? TABLE_COL_W + 40 : 0;
+  const width = chartAreaW + extraW + PADDING * 2;
+  const minH = hasTable ? Math.max(chartImg.height, tableHeight) : chartImg.height;
+  const height = minH + PADDING * 2 + LOGO_HEIGHT + WATERMARK_MARGIN;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -43,6 +66,95 @@ async function createStyledImage(rawDataURL: string): Promise<string> {
 
   // Chart image
   ctx.drawImage(chartImg, PADDING, PADDING);
+
+  // Draw table legend if present
+  if (hasTable && legendData) {
+    const total = legendData.reduce((sum, d) => sum + d.value, 0);
+    const tableX = PADDING + chartAreaW + 20;
+    const tableY = height - PADDING - LOGO_HEIGHT - WATERMARK_MARGIN - tableHeight + TABLE_PADDING;
+    const metricLabel = legendMetricLabel || "Value";
+
+    // Table background
+    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+    roundRect(ctx, tableX, tableY, TABLE_COL_W, tableHeight - TABLE_PADDING, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, tableX, tableY, TABLE_COL_W, tableHeight - TABLE_PADDING, 10);
+    ctx.stroke();
+
+    // Header
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.font = "600 13px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("CHANNEL", tableX + 16, tableY + TABLE_HEADER_H / 2);
+    ctx.textAlign = "right";
+    ctx.fillText(metricLabel.toUpperCase(), tableX + TABLE_COL_W - 110, tableY + TABLE_HEADER_H / 2);
+    ctx.fillText("SHARE", tableX + TABLE_COL_W - 16, tableY + TABLE_HEADER_H / 2);
+
+    // Header divider
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.beginPath();
+    ctx.moveTo(tableX, tableY + TABLE_HEADER_H);
+    ctx.lineTo(tableX + TABLE_COL_W, tableY + TABLE_HEADER_H);
+    ctx.stroke();
+
+    // Rows
+    legendData.forEach((d, i) => {
+      const rowY = tableY + TABLE_HEADER_H + i * TABLE_ROW_H;
+
+      // Row divider
+      if (i > 0) {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+        ctx.beginPath();
+        ctx.moveTo(tableX, rowY);
+        ctx.lineTo(tableX + TABLE_COL_W, rowY);
+        ctx.stroke();
+      }
+
+      // Color dot
+      ctx.fillStyle = d.color;
+      ctx.beginPath();
+      ctx.arc(tableX + 24, rowY + TABLE_ROW_H / 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Name
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.font = "400 16px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(d.name, tableX + 42, rowY + TABLE_ROW_H / 2);
+
+      // Value
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.textAlign = "right";
+      ctx.fillText(d.value.toLocaleString(), tableX + TABLE_COL_W - 110, rowY + TABLE_ROW_H / 2);
+
+      // Share
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) + "%" : "0%";
+      ctx.fillText(pct, tableX + TABLE_COL_W - 16, rowY + TABLE_ROW_H / 2);
+    });
+
+    // Total row
+    const totalRowY = tableY + TABLE_HEADER_H + legendData.length * TABLE_ROW_H;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.beginPath();
+    ctx.moveTo(tableX, totalRowY);
+    ctx.lineTo(tableX + TABLE_COL_W, totalRowY);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.font = "600 16px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Total", tableX + 16, totalRowY + TABLE_ROW_H / 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.textAlign = "right";
+    ctx.fillText(total.toLocaleString(), tableX + TABLE_COL_W - 110, totalRowY + TABLE_ROW_H / 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.fillText("100%", tableX + TABLE_COL_W - 16, totalRowY + TABLE_ROW_H / 2);
+  }
 
   // Watermark text
   ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
@@ -107,7 +219,7 @@ function XLogo({ className }: { className?: string }) {
   );
 }
 
-export default function ChartShareMenu({ getDataURL }: ChartShareMenuProps) {
+export default function ChartShareMenu({ getDataURL, legendData, legendMetricLabel }: ChartShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -128,7 +240,7 @@ export default function ChartShareMenu({ getDataURL }: ChartShareMenuProps) {
     if (!raw) return null;
     setGenerating(true);
     try {
-      return await createStyledImage(raw);
+      return await createStyledImage(raw, legendData, legendMetricLabel);
     } finally {
       setGenerating(false);
     }
