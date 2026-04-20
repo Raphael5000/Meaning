@@ -1,5 +1,6 @@
 export const revalidate = 60;
 
+import { Suspense } from "react";
 import { getArticlesBySection, docsCategories } from "./data";
 import { DocsSidebar } from "./DocsSidebar";
 import DocsClient from "./DocsClient";
@@ -26,7 +27,9 @@ export default async function DocsPage({
 
   return (
     <div className="flex">
-      <DocsSidebar articles={articles} categories={docsCategories} />
+      <Suspense>
+        <DocsSidebar articles={articles} categories={docsCategories} />
+      </Suspense>
       <main className="min-w-0 flex-1">
         <DocsClient
           articles={filteredArticles}

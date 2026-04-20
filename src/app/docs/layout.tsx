@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { DocsNav } from "./DocsNav";
 
 export default function DocsLayout({
@@ -7,7 +8,9 @@ export default function DocsLayout({
 }) {
   return (
     <div className="marketing min-h-screen" style={{ background: "var(--m-bg)" }}>
-      <DocsNav />
+      <Suspense>
+        <DocsNav />
+      </Suspense>
       {children}
     </div>
   );

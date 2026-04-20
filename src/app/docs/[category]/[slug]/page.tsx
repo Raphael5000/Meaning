@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticle, getCategory, getArticlesByCategory, getArticlesBySection, docsCategories } from "../../data";
@@ -30,9 +31,12 @@ export default async function ArticlePage({
 
   return (
     <div className="flex">
-      <DocsSidebar articles={allDocsArticles} categories={docsCategories} />
+      <Suspense>
+        <DocsSidebar articles={allDocsArticles} categories={docsCategories} />
+      </Suspense>
       {/* Main content */}
       <div className="min-w-0 flex-1 px-8 py-10 lg:px-12">
+        <div className="mx-auto max-w-3xl">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center gap-2 text-sm" style={{ color: "var(--m-text-muted)" }}>
           <Link href="/docs" className="transition-colors hover:text-[color:var(--m-text-secondary)]">
@@ -51,14 +55,14 @@ export default async function ArticlePage({
         <h1 className="mb-3 text-3xl font-semibold tracking-tight" style={{ color: "var(--m-text)" }}>
           {article.title}
         </h1>
-        <p className="mb-8 max-w-3xl text-base leading-relaxed" style={{ color: "var(--m-text-secondary)" }}>
+        <p className="mb-8 text-base leading-relaxed" style={{ color: "var(--m-text-secondary)" }}>
           {article.description}
         </p>
 
         {/* Article body */}
         <div className="mb-16">
           {mdxContent ? (
-            <div className="article-body max-w-3xl">{mdxContent}</div>
+            <div className="article-body">{mdxContent}</div>
           ) : (
             <div className="flex flex-col items-center gap-4 rounded-xl py-16 text-center" style={{ border: "1px solid var(--m-hairline)" }}>
               <div
@@ -115,6 +119,7 @@ export default async function ArticlePage({
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Right sidebar — table of contents */}
