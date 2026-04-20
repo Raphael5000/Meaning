@@ -193,8 +193,11 @@ export default function Chat() {
       .then((data) => {
         if (data?.teamMembership) {
           setUserPlan("Team");
-        } else if (data?.subscription?.status === "trialing") {
-          setUserPlan("Free Trial");
+        } else if (data?.subscription?.status === "trialing" && data?.subscription?.currentPeriodEnd) {
+          const endDate = new Date(data.subscription.currentPeriodEnd);
+          const now = new Date();
+          const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+          setUserPlan(daysLeft === 1 ? "1 day left in trial" : `${daysLeft} days left in trial`);
         } else if (data?.subscription?.status === "active" && data?.subscription?.plan) {
           const plan = data.subscription.plan;
           setUserPlan(plan.charAt(0).toUpperCase() + plan.slice(1));

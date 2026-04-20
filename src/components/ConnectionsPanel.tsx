@@ -540,8 +540,8 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                         </p>
                         <Button
                           size="sm"
+                          variant="outline"
                           className="h-8 text-xs"
-                          style={{ background: "var(--accent)", color: "white" }}
                           onClick={() => { window.location.href = getConnectUrl(source.type); }}
                         >
                           <ExternalLink className="mr-1.5 h-3 w-3" />
