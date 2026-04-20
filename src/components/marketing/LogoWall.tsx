@@ -4,9 +4,9 @@ const connectors: { name: string; src?: string; comingSoon?: boolean }[] = [
   { name: "Google Analytics", src: "/Google Analytics.svg" },
   { name: "Google Ads", src: "/Google Ads.svg" },
   { name: "LinkedIn", src: "/Linkedin.svg" },
-  { name: "Microsoft Ads" },
-  { name: "Mailchimp" },
-  { name: "Search Console" },
+  { name: "Microsoft Ads", src: "/Microsoft Ads.svg" },
+  { name: "Mailchimp", src: "/Mailchimp.svg" },
+  { name: "Search Console", src: "/Search Console.svg" },
   { name: "Meta", src: "/Meta.svg", comingSoon: true },
 ];
 

@@ -6,10 +6,14 @@ import {
   Bell,
   Bug,
   ChevronLeft,
+  Ellipsis,
   LayoutDashboard,
   Link2,
   LogOut,
   Menu,
+  Pencil,
+  Pin,
+  PinOff,
   SquarePen,
   Trash2,
   User,
@@ -17,6 +21,23 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import AccountSelector from "./AccountSelector";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
@@ -34,6 +55,8 @@ import {
   createChat,
   updateChat,
   deleteRemoteChat,
+  togglePinChat,
+  renameChat,
   titleFromFirstMessage,
   type Message,
   type StoredChat,
@@ -94,7 +117,7 @@ export default function Chat() {
   // Auto-open Connections modal after OAuth redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("ads_connected") === "true" || params.get("linkedin_connected") === "true" || params.get("mailchimp_connected") === "true") {
+    if (params.get("ga_connected") === "true" || params.get("gsc_connected") === "true" || params.get("ads_connected") === "true" || params.get("linkedin_connected") === "true" || params.get("mailchimp_connected") === "true" || params.get("ms_ads_connected") === "true") {
       setConnectionsOpen(true);
       window.history.replaceState({}, "", "/");
     }
@@ -102,7 +125,7 @@ export default function Chat() {
   const [teamOpen, setTeamOpen] = useState(false);
   const [dashboardListOpen, setDashboardListOpen] = useState(false);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
-  const [userPlan, setUserPlan] = useState<string>("Free");
+  const [userPlan, setUserPlan] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -400,17 +423,49 @@ export default function Chat() {
     }
   }
 
-  function deleteChat(e: React.MouseEvent, chatId: string) {
-    e.stopPropagation();
-    setChats((prev) => prev.filter((c) => c.id !== chatId));
-    deleteRemoteChat(chatId);
-    if (currentChatId === chatId) {
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+
+  function confirmDeleteChat() {
+    if (!deleteTarget) return;
+    setChats((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+    deleteRemoteChat(deleteTarget.id);
+    if (currentChatId === deleteTarget.id) {
       setCurrentChatId(null);
       setMessages([]);
     }
+    setDeleteTarget(null);
   }
 
-  const sortedChats = [...chats].sort((a, b) => b.createdAt - a.createdAt);
+  // Rename
+  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  function startRename(chat: StoredChat) {
+    setRenamingChatId(chat.id);
+    setRenameValue(chat.title);
+    setTimeout(() => renameInputRef.current?.focus(), 50);
+  }
+
+  function submitRename() {
+    if (!renamingChatId || !renameValue.trim()) return;
+    const newTitle = renameValue.trim();
+    setChats((prev) => prev.map((c) => c.id === renamingChatId ? { ...c, title: newTitle } : c));
+    renameChat(renamingChatId, newTitle);
+    setRenamingChatId(null);
+  }
+
+  // Pin / unpin
+  function handleTogglePin(chat: StoredChat) {
+    const newPinned = !chat.pinned;
+    setChats((prev) => prev.map((c) => c.id === chat.id ? { ...c, pinned: newPinned } : c));
+    togglePinChat(chat.id, newPinned);
+  }
+
+  const allSorted = [...chats].sort((a, b) => b.createdAt - a.createdAt);
+  const pinnedChats = allSorted.filter((c) => c.pinned);
+  const recentChats = allSorted.filter((c) => !c.pinned);
 
   // Show onboarding guide only for genuine first-time users
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -428,6 +483,68 @@ export default function Chat() {
     const timer = setTimeout(() => setShowOnboarding(true), 800);
     return () => clearTimeout(timer);
   }, [session?.user, chats.length]);
+
+  function renderChatItem(chat: StoredChat) {
+    const isRenaming = renamingChatId === chat.id;
+    return (
+      <li key={chat.id}>
+        <button
+          type="button"
+          onClick={() => !isRenaming && selectChat(chat)}
+          className="group flex w-full items-center gap-1 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
+          style={{ backgroundColor: currentChatId === chat.id ? "var(--bg-hover)" : undefined }}
+        >
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingChatId(null); }}
+              onBlur={submitRename}
+              className="min-w-0 flex-1 rounded bg-muted px-1.5 py-0.5 text-sm text-foreground outline-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="min-w-0 flex-1 truncate" title={chat.title}>
+              {truncateTitle(chat.title)}
+            </span>
+          )}
+          {!isRenaming && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="shrink-0 cursor-pointer rounded p-1 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Chat options"
+                >
+                  <Ellipsis className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start">
+                <DropdownMenuItem onClick={() => handleTogglePin(chat)}>
+                  {chat.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                  {chat.pinned ? "Unpin" : "Pin"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => startRename(chat)}>
+                  <Pencil className="h-4 w-4" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setDeleteTarget({ id: chat.id, title: chat.title })}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </button>
+      </li>
+    );
+  }
 
   return (
     <div
@@ -511,43 +628,50 @@ export default function Chat() {
             {sidebarOpen && <span>Dashboards</span>}
           </Button>
         </div>
-        <div className={`flex-1 overflow-y-auto p-2 pt-6 ${sidebarOpen ? "" : "hidden md:hidden"}`}>
-          {sidebarOpen && <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-            Chat history
-          </p>}
-          {sortedChats.length === 0 ? (
-            <p className="px-2 text-sm text-muted-foreground">
-              No chats yet
-            </p>
+        <div className={`flex-1 overflow-y-auto p-2 pt-4 ${sidebarOpen ? "" : "hidden md:hidden"}`}>
+          {chats.length === 0 ? (
+            <p className="px-2 text-sm text-muted-foreground">No chats yet</p>
           ) : (
-            <ul className="space-y-0.5">
-              {sortedChats.map((chat) => (
-                <li key={chat.id}>
-                  <button
-                    type="button"
-                    onClick={() => selectChat(chat)}
-                    className="group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
-                    style={{
-                      backgroundColor: currentChatId === chat.id ? "var(--bg-hover)" : undefined,
-                    }}
-                  >
-                    <span className="min-w-0 flex-1 truncate" title={chat.title}>
-                      {truncateTitle(chat.title)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => deleteChat(e, chat.id)}
-                      className="shrink-0 cursor-pointer rounded p-1 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
-                      aria-label="Delete chat"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* Pinned section */}
+              {pinnedChats.length > 0 && (
+                <>
+                  <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pinned</p>
+                  <ul className="mb-3 space-y-0.5">
+                    {pinnedChats.map((chat) => renderChatItem(chat))}
+                  </ul>
+                </>
+              )}
+              {/* Recents section */}
+              {recentChats.length > 0 && (
+                <>
+                  <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recents</p>
+                  <ul className="space-y-0.5">
+                    {recentChats.map((chat) => renderChatItem(chat))}
+                  </ul>
+                </>
+              )}
+            </>
           )}
         </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete chat</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteChat} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Account section - bottom left */}
         {session?.user && (
@@ -701,7 +825,7 @@ export default function Chat() {
         ) : alertsOpen ? (
           <AlertsPanel onClose={() => setAlertsOpen(false)} orgId={activeOrgId} />
         ) : teamOpen ? (
-          <TeamPanel onClose={() => setTeamOpen(false)} />
+          <TeamPanel onClose={() => setTeamOpen(false)} orgId={activeOrgId} orgName={activeOrgName} />
         ) : activeDashboardId ? (
           <DashboardPanel
             dashboardId={activeDashboardId}

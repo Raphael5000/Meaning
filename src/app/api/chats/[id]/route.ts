@@ -85,6 +85,38 @@ export async function PUT(
   }
 }
 
+/** PATCH /api/chats/:id – lightweight update (pin, rename) */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    const existing = await prisma.chat.findFirst({ where: { id, userId } });
+    if (!existing) {
+      return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+    }
+
+    const body = (await request.json()) as { title?: string; pinned?: boolean };
+    const updateData: Prisma.ChatUpdateInput = {};
+    if (body.title !== undefined) updateData.title = body.title;
+    if (body.pinned !== undefined) updateData.pinned = body.pinned;
+
+    const chat = await prisma.chat.update({ where: { id }, data: updateData });
+    return NextResponse.json(chat);
+  } catch (err) {
+    console.error("[api/chats] PATCH error:", err);
+    return NextResponse.json({ error: "Failed to update chat" }, { status: 500 });
+  }
+}
+
 /** DELETE /api/chats/:id – delete a chat and its messages */
 export async function DELETE(
   _request: NextRequest,

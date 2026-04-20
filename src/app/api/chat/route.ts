@@ -92,7 +92,9 @@ const SHARED_PROMPT_RULES = `CRITICAL — DATA ACCURACY RULES (you must follow t
 5. When you are uncertain about any number, date range, or relationship, say so. Accuracy is more important than completeness.
 6. Dates must exactly match what the user asked for and what the tool returned. Do not silently change date ranges.
 7. If the user asks for a breakdown or flow that cannot be provided in a single query (e.g. multi-step user journeys), explain the limitation rather than fabricating a plausible-looking result.
-8. If you need to make ANY assumption to answer the question, you MUST explicitly state the assumption and ask the user for confirmation before proceeding. Never make silent assumptions.`;
+8. If you need to make ANY assumption to answer the question, you MUST explicitly state the assumption and ask the user for confirmation before proceeding. Never make silent assumptions.
+9. NEVER claim that data "only goes to" or "is available until" a specific date unless you have explicitly queried for MAX(date) and confirmed this. If a query returns less data than expected, run a follow-up query to check the actual date range (e.g. SELECT MIN(session_date), MAX(session_date) FROM {dataset}.sessions) before making any claims about data availability.
+10. When presenting time series data, always ensure your query covers the full date range the user asked about. If the results show gaps or end early, verify whether this is a data issue or a query issue before telling the user.`;
 
 const SHARED_PROMPT_OUTPUT = `Tips:
 - Default date range is the last 28 days unless the user specifies otherwise.
@@ -335,6 +337,8 @@ Always clean URLs with REGEXP_EXTRACT to strip query params and domain. Limit re
 
 IMPORTANT: Data is exported from GA4 daily and may be up to 24 hours behind. Today's data is typically not available until tomorrow. When users ask about "today", inform them of this lag and show yesterday's data instead. When asked about "this week", use a date range starting from the Monday of the current week.
 
+NEVER GUESS DATA BOUNDARIES: If a query returns fewer rows than expected or the user questions why data seems incomplete, DO NOT guess or assume a cutoff date. Instead, run a verification query like: SELECT MIN(session_date) AS earliest, MAX(session_date) AS latest, COUNT(*) AS total FROM {dataset}.sessions — then report the actual boundaries from the query result.
+
 ${SHARED_PROMPT_OUTPUT}`;
 }
 
@@ -494,7 +498,10 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
     }
   }
   const orderByClause = orderBy ? `ORDER BY ${orderField} ${dir}` : "";
-  const limitClause = `LIMIT ${Math.min(limit || 10, 500)}`;
+  // Use a higher default when grouping by date so time-series queries return all rows
+  const hasDimDate = dimensions?.some((d) => d === "date" || d === "session_date" || d === "event_date" || d === "stats_date" || d === "click_date" || d === "query_date");
+  const defaultLimit = hasDimDate ? 90 : 25;
+  const limitClause = `LIMIT ${Math.min(limit || defaultLimit, 500)}`;
 
   const sql = `SELECT ${selectClause} FROM \`{dataset}.${table}\` ${whereClause} ${groupByClause} ${orderByClause} ${limitClause}`;
 

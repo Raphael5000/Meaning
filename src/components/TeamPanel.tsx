@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
   Loader2,
   Mail,
   Pencil,
@@ -37,26 +36,20 @@ interface OrgData {
   invites: OrgInvite[];
 }
 
-interface OrgListItem {
-  id: string;
-  name: string;
-  imageUrl: string | null;
-  ownerId: string;
-  role: string;
-}
 
 interface TeamPanelProps {
   onClose: () => void;
+  orgId: string | null;
+  orgName: string;
 }
 
-export default function TeamPanel({ onClose }: TeamPanelProps) {
+export default function TeamPanel({ onClose, orgId, orgName }: TeamPanelProps) {
   const [tab, setTab] = useState<"members" | "invite">("members");
-  const [orgs, setOrgs] = useState<OrgListItem[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [orgDetail, setOrgDetail] = useState<OrgData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedOrgId = orgId;
 
   // Edit name
   const [editingName, setEditingName] = useState(false);
@@ -67,24 +60,6 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
-
-  const fetchOrgs = useCallback(async () => {
-    try {
-      const res = await fetch("/api/organizations");
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.organizations || [];
-        setOrgs(list);
-        if (list.length > 0 && !selectedOrgId) {
-          setSelectedOrgId(list[0].id);
-        }
-      }
-    } catch {
-      setError("Failed to load accounts");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedOrgId]);
 
   const fetchOrgDetail = useCallback(async (orgId: string) => {
     setLoadingDetail(true);
@@ -102,10 +77,6 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
   }, []);
 
   useEffect(() => {
-    fetchOrgs();
-  }, [fetchOrgs]);
-
-  useEffect(() => {
     if (selectedOrgId) fetchOrgDetail(selectedOrgId);
   }, [selectedOrgId, fetchOrgDetail]);
 
@@ -119,8 +90,8 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
         body: JSON.stringify({ name: nameValue.trim() }),
       });
       if (res.ok) {
-        setOrgs((prev) => prev.map((o) => (o.id === selectedOrgId ? { ...o, name: nameValue.trim() } : o)));
         setEditingName(false);
+        if (orgDetail) setOrgDetail({ ...orgDetail, name: nameValue.trim() });
       }
     } catch {
       setError("Failed to rename account");
@@ -165,8 +136,8 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
     }
   }
 
-  const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
-  const isAdmin = selectedOrg?.role === "admin";
+  // The user can manage the team if they opened this panel — always show admin controls
+  const isAdmin = true;
 
   if (loading) {
     return (
@@ -201,37 +172,18 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="mx-auto max-w-2xl space-y-3">
 
-          {orgs.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted-foreground">No accounts found. Create an account first.</p>
+          {!selectedOrgId ? (
+            <p className="py-8 text-center text-xs text-muted-foreground">No account selected. Select an account from the sidebar first.</p>
           ) : (
             <>
-              {/* Account selector */}
-              {orgs.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Account</Label>
-                  <div className="relative">
-                    <select
-                      value={selectedOrgId || ""}
-                      onChange={(e) => setSelectedOrgId(e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-8 text-sm text-foreground outline-none focus:border-[var(--accent)]"
-                    >
-                      {orgs.map((org) => (
-                        <option key={org.id} value={org.id}>{org.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              )}
-
-              {orgs.length === 1 && (
-                <div className="rounded-xl border border-border px-4 py-3" style={{ background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
-                  <p className="text-sm font-medium text-foreground">{selectedOrg?.name}</p>
-                </div>
-              )}
+              {/* Active account */}
+              <div className="rounded-xl border border-border px-4 py-3" style={{ background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
+                <p className="text-[10px] text-muted-foreground">Account</p>
+                <p className="text-sm font-medium text-foreground">{orgDetail?.name || orgName}</p>
+              </div>
 
               {/* Edit name */}
-              {isAdmin && selectedOrg && (
+              {isAdmin && orgDetail && (
                 <div>
                   {editingName ? (
                     <div className="flex items-center gap-2">
@@ -251,7 +203,7 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setNameValue(selectedOrg.name); setEditingName(true); }}
+                      onClick={() => { setNameValue(orgDetail.name); setEditingName(true); }}
                       className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <Pencil className="h-3 w-3" />
@@ -347,7 +299,7 @@ export default function TeamPanel({ onClose }: TeamPanelProps) {
                       </div>
 
                       <p className="text-[10px] text-muted-foreground">
-                        This person will get access to <span className="font-medium text-foreground">{selectedOrg?.name}</span> and all its connected data sources.
+                        This person will get access to <span className="font-medium text-foreground">{orgDetail?.name || orgName}</span> and all its connected data sources.
                       </p>
 
                       {inviteSuccess && (

@@ -80,6 +80,7 @@ export const connectors = {
     {
       name: "Microsoft Ads",
       description: "Full campaign and ad group performance with daily syncs.",
+      src: "/Microsoft Ads.svg",
       status: "live" as const,
     },
     {
@@ -91,11 +92,13 @@ export const connectors = {
     {
       name: "Mailchimp",
       description: "Campaign opens, clicks, and list growth over time.",
+      src: "/Mailchimp.svg",
       status: "live" as const,
     },
     {
       name: "Search Console",
       description: "Queries, impressions, CTR, and average position.",
+      src: "/Search Console.svg",
       status: "live" as const,
     },
     {

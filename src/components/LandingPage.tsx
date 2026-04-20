@@ -262,7 +262,7 @@ const CONNECTORS: Connector[] = [
   },
   {
     name: "Microsoft Ads",
-    initial: "M",
+    src: "/Microsoft Ads.svg",
     description:
       "Full campaign and ad group performance, synced daily from every account.",
     dataTypes: ["SPEND", "CAMPAIGNS", "KEYWORDS"],
@@ -278,7 +278,7 @@ const CONNECTORS: Connector[] = [
   },
   {
     name: "Mailchimp",
-    initial: "M",
+    src: "/Mailchimp.svg",
     description:
       "Campaign opens, clicks, list growth, and revenue attribution per send.",
     dataTypes: ["OPENS", "CLICKS", "LISTS", "REVENUE"],
@@ -286,7 +286,7 @@ const CONNECTORS: Connector[] = [
   },
   {
     name: "Search Console",
-    initial: "SC",
+    src: "/Search Console.svg",
     description:
       "Queries, pages, devices, and countries with CTR and average position.",
     dataTypes: ["QUERIES", "IMPRESSIONS", "CTR", "POSITION"],

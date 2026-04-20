@@ -82,9 +82,9 @@ const SOURCES: SourceDef[] = [
   { type: "GA4_BIGQUERY", label: "Google Analytics", description: "Website traffic, sessions, and user behavior", icon: "/Google Analytics.svg" },
   { type: "GOOGLE_ADS", label: "Google Ads", description: "Campaign performance, keywords, and ad spend", icon: "/Google Ads.svg" },
   { type: "LINKEDIN", label: "LinkedIn", description: "Company page analytics and follower growth", icon: "/Linkedin.svg" },
-  { type: "MAILCHIMP", label: "Mailchimp", description: "Email campaigns, open rates, and audience growth", icon: null, iconBg: "#ffe01b", iconColor: "#241c15", iconLetter: "M" },
-  { type: "SEARCH_CONSOLE", label: "Search Console", description: "Search queries, impressions, clicks, and rankings", icon: null, iconBg: "#4285F4", iconColor: "#ffffff", iconLetter: "S" },
-  { type: "MICROSOFT_ADS", label: "Microsoft Ads", description: "Bing campaign performance, keywords, and ad spend", icon: null, iconBg: "#00A4EF", iconColor: "#ffffff", iconLetter: "M" },
+  { type: "MAILCHIMP", label: "Mailchimp", description: "Email campaigns, open rates, and audience growth", icon: "/Mailchimp.svg" },
+  { type: "SEARCH_CONSOLE", label: "Search Console", description: "Search queries, impressions, clicks, and rankings", icon: "/Search Console.svg" },
+  { type: "MICROSOFT_ADS", label: "Microsoft Ads", description: "Bing campaign performance, keywords, and ad spend", icon: "/Microsoft Ads.svg" },
   { type: "META", label: "Meta", description: "Facebook & Instagram campaigns and insights", icon: "/Meta.svg" },
 ];
 
@@ -132,11 +132,11 @@ function StatusLabel({ status }: { status: string }) {
 
 function SourceIcon({ source }: { source: SourceDef }) {
   if (source.icon) {
-    return <img src={source.icon} alt="" className="h-8 w-8 rounded-lg border border-border" />;
+    return <img src={source.icon} alt="" className="h-8 w-8 rounded-md border border-border" />;
   }
   return (
     <span
-      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-sm font-bold"
+      className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-sm font-bold"
       style={{ background: source.iconBg, color: source.iconColor }}
     >
       {source.iconLetter}
@@ -355,11 +355,36 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
         return;
       }
       setMessage({ type: "success", text: `${SOURCES.find((s) => s.type === type)?.label} connected and syncing.` });
-      fetchStatus();
+      fetchStatus(true);
     } catch {
       setMessage({ type: "error", text: "Something went wrong." });
     } finally {
       setEnabling((prev) => ({ ...prev, [id]: false }));
+    }
+  }
+
+  const [disconnecting, setDisconnecting] = useState<Record<string, boolean>>({});
+
+  async function handleDisconnect(dataSourceId: string, label: string) {
+    setDisconnecting((prev) => ({ ...prev, [dataSourceId]: true }));
+    setMessage(null);
+    try {
+      const res = await fetch("/api/user/connections/disconnect", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataSourceId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error || "Failed to disconnect" });
+        return;
+      }
+      setMessage({ type: "success", text: `${label} disconnected. Historical data has been preserved.` });
+      fetchStatus(true);
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
+    } finally {
+      setDisconnecting((prev) => ({ ...prev, [dataSourceId]: false }));
     }
   }
 
@@ -455,7 +480,11 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
               </div>
             </div>
           )}
-          {SOURCES.map((source) => {
+          {[...SOURCES].sort((a, b) => {
+            const aConnected = getSourceDataSources(a.type).length > 0 ? 0 : 1;
+            const bConnected = getSourceDataSources(b.type).length > 0 ? 0 : 1;
+            return aConnected - bConnected;
+          }).map((source) => {
             const sourceStatus = getSourceStatus(source.type);
             const authed = isAuthenticated(source.type);
             const isComingSoon = source.type === "META";
@@ -569,14 +598,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderGa4Properties() {
     const dataSources = getSourceDataSources("GA4_BIGQUERY");
     const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+    const hasConnected = dataSources.length > 0;
 
     if (ga4Properties.length === 0) {
       return <p className="text-xs text-muted-foreground">No GA4 properties found. Make sure your Google account has access to a GA4 property.</p>;
     }
 
+    const sorted = [...ga4Properties].sort((a, b) => {
+      const aConnected = connectedIds.has(a.propertyId) ? 0 : 1;
+      const bConnected = connectedIds.has(b.propertyId) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {ga4Properties.map((prop) => {
+        {sorted.map((prop) => {
           const ds = dataSources.find((d) => d.propertyId === prop.propertyId);
           const connected = connectedIds.has(prop.propertyId);
           return (
@@ -586,17 +622,29 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{prop.account} &middot; {prop.propertyId}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusDot status={ds.status} />
-                  <StatusLabel status={ds.status} />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, prop.displayName)}
+                  >
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingGa4[prop.propertyId]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingGa4[prop.propertyId] || hasConnected}
                   onClick={() => handleEnable("GA4_BIGQUERY", prop.propertyId)}
                 >
                   {enablingGa4[prop.propertyId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
@@ -612,14 +660,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderAdsAccounts() {
     const dataSources = getSourceDataSources("GOOGLE_ADS");
     const connectedIds = new Set(dataSources.map((d) => d.adsCustomerId).filter(Boolean));
+    const hasConnected = dataSources.length > 0;
 
     if (adsCustomers.length === 0) {
       return <p className="text-xs text-muted-foreground">No accounts found. Check your Google Ads access.</p>;
     }
 
+    const sorted = [...adsCustomers].sort((a, b) => {
+      const aConnected = connectedIds.has(a.id) ? 0 : 1;
+      const bConnected = connectedIds.has(b.id) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {adsCustomers.map((c) => {
+        {sorted.map((c) => {
           const ds = dataSources.find((d) => d.adsCustomerId === c.id);
           const connected = connectedIds.has(c.id);
           return (
@@ -629,18 +684,20 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{c.id.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusDot status={ds.status} />
-                  <StatusLabel status={ds.status} />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-6 text-[10px] px-2"
-                    style={{ color: ds.status === "ERROR" ? "var(--error, #ef4444)" : "var(--text-muted)" }}
-                    disabled={enablingAds[c.id]}
-                    onClick={() => handleEnable("GOOGLE_ADS", c.id)}
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, c.name)}
                   >
-                    {enablingAds[c.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Resync"}
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
                   </Button>
                 </div>
               ) : !connected ? (
@@ -648,8 +705,8 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingAds[c.id]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingAds[c.id] || hasConnected}
                   onClick={() => handleEnable("GOOGLE_ADS", c.id)}
                 >
                   {enablingAds[c.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
@@ -665,14 +722,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderGscSites() {
     const dataSources = getSourceDataSources("SEARCH_CONSOLE");
     const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+    const hasConnected = dataSources.length > 0;
 
     if (gscSites.length === 0) {
       return <p className="text-xs text-muted-foreground">No verified sites found. Make sure your Google account has owner or full user access to a Search Console property.</p>;
     }
 
+    const sorted = [...gscSites].sort((a, b) => {
+      const aConnected = connectedIds.has(a.siteUrl) ? 0 : 1;
+      const bConnected = connectedIds.has(b.siteUrl) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {gscSites.map((site) => {
+        {sorted.map((site) => {
           const ds = dataSources.find((d) => d.propertyId === site.siteUrl);
           const connected = connectedIds.has(site.siteUrl);
           return (
@@ -682,17 +746,29 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{site.permissionLevel === "siteOwner" ? "Owner" : "Full user"}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusDot status={ds.status} />
-                  <StatusLabel status={ds.status} />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, site.siteUrl)}
+                  >
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingGsc[site.siteUrl]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingGsc[site.siteUrl] || hasConnected}
                   onClick={() => handleEnable("SEARCH_CONSOLE", site.siteUrl)}
                 >
                   {enablingGsc[site.siteUrl] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
@@ -708,14 +784,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderLinkedInOrgs() {
     const dataSources = getSourceDataSources("LINKEDIN");
     const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+    const hasConnected = dataSources.length > 0;
 
     if (linkedInOrgs.length === 0) {
       return <p className="text-xs text-muted-foreground">No organizations found. Make sure you are an admin on the LinkedIn page.</p>;
     }
 
+    const sorted = [...linkedInOrgs].sort((a, b) => {
+      const aConnected = connectedIds.has(a.id) ? 0 : 1;
+      const bConnected = connectedIds.has(b.id) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {linkedInOrgs.map((org) => {
+        {sorted.map((org) => {
           const ds = dataSources.find((d) => d.propertyId === org.id);
           const connected = connectedIds.has(org.id);
           return (
@@ -727,17 +810,29 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 )}
               </div>
               {ds ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusDot status={ds.status} />
-                  <StatusLabel status={ds.status} />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, org.name)}
+                  >
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingLinkedIn[org.id]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingLinkedIn[org.id] || hasConnected}
                   onClick={() => handleEnable("LINKEDIN", org.id)}
                 >
                   {enablingLinkedIn[org.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
@@ -753,14 +848,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderMsAdsAccounts() {
     const dataSources = getSourceDataSources("MICROSOFT_ADS");
     const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+    const hasConnected = dataSources.length > 0;
 
     if (msAdsAccounts.length === 0) {
       return <p className="text-xs text-muted-foreground">No accounts found. Check your Microsoft Ads access.</p>;
     }
 
+    const sorted = [...msAdsAccounts].sort((a, b) => {
+      const aConnected = connectedIds.has(a.accountId) ? 0 : 1;
+      const bConnected = connectedIds.has(b.accountId) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {msAdsAccounts.map((acc) => {
+        {sorted.map((acc) => {
           const ds = dataSources.find((d) => d.propertyId === acc.accountId);
           const connected = connectedIds.has(acc.accountId);
           return (
@@ -775,26 +877,24 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                     <StatusDot status={ds.status} />
                     <StatusLabel status={ds.status} />
                   </div>
-                  {(ds.status === "ERROR" || ds.status === "ACTIVE") && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-[10px] px-2"
-                      style={{ color: ds.status === "ERROR" ? "var(--error, #ef4444)" : "var(--text-muted)" }}
-                      disabled={enablingMsAds[acc.accountId]}
-                      onClick={() => handleEnable("MICROSOFT_ADS", acc.accountId)}
-                    >
-                      {enablingMsAds[acc.accountId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Resync"}
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, acc.accountName)}
+                  >
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingMsAds[acc.accountId]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingMsAds[acc.accountId] || hasConnected}
                   onClick={() => handleEnable("MICROSOFT_ADS", acc.accountId)}
                 >
                   {enablingMsAds[acc.accountId] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}
@@ -810,14 +910,21 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
   function renderMailchimpAudiences() {
     const dataSources = getSourceDataSources("MAILCHIMP");
     const connectedIds = new Set(dataSources.map((d) => d.propertyId));
+    const hasConnected = dataSources.length > 0;
 
     if (mailchimpAudiences.length === 0) {
       return <p className="text-xs text-muted-foreground">No audiences found in your Mailchimp account.</p>;
     }
 
+    const sorted = [...mailchimpAudiences].sort((a, b) => {
+      const aConnected = connectedIds.has(a.id) ? 0 : 1;
+      const bConnected = connectedIds.has(b.id) ? 0 : 1;
+      return aConnected - bConnected;
+    });
+
     return (
       <div className="space-y-1.5">
-        {mailchimpAudiences.map((aud) => {
+        {sorted.map((aud) => {
           const ds = dataSources.find((d) => d.propertyId === aud.id);
           const connected = connectedIds.has(aud.id);
           return (
@@ -829,17 +936,29 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 </p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusDot status={ds.status} />
-                  <StatusLabel status={ds.status} />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusDot status={ds.status} />
+                    <StatusLabel status={ds.status} />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={disconnecting[ds.id]}
+                    onClick={() => handleDisconnect(ds.id, aud.name)}
+                  >
+                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
               ) : !connected ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs"
-                  style={{ color: "var(--accent)" }}
-                  disabled={enablingMailchimp[aud.id]}
+                  style={{ color: hasConnected ? "var(--text-muted)" : "var(--accent)" }}
+                  disabled={enablingMailchimp[aud.id] || hasConnected}
                   onClick={() => handleEnable("MAILCHIMP", aud.id)}
                 >
                   {enablingMailchimp[aud.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Enable"}

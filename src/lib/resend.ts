@@ -16,6 +16,10 @@ function getResend(): Resend {
 const SENDER_EMAIL =
   process.env.RESEND_FROM_EMAIL || "Meaning <onboarding@resend.dev>";
 
+const ALERT_SENDER_EMAIL =
+  process.env.RESEND_FROM_EMAIL?.replace(/^[^<]*</, "Alerts @ Meaning <") ||
+  "Alerts @ Meaning <onboarding@resend.dev>";
+
 export async function sendAlertEmail(
   to: string[],
   subject: string,
@@ -24,7 +28,7 @@ export async function sendAlertEmail(
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
-    from: SENDER_EMAIL,
+    from: ALERT_SENDER_EMAIL,
     to,
     subject,
     html,

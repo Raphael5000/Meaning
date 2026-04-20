@@ -21,14 +21,12 @@ const SOURCE_ICONS: Record<string, string> = {
   GA4_BIGQUERY: "/Google Analytics.svg",
   GOOGLE_ADS: "/Google Ads.svg",
   LINKEDIN: "/Linkedin.svg",
-  SEARCH_CONSOLE: "",
-  MAILCHIMP: "",
+  SEARCH_CONSOLE: "/Search Console.svg",
+  MAILCHIMP: "/Mailchimp.svg",
+  MICROSOFT_ADS: "/Microsoft Ads.svg",
 };
 
-const SOURCE_FALLBACK: Record<string, { bg: string; color: string; letter: string }> = {
-  MAILCHIMP: { bg: "#ffe01b", color: "#241c15", letter: "M" },
-  SEARCH_CONSOLE: { bg: "#4285F4", color: "#fff", letter: "S" },
-};
+const SOURCE_FALLBACK: Record<string, { bg: string; color: string; letter: string }> = {};
 
 export default function ChatInput({ onSend, disabled, placeholder, dataSources }: ChatInputProps) {
   const [input, setInput] = useState("");

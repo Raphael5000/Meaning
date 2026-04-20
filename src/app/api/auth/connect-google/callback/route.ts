@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL("/connect-analytics?error=oauth_denied", baseUrl)
+      new URL("/?error=oauth_denied", baseUrl)
     );
   }
 
@@ -86,13 +86,13 @@ export async function GET(req: NextRequest) {
 
   if (!state || state !== storedState) {
     return NextResponse.redirect(
-      new URL("/connect-analytics?error=invalid_state", baseUrl)
+      new URL("/?error=invalid_state", baseUrl)
     );
   }
 
   if (!code) {
     return NextResponse.redirect(
-      new URL("/connect-analytics?error=no_code", baseUrl)
+      new URL("/?error=no_code", baseUrl)
     );
   }
 
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       console.error("[connect-google] Token exchange failed:", tokenRes.body);
       return NextResponse.redirect(
-        new URL("/connect-analytics?error=token_failed", baseUrl)
+        new URL("/?error=token_failed", baseUrl)
       );
     }
 
@@ -163,12 +163,12 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.redirect(
-      new URL("/connect-analytics?connected=true", baseUrl)
+      new URL("/?ga_connected=true", baseUrl)
     );
   } catch (err) {
     console.error("[connect-google] Error:", err);
     return NextResponse.redirect(
-      new URL("/connect-analytics?error=unknown", baseUrl)
+      new URL("/?error=unknown", baseUrl)
     );
   }
 }

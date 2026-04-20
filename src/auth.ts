@@ -204,8 +204,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // Detect org membership for this user (alongside team, for backward compat)
-      if (token.userId && !token.activeOrgId) {
+      // Always refresh activeOrgId from DB so team switches persist across page reloads
+      if (token.userId) {
         try {
           const orgUser = await prisma.user.findUnique({
             where: { id: token.userId as string },

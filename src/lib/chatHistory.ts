@@ -20,6 +20,7 @@ export interface StoredChat {
   /** GA4 property used for this chat; restored when switching back to the chat */
   propertyId?: string | null;
   propertyName?: string;
+  pinned?: boolean;
 }
 
 const MAX_TITLE_LENGTH = 45;
@@ -41,6 +42,7 @@ interface DbChat {
   title: string;
   propertyId: string | null;
   propertyName: string | null;
+  pinned: boolean;
   createdAt: string; // ISO date string from JSON
   messages: {
     id: string;
@@ -62,6 +64,7 @@ function toStoredChat(db: DbChat): StoredChat {
     createdAt: new Date(db.createdAt).getTime(),
     propertyId: db.propertyId,
     propertyName: db.propertyName ?? undefined,
+    pinned: db.pinned,
     messages: db.messages.map((m) => ({
       id: m.id,
       role: m.role as Message["role"],
@@ -144,6 +147,38 @@ export async function updateChat(chat: StoredChat): Promise<void> {
     }
   } catch (err) {
     console.error("[chatHistory] updateChat error:", err);
+  }
+}
+
+/** Toggle pinned status for a chat */
+export async function togglePinChat(chatId: string, pinned: boolean): Promise<void> {
+  try {
+    const res = await fetch(`/api/chats/${chatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
+    });
+    if (!res.ok) {
+      console.error("[chatHistory] togglePin failed:", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.error("[chatHistory] togglePin error:", err);
+  }
+}
+
+/** Rename a chat */
+export async function renameChat(chatId: string, title: string): Promise<void> {
+  try {
+    const res = await fetch(`/api/chats/${chatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) {
+      console.error("[chatHistory] renameChat failed:", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.error("[chatHistory] renameChat error:", err);
   }
 }
 

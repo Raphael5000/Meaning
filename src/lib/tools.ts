@@ -183,7 +183,7 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
         },
         limit: {
           type: "number",
-          description: "Maximum number of rows to return (default 10, max 500).",
+          description: "Maximum number of rows to return (default 25, or 90 for date-grouped queries, max 500). For time-series queries grouped by date, always set a limit that covers the full date range to avoid missing data.",
         },
       },
       required: ["table", "metrics"],

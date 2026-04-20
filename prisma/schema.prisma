@@ -113,6 +113,7 @@ model Chat {
   title        String
   propertyId   String?  // GA4 property id associated with this chat
   propertyName String?  // GA4 property display name
+  pinned       Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
