@@ -46,7 +46,7 @@ export default function SignUpPage() {
         return;
       }
 
-      window.location.href = "/pricing";
+      window.location.href = "/onboarding";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -90,7 +90,7 @@ export default function SignUpPage() {
 
         {/* Google OAuth */}
         <button
-          onClick={() => signIn("google", { callbackUrl: "/pricing" })}
+          onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
           className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[rgba(255,255,255,0.1)]"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >

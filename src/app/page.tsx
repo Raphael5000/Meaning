@@ -16,7 +16,7 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.hasSubscription) {
-          window.location.href = "/pricing";
+          window.location.href = "/onboarding";
           return;
         }
         // Users can connect sources from within the chat — no redirect needed
