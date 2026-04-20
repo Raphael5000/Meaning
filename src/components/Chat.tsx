@@ -70,6 +70,7 @@ export default function Chat() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(
     (session as { activeOrgId?: string } | null)?.activeOrgId ?? null
@@ -117,6 +118,7 @@ export default function Chat() {
         // Reset to new chat when switching orgs
         setCurrentChatId(null);
         setMessages([]);
+        setInitialLoaded(true);
       }
     });
     return () => { cancelled = true; };
@@ -716,7 +718,14 @@ export default function Chat() {
         ) : <>
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
-          {messages.length === 0 && !loading ? (
+          {messages.length === 0 && !loading && !initialLoaded ? (
+            <div className="flex h-full items-center justify-center">
+              <div
+                className="h-8 w-8 animate-spin rounded-full border-2 border-current"
+                style={{ color: "var(--accent)", borderTopColor: "transparent" }}
+              />
+            </div>
+          ) : messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
               {/* Welcome wizard — show when no data sources connected or no org */}
               {connectedSources.length === 0 ? (
