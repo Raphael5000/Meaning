@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil, Sparkles } from "lucide-react";
-import ChartRenderer from "./ChartRenderer";
+import ChartRenderer, { ACCENT_PALETTE } from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
 import TableWidget from "./TableWidget";
 
@@ -103,16 +103,19 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       value: Number(r[valueKey] ?? 0),
     }));
     series[0].type = "pie";
-    series[0].radius = ["40%", "65%"];
-    series[0].center = ["35%", "50%"];
+    series[0].radius = ["40%", "70%"];
+    series[0].center = ["50%", "50%"];
     series[0].itemStyle = { borderRadius: 4, borderColor: "transparent", borderWidth: 2 };
     series[0].label = { show: false };
     series[0].emphasis = {
-      label: { show: true, fontSize: 12, fontWeight: "bold" },
+      label: { show: false },
       itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.2)" },
     };
-    option.legend = { ...legendConfig, top: 8, right: 12 };
+    // Disable ECharts legend — we render our own table legend in the widget
+    option.legend = { show: false };
     option.tooltip = { trigger: "item", formatter: "{b}: {c} ({d}%)" };
+    // Store pie data for the widget table legend
+    option._pieLegend = series[0].data;
   } else if (chartType === "bar" || chartType === "line") {
     const dimKey = keys.find((k) => {
       const v = rows[0][k];
@@ -228,10 +231,14 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       containLabel: true,
     };
 
+    // Disable ECharts legend — multi-series gets a table legend in the widget
+    option.legend = { show: false };
     if (series.length > 1) {
-      option.legend = { ...legendConfig, orient: "horizontal", top: 4, right: undefined, left: "center", bottom: undefined };
-    } else {
-      option.legend = { show: false };
+      option._barLegend = series.map((s, i) => ({
+        name: s.name as string || `Series ${i + 1}`,
+        total: (s.data as number[]).reduce((sum: number, v: number) => sum + (v || 0), 0),
+        color: ACCENT_PALETTE[i % ACCENT_PALETTE.length],
+      }));
     }
   } else if (chartType === "sankey") {
     // Sankey: rows have from_page, to_page, transitions
@@ -422,6 +429,29 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
   return option;
 }
 
+/** Table legend for pie/bar charts — rendered next to the chart in the widget */
+function WidgetTableLegend({ items, isPercentage }: { items: Array<{ name: string; value: number; color: string }>; isPercentage?: boolean }) {
+  const total = items.reduce((sum, d) => sum + d.value, 0);
+  return (
+    <div className="flex flex-col justify-center gap-1.5 overflow-y-auto py-2 pr-2" style={{ minWidth: 100, maxWidth: "40%" }}>
+      {items.map((d, i) => (
+        <div key={i} className="flex items-center gap-2 text-[11px]">
+          <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+          <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-primary)" }}>{d.name}</span>
+          <span className="shrink-0 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {d.value.toLocaleString()}
+          </span>
+          {isPercentage && total > 0 && (
+            <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)", width: 38, textAlign: "right" }}>
+              {((d.value / total) * 100).toFixed(0)}%
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Wrapper that measures its container and renders chart at exact size */
 function ResizableChart({ option }: { option: Record<string, unknown> }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -449,15 +479,50 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
     return () => { observer.disconnect(); if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, []);
 
+  // Extract legend data from the option (set by mergeChartData)
+  const pieLegend = option._pieLegend as Array<{ name: string; value: number }> | undefined;
+  const barLegend = option._barLegend as Array<{ name: string; total: number; color: string }> | undefined;
+  const hasTableLegend = pieLegend || barLegend;
+
+  // Clean option before passing to ECharts (remove our custom keys)
+  const cleanOption = { ...option };
+  delete cleanOption._pieLegend;
+  delete cleanOption._barLegend;
+
+  const legendItems = pieLegend
+    ? pieLegend.map((d, i) => ({ name: d.name, value: d.value, color: ACCENT_PALETTE[i % ACCENT_PALETTE.length] }))
+    : barLegend
+      ? barLegend.map((d) => ({ name: d.name, value: d.total, color: d.color }))
+      : [];
+
+  if (!size) {
+    return <div ref={containerRef} className="h-full w-full" />;
+  }
+
+  if (hasTableLegend) {
+    // Side-by-side: chart (60%) + table legend (40%)
+    const chartWidth = Math.floor(size.w * 0.6);
+    return (
+      <div ref={containerRef} className="flex h-full w-full items-stretch">
+        <div style={{ width: chartWidth, height: size.h }}>
+          <ChartRenderer
+            key={`${chartWidth}-${size.h}`}
+            option={cleanOption}
+            styleOverride={{ width: chartWidth, height: size.h }}
+          />
+        </div>
+        <WidgetTableLegend items={legendItems} isPercentage={!!pieLegend} />
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="h-full w-full">
-      {size && (
-        <ChartRenderer
-          key={`${size.w}-${size.h}`}
-          option={option}
-          styleOverride={{ width: size.w, height: size.h }}
-        />
-      )}
+      <ChartRenderer
+        key={`${size.w}-${size.h}`}
+        option={cleanOption}
+        styleOverride={{ width: size.w, height: size.h }}
+      />
     </div>
   );
 }
