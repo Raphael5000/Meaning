@@ -21,6 +21,8 @@ const columns = [
       { label: "Meaning vs Looker Studio", href: "/compare/looker-studio" },
       { label: "Meaning vs Supermetrics", href: "/compare/supermetrics" },
       { label: "Meaning vs PostHog", href: "/compare/posthog" },
+      { label: "Meaning vs Databox", href: "/compare/databox" },
+      { label: "Meaning vs Whatagraph", href: "/compare/whatagraph" },
     ],
   },
   {

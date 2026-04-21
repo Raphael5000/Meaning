@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +8,21 @@ import { TableOfContents } from "@/components/TableOfContents";
 import { getArticleData } from "@/lib/mdx";
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ category: string; slug: string }>;
+}): Promise<Metadata> {
+  const { category: categorySlug, slug } = await params;
+  const article = await getArticle(categorySlug, slug);
+  if (!article) return {};
+  return {
+    title: article.title,
+    description: article.description,
+    alternates: { canonical: `/docs/${categorySlug}/${slug}` },
+  };
+}
 
 export default async function ArticlePage({
   params,

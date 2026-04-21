@@ -8,6 +8,7 @@ import { GlowPill } from "@/components/marketing/system/MonoLabel";
 import { Reveal } from "@/components/marketing/system/Reveal";
 import { DottedGrid } from "@/components/marketing/system/Backgrounds";
 import { FaqAccordion } from "@/components/marketing/FaqAccordion";
+import { JsonLd } from "@/components/JsonLd";
 
 export function FeaturePageLayout({
   eyebrow,
@@ -28,11 +29,25 @@ export function FeaturePageLayout({
   ctaHeading?: string;
   ctaDescription?: string;
 }) {
+  const faqSchema =
+    faqs && faqs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqs.map((f) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: { "@type": "Answer", text: f.answer },
+          })),
+        }
+      : null;
+
   return (
     <div
       className="marketing relative min-h-screen overflow-x-clip"
       style={{ background: "var(--m-bg)" }}
     >
+      {faqSchema && <JsonLd data={faqSchema} />}
       <DottedGrid />
 
       <Navbar />

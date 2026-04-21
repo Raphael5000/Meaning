@@ -1,11 +1,36 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { JsonLd } from "@/components/JsonLd";
 import { getAllArticles } from "@/app/docs/data";
 import { getArticleData } from "@/lib/mdx";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const allArticles = await getAllArticles();
+  const article = allArticles.find((a) => a.section === "blog" && a.slug === slug);
+  if (!article) return {};
+  return {
+    title: article.title,
+    description: article.description,
+    alternates: { canonical: `/blog/${slug}` },
+    openGraph: {
+      title: article.title,
+      description: article.description,
+      type: "article",
+      ...(article.publishedAt && { publishedTime: new Date(article.publishedAt).toISOString() }),
+      ...(article.author && { authors: [article.author] }),
+    },
+  };
+}
 
 function formatDate(date?: Date) {
   if (!date) return "";
@@ -37,6 +62,22 @@ export default async function BlogArticlePage({
 
   return (
     <div className="marketing min-h-screen" style={{ background: "var(--m-bg)" }}>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: article.title,
+          description: article.description,
+          ...(article.publishedAt && { datePublished: new Date(article.publishedAt).toISOString() }),
+          ...(article.author && { author: { "@type": "Person", name: article.author } }),
+          publisher: {
+            "@type": "Organization",
+            name: "Meaning",
+            url: "https://usemeaning.io",
+          },
+          url: `https://usemeaning.io/blog/${slug}`,
+        }}
+      />
       <Navbar />
 
       {/* Article header — centered, Resend-style */}

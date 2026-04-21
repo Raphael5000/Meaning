@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
+
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Documentation",
+  description:
+    "Learn how to connect your data sources, build dashboards, set up alerts, and get the most out of Meaning.",
+  alternates: { canonical: "/docs" },
+};
 
 import { Suspense } from "react";
 import { getArticlesBySection, docsCategories } from "./data";

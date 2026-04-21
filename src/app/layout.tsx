@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Martel, Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { JsonLd } from "@/components/JsonLd";
 import "./globals.css";
 
 const martel = Martel({
@@ -24,9 +25,30 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meaning – GA4 AI Chatbot | Chat with Your Google Analytics Data",
+  metadataBase: new URL("https://usemeaning.io"),
+  title: {
+    default: "Meaning — AI Marketing Analytics Platform",
+    template: "%s | Meaning",
+  },
   description:
-    "Meaning is the AI Google Analytics assistant that lets you chat with your GA4 data in plain English. Get instant insights, reports, and answers — no dashboards, no coding needed.",
+    "The AI marketing analytics platform. Connect GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console — then ask anything in plain English. Dashboards, alerts, and insights included.",
+  openGraph: {
+    type: "website",
+    siteName: "Meaning",
+    title: "Meaning — AI Marketing Analytics Platform",
+    description:
+      "Connect your marketing data. Ask questions in plain English. Get dashboards, alerts, and AI insights — all in one platform.",
+    url: "https://usemeaning.io",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Meaning — AI Marketing Analytics Platform",
+    description:
+      "Connect your marketing data. Ask questions in plain English. Get dashboards, alerts, and AI insights — all in one platform.",
+  },
+  alternates: {
+    canonical: "https://usemeaning.io",
+  },
 };
 
 export default function RootLayout({
@@ -37,6 +59,35 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${martel.variable} ${inter.variable} ${mono.variable}`}>
       <head>
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Meaning",
+            url: "https://usemeaning.io",
+            logo: "https://usemeaning.io/Logo.svg",
+            description:
+              "The AI marketing analytics platform. Connect your marketing data and ask questions in plain English.",
+          }}
+        />
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "Meaning",
+            applicationCategory: "BusinessApplication",
+            operatingSystem: "Web",
+            url: "https://usemeaning.io",
+            offers: {
+              "@type": "Offer",
+              price: "9.99",
+              priceCurrency: "USD",
+              priceValidUntil: "2026-07-19",
+            },
+            description:
+              "AI marketing analytics platform with dashboards, alerts, and natural language queries across GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console.",
+          }}
+        />
         {/* Prevent flash of wrong theme */}
         <script
           dangerouslySetInnerHTML={{
