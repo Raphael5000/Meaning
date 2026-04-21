@@ -276,9 +276,9 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
   }
 
   return (
-    <div className="flex h-full">
-      {/* Dashboard content */}
-      <div className="flex min-w-0 flex-1 flex-col">
+    <div className="relative flex h-full overflow-hidden">
+      {/* Dashboard content — always full width, chat overlays on top */}
+      <div className="flex w-full flex-col">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-border px-6 py-4">
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0">

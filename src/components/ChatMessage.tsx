@@ -17,6 +17,8 @@ interface ChatMessageProps {
   onTypewriterComplete?: () => void;
   /** ECharts option JSON for inline charts */
   chart?: Record<string, unknown>;
+  /** When true, hide charts (used in narrow sidebars where charts don't fit) */
+  compact?: boolean;
 }
 
 const TYPEWRITER_WORD_DELAY_MS = 25;
@@ -31,6 +33,7 @@ export default function ChatMessage({
   onSuggestedQuestionClick,
   onTypewriterComplete,
   chart,
+  compact,
 }: ChatMessageProps) {
   const chartRef = useRef<ChartRendererHandle>(null);
   const isUser = role === "user";
@@ -138,7 +141,7 @@ export default function ChatMessage({
               </div>
             </div>
           )}
-          {role === "assistant" && chart && (
+          {role === "assistant" && chart && !compact && (
             <div
               className="relative mb-3 overflow-hidden rounded-2xl border p-4"
               style={{

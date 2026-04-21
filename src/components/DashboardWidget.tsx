@@ -57,10 +57,14 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
   // Remove title — it's shown in the widget header
   delete option.title;
 
-  // Legend: always top-right, compact table style
+  // Legend: always top-right, compact for dashboard widgets.
+  // Explicitly set bottom/left to undefined to override applyTheme defaults.
   const legendConfig = {
+    show: true,
     top: 4,
     right: 8,
+    bottom: undefined,
+    left: undefined,
     orient: "vertical" as const,
     type: "scroll" as const,
     textStyle: { fontSize: 11 },
@@ -160,7 +164,7 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
     };
 
     if (series.length > 1) {
-      option.legend = { ...legendConfig, orient: "horizontal", top: 4, right: undefined, left: "center" };
+      option.legend = { ...legendConfig, orient: "horizontal", top: 4, right: undefined, left: "center", bottom: undefined };
     } else {
       option.legend = { show: false };
     }
@@ -268,7 +272,7 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
 
     option.radar = { indicator, shape: "polygon", splitArea: { show: false }, axisName: { fontSize: 10, color: "var(--text-muted)" } };
     option.tooltip = { trigger: "item" };
-    option.legend = { ...legendConfig, orient: "horizontal", top: 4, left: "center" };
+    option.legend = { ...legendConfig, orient: "horizontal", top: 4, right: undefined, left: "center", bottom: undefined };
     delete option.xAxis;
     delete option.yAxis;
   } else if (chartType === "gauge") {

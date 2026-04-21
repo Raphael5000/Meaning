@@ -118,6 +118,11 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
       let buffer = "";
       let data: { message?: string; scorecard?: unknown; chart?: unknown; suggestedQuestions?: string[]; error?: string } = {};
 
+      // Add a placeholder assistant message for streaming text into
+      const streamId = crypto.randomUUID();
+      const streamMsg: Message = { id: streamId, role: "assistant", content: "" };
+      setMessages([...updatedMessages, streamMsg]);
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -133,6 +138,12 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
               setToolStatus(event.message);
             } else if (event.type === "result") {
               data = event;
+              // Show text immediately as it arrives
+              if (data.message) {
+                setMessages((prev) =>
+                  prev.map((m) => m.id === streamId ? { ...m, content: data.message || "" } : m)
+                );
+              }
             } else if (event.type === "error") {
               throw new Error(event.error);
             }
@@ -146,7 +157,7 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
       setToolStatus(null);
 
       const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+        id: streamId,
         role: "assistant",
         content: data.message || "",
         scorecard: data.scorecard as Message["scorecard"],
@@ -154,7 +165,8 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
         suggestedQuestions: data.suggestedQuestions,
       };
 
-      const finalMessages = [...updatedMessages, assistantMessage];
+      // Replace the stream placeholder with the final message
+      const finalMessages = updatedMessages.concat(assistantMessage);
       setMessages(finalMessages);
 
       // Persist
@@ -201,14 +213,15 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
 
   return (
     <div
-      className="dashboard-chat-sidebar flex h-full flex-col border-l"
+      className="dashboard-chat-sidebar absolute right-0 top-0 flex h-full flex-col border-l shadow-xl"
       style={{
-        width: open ? "24rem" : "0px",
-        minWidth: open ? "24rem" : "0px",
+        width: "24rem",
         borderColor: "var(--border-color)",
         background: "var(--bg-primary)",
         overflow: "hidden",
-        transition: "width 300ms cubic-bezier(0.16, 1, 0.3, 1), min-width 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        zIndex: 30,
       }}
     >
       {/* Header */}
@@ -256,6 +269,7 @@ export default function DashboardChatSidebar({ open, onClose, orgId }: Dashboard
                 scorecard={msg.scorecard}
                 scorecardRevealed={msg.scorecardRevealed}
                 chart={msg.chart}
+                compact
                 suggestedQuestions={
                   i === messages.length - 1 ? msg.suggestedQuestions : undefined
                 }

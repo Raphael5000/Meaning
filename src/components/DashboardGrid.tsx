@@ -35,6 +35,8 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const layoutFromProps = useRef(layout);
+  layoutFromProps.current = layout;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -59,6 +61,17 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
 
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
+      // Only persist if the user actually dragged/resized (not from a breakpoint switch).
+      // Compare against the props layout — if IDs and positions match, skip.
+      const prev = layoutFromProps.current;
+      const changed = newLayout.some((item) => {
+        const old = prev.find((p) => p.i === item.i);
+        if (!old) return true;
+        return old.x !== item.x || old.y !== item.y || old.w !== item.w || old.h !== item.h;
+      }) || newLayout.length !== prev.length;
+
+      if (!changed) return;
+
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         onLayoutChange([...newLayout]);
@@ -69,14 +82,18 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
 
   const widgetMap = new Map(widgets.map((w) => [w.id, w]));
 
+  // Use the same layout for all breakpoints so sidebar open/close never
+  // triggers a breakpoint switch that reflows the grid.
+  const allLayouts = { lg: layout, md: layout, sm: layout };
+
   return (
     <div ref={containerRef} className="w-full">
       {mounted && (
         <ResponsiveGridLayout
           className="dashboard-grid"
-          layouts={{ lg: layout }}
+          layouts={allLayouts}
           breakpoints={{ lg: 1200, md: 768, sm: 0 }}
-          cols={{ lg: 12, md: 6, sm: 1 }}
+          cols={{ lg: 12, md: 12, sm: 12 }}
           rowHeight={80}
           width={width}
           margin={[16, 16] as const}
