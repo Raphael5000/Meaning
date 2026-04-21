@@ -587,8 +587,47 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                         </Button>
                       </div>
                     ) : (
-                      /* Step 2: Account/audience selection */
+                      /* Step 2: Account/audience selection + error recovery */
                       <div>
+                        {/* Show error banner + reconnect if any data source for this type is in ERROR */}
+                        {dataSources.some((ds) => ds.status === "ERROR") && (
+                          <div
+                            className="mb-3 rounded-lg px-3 py-2"
+                            style={{ background: "rgba(239, 68, 68, 0.06)", border: "1px solid rgba(239, 68, 68, 0.15)" }}
+                          >
+                            <p className="mb-1 text-xs font-medium" style={{ color: "var(--error, #ef4444)" }}>
+                              Sync error — your connection may have expired
+                            </p>
+                            <p className="mb-2 text-[10px] text-muted-foreground">
+                              {dataSources.find((ds) => ds.lastSyncError)?.lastSyncError || "Token refresh failed. Reconnect to fix."}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => { window.location.href = getConnectUrl(source.type); }}
+                              >
+                                <ExternalLink className="mr-1.5 h-3 w-3" />
+                                Reconnect
+                              </Button>
+                              {dataSources.filter((ds) => ds.status === "ERROR").map((ds) => (
+                                <span
+                                  key={ds.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-border px-2 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                                  style={{ opacity: resyncing[ds.id] ? 0.5 : 1 }}
+                                  onClick={() => { if (!resyncing[ds.id]) handleResync(ds.id, source.label); }}
+                                  onKeyDown={(e) => { if (e.key === "Enter" && !resyncing[ds.id]) handleResync(ds.id, source.label); }}
+                                >
+                                  <RefreshCw className={`h-3 w-3 ${resyncing[ds.id] ? "animate-spin" : ""}`} />
+                                  Retry sync
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {renderAccountList(source.type)}
                       </div>
                     )}
