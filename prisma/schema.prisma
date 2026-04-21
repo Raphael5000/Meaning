@@ -305,6 +305,24 @@ model DataSource {
 }
 
 // ──────────────────────────────────────────────
+// Sync Log (powers /status page history bars)
+// ──────────────────────────────────────────────
+
+model SyncLog {
+  id            String   @id @default(cuid())
+  dataSourceId  String
+  connectorType String   // GOOGLE_ADS | SEARCH_CONSOLE | LINKEDIN | MAILCHIMP | MICROSOFT_ADS
+  date          DateTime @db.Date // calendar day of the sync
+  success       Boolean
+  error         String?  // error message on failure (null = success)
+
+  createdAt DateTime @default(now())
+
+  @@index([connectorType, date])
+  @@index([dataSourceId, date])
+}
+
+// ──────────────────────────────────────────────
 // Organizations (account-centric model)
 // ──────────────────────────────────────────────
 

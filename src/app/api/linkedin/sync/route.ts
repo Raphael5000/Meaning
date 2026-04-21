@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       type: "LINKEDIN",
       status: { in: ["ACTIVE", "BACKFILLING"] },
     },
-    select: { id: true, userId: true, propertyId: true },
+    select: { id: true, type: true, userId: true, propertyId: true },
   });
 
   if (dataSources.length === 0) {

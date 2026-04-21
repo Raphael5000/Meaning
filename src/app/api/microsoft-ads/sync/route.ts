@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       type: "MICROSOFT_ADS",
       status: { in: ["ACTIVE", "BACKFILLING"] },
     },
-    select: { id: true, userId: true, propertyId: true, adsCustomerId: true },
+    select: { id: true, type: true, userId: true, propertyId: true, adsCustomerId: true },
   });
 
   if (dataSources.length === 0) {

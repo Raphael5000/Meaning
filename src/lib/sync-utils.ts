@@ -1,26 +1,28 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Sync a single DataSource with retry logic and status tracking.
+ * Sync a single DataSource with retry logic, status tracking, and sync logging.
  *
- * On success: sets status=ACTIVE, lastSyncedAt=now, lastSyncError=null
- * On failure: sets status=ERROR, lastSyncError=message
+ * On success: sets status=ACTIVE, lastSyncedAt=now, lastSyncError=null, logs success
+ * On failure: sets status=ERROR, lastSyncError=message, logs failure
  *
  * Returns true if sync succeeded, false otherwise.
  */
 export async function syncWithRetry(
-  ds: { id: string },
+  ds: { id: string; type?: string },
   syncFn: () => Promise<unknown>,
   label: string,
   retries = 1,
 ): Promise<boolean> {
   let lastError: Error | null = null;
+  const connectorType = ds.type || label.split(" ")[0].toUpperCase();
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       if (attempt > 0) {
         console.log(`[${label}] Retry attempt ${attempt}/${retries}`);
-        // Wait 10s before retry
         await new Promise((r) => setTimeout(r, 10_000));
       }
 
@@ -38,6 +40,20 @@ export async function syncWithRetry(
         },
       });
 
+      // Log success (upsert to one entry per source per day)
+      await prisma.syncLog.upsert({
+        where: { id: `${ds.id}_${today.toISOString().split("T")[0]}` },
+        create: {
+          id: `${ds.id}_${today.toISOString().split("T")[0]}`,
+          dataSourceId: ds.id,
+          connectorType,
+          date: today,
+          success: true,
+          error: null,
+        },
+        update: { success: true, error: null },
+      }).catch(() => {});
+
       return true;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -54,6 +70,20 @@ export async function syncWithRetry(
       lastSyncError: errorMsg,
       updatedAt: new Date(),
     },
+  }).catch(() => {});
+
+  // Log failure
+  await prisma.syncLog.upsert({
+    where: { id: `${ds.id}_${today.toISOString().split("T")[0]}` },
+    create: {
+      id: `${ds.id}_${today.toISOString().split("T")[0]}`,
+      dataSourceId: ds.id,
+      connectorType,
+      date: today,
+      success: false,
+      error: errorMsg,
+    },
+    update: { success: false, error: errorMsg },
   }).catch(() => {});
 
   return false;

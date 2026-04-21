@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       type: "GOOGLE_ADS",
       status: { in: ["ACTIVE", "BACKFILLING"] },
     },
-    select: { id: true, userId: true, adsCustomerId: true },
+    select: { id: true, type: true, userId: true, adsCustomerId: true },
   });
 
   if (dataSources.length === 0) {
