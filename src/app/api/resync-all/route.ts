@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    const ok = await syncWithRetry(ds, syncFn, `resync-all ${ds.type} ${ds.propertyId}`);
-    if (ok) synced++;
+    const result = await syncWithRetry(ds, syncFn, `resync-all ${ds.type} ${ds.propertyId}`);
+    if (result.success) synced++;
     else failed++;
   }
 

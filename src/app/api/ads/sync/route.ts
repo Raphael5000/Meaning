@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncAdsData } from "@/lib/ads-transfer";
-import { syncWithRetry, getSyncDateRange } from "@/lib/sync-utils";
+import { runSyncBatch } from "@/lib/sync-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -14,35 +14,15 @@ export async function POST(request: NextRequest) {
   }
 
   const dataSources = await prisma.dataSource.findMany({
-    where: {
-      type: "GOOGLE_ADS",
-      status: { in: ["ACTIVE", "BACKFILLING"] },
-    },
-    select: { id: true, type: true, userId: true, adsCustomerId: true },
+    where: { type: "GOOGLE_ADS", status: { in: ["ACTIVE", "BACKFILLING"] } },
+    select: { id: true, type: true, userId: true, propertyId: true, adsCustomerId: true },
   });
 
-  if (dataSources.length === 0) {
-    return NextResponse.json({ synced: 0, failed: 0, total: 0 });
-  }
+  const result = await runSyncBatch(
+    "GOOGLE_ADS",
+    dataSources.map((ds) => ({ ...ds, propertyId: ds.adsCustomerId || ds.propertyId })),
+    (ds, start, end) => () => syncAdsData(ds.userId, ds.propertyId, start, end),
+  );
 
-  const { start, end } = getSyncDateRange();
-  let synced = 0;
-  let failed = 0;
-
-  for (const ds of dataSources) {
-    if (!ds.adsCustomerId) {
-      failed++;
-      continue;
-    }
-
-    const ok = await syncWithRetry(
-      ds,
-      () => syncAdsData(ds.userId, ds.adsCustomerId!, start, end),
-      `ads-sync ${ds.adsCustomerId}`,
-    );
-    if (ok) synced++;
-    else failed++;
-  }
-
-  return NextResponse.json({ synced, failed, total: dataSources.length });
+  return NextResponse.json(result);
 }
