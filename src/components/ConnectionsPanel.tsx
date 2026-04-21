@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, ArrowLeft, Check, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, ArrowLeft, Check, AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,8 @@ interface DataSourceInfo {
   bigqueryDataset: string | null;
   adsCustomerId: string | null;
   status: string;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
 }
 
 interface LinkedInOrg {
@@ -128,6 +130,18 @@ function StatusLabel({ status }: { status: string }) {
       {labels[status] ?? status}
     </span>
   );
+}
+
+function formatTimeAgo(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function SourceIcon({ source }: { source: SourceDef }) {
@@ -363,6 +377,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     }
   }
 
+  const [resyncing, setResyncing] = useState<Record<string, boolean>>({});
   const [disconnecting, setDisconnecting] = useState<Record<string, boolean>>({});
 
   async function handleDisconnect(dataSourceId: string, label: string) {
@@ -385,6 +400,29 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
       setMessage({ type: "error", text: "Something went wrong." });
     } finally {
       setDisconnecting((prev) => ({ ...prev, [dataSourceId]: false }));
+    }
+  }
+
+  async function handleResync(dataSourceId: string, label: string) {
+    setResyncing((prev) => ({ ...prev, [dataSourceId]: true }));
+    setMessage(null);
+    try {
+      const res = await fetch("/api/resync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataSourceId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error || "Failed to start resync" });
+        return;
+      }
+      setMessage({ type: "success", text: `${label} resync started. This may take a few minutes.` });
+      fetchStatus(true);
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
+    } finally {
+      setResyncing((prev) => ({ ...prev, [dataSourceId]: false }));
     }
   }
 
@@ -564,6 +602,49 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     </div>
   );
 
+  // ── Shared connected-source actions ──
+  function renderConnectedActions(ds: DataSourceInfo, label: string) {
+    const syncAge = formatTimeAgo(ds.lastSyncedAt);
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <StatusDot status={ds.status} />
+            <StatusLabel status={ds.status} />
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5"
+            style={{ color: "var(--text-muted)" }}
+            disabled={resyncing[ds.id] || ds.status === "BACKFILLING"}
+            onClick={() => handleResync(ds.id, label)}
+            title="Resync data (90-day backfill)"
+          >
+            <RefreshCw className={`h-3 w-3 ${resyncing[ds.id] || ds.status === "BACKFILLING" ? "animate-spin" : ""}`} />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 text-[10px] px-2"
+            style={{ color: "var(--text-muted)" }}
+            disabled={disconnecting[ds.id]}
+            onClick={() => handleDisconnect(ds.id, label)}
+          >
+            {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+          </Button>
+        </div>
+        {ds.lastSyncError ? (
+          <p className="max-w-[200px] truncate text-[10px]" style={{ color: "var(--error, #ef4444)" }} title={ds.lastSyncError}>
+            {ds.lastSyncError}
+          </p>
+        ) : syncAge ? (
+          <p className="text-[10px] text-muted-foreground">Synced {syncAge}</p>
+        ) : null}
+      </div>
+    );
+  }
+
   // ── Account list renderers ──
   function renderAccountList(type: string) {
     const isLoading = type === "GA4_BIGQUERY" ? loadingGa4 : type === "GOOGLE_ADS" ? loadingAds : type === "SEARCH_CONSOLE" ? loadingGsc : type === "LINKEDIN" ? loadingLinkedIn : type === "MICROSOFT_ADS" ? loadingMsAds : loadingMailchimp;
@@ -622,22 +703,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{prop.account} &middot; {prop.propertyId}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, prop.displayName)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, prop.displayName)
               ) : !connected ? (
                 <Button
                   size="sm"
@@ -684,22 +750,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{c.id.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, c.name)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, c.name)
               ) : !connected ? (
                 <Button
                   size="sm"
@@ -746,22 +797,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{site.permissionLevel === "siteOwner" ? "Owner" : "Full user"}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, site.siteUrl)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, site.siteUrl)
               ) : !connected ? (
                 <Button
                   size="sm"
@@ -810,22 +846,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 )}
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, org.name)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, org.name)
               ) : !connected ? (
                 <Button
                   size="sm"
@@ -872,22 +893,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 <p className="text-[10px] text-muted-foreground">{acc.accountNumber || acc.accountId}</p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, acc.accountName)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, acc.accountName)
               ) : !connected ? (
                 <Button
                   size="sm"
@@ -936,22 +942,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
                 </p>
               </div>
               {ds ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <StatusDot status={ds.status} />
-                    <StatusLabel status={ds.status} />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] px-2"
-                    style={{ color: "var(--text-muted)" }}
-                    disabled={disconnecting[ds.id]}
-                    onClick={() => handleDisconnect(ds.id, aud.name)}
-                  >
-                    {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-                  </Button>
-                </div>
+                renderConnectedActions(ds, aud.name)
               ) : !connected ? (
                 <Button
                   size="sm"
