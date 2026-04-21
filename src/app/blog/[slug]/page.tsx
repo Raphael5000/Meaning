@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -28,7 +29,18 @@ export async function generateMetadata({
       type: "article",
       ...(article.publishedAt && { publishedTime: new Date(article.publishedAt).toISOString() }),
       ...(article.author && { authors: [article.author] }),
+      ...(article.coverImage && {
+        images: [{ url: article.coverImage, width: 1200, height: 630, alt: article.title }],
+      }),
     },
+    ...(article.coverImage && {
+      twitter: {
+        card: "summary_large_image",
+        title: article.title,
+        description: article.description,
+        images: [article.coverImage],
+      },
+    }),
   };
 }
 
@@ -68,6 +80,7 @@ export default async function BlogArticlePage({
           "@type": "Article",
           headline: article.title,
           description: article.description,
+          ...(article.coverImage && { image: article.coverImage }),
           ...(article.publishedAt && { datePublished: new Date(article.publishedAt).toISOString() }),
           ...(article.author && { author: { "@type": "Person", name: article.author } }),
           publisher: {
@@ -100,6 +113,22 @@ export default async function BlogArticlePage({
           </p>
         )}
       </header>
+
+      {/* Cover image */}
+      {article.coverImage && (
+        <div className="mx-auto mt-10 max-w-4xl px-6">
+          <div className="relative aspect-[1200/630] overflow-hidden rounded-2xl">
+            <Image
+              src={article.coverImage}
+              alt={article.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 896px) 100vw, 896px"
+              priority
+            />
+          </div>
+        </div>
+      )}
 
       {/* Article body */}
       <div className="mx-auto max-w-3xl px-6 py-16">

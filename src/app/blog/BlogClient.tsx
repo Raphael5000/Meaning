@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -236,14 +237,22 @@ export function BlogClient({
                 className="group flex flex-col overflow-hidden rounded-xl transition-colors"
                 style={{ border: "1px solid var(--m-hairline)" }}
               >
-                {/* Placeholder image area */}
-                <div
-                  className="flex aspect-[16/9] items-center justify-center"
-                  style={{ background: "var(--m-surface-elevated)" }}
-                >
-                  <span className="text-sm" style={{ color: "var(--m-text-muted)" }}>
-                    {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
-                  </span>
+                <div className="relative aspect-[16/9] overflow-hidden" style={{ background: "var(--m-surface-elevated)" }}>
+                  {post.coverImage ? (
+                    <Image
+                      src={post.coverImage}
+                      alt={post.title}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <span className="text-sm" style={{ color: "var(--m-text-muted)" }}>
+                        {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-5">
                   <h2 className="mb-2 text-xl font-semibold" style={{ color: "var(--m-text)" }}>
@@ -273,13 +282,22 @@ export function BlogClient({
                   className="group flex flex-col overflow-hidden rounded-xl transition-colors"
                   style={{ border: "1px solid var(--m-hairline)" }}
                 >
-                  <div
-                    className="flex aspect-[16/10] items-center justify-center"
-                    style={{ background: "var(--m-surface-elevated)" }}
-                  >
-                    <span className="text-xs" style={{ color: "var(--m-text-muted)" }}>
-                      {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
-                    </span>
+                  <div className="relative aspect-[16/10] overflow-hidden" style={{ background: "var(--m-surface-elevated)" }}>
+                    {post.coverImage ? (
+                      <Image
+                        src={post.coverImage}
+                        alt={post.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <span className="text-xs" style={{ color: "var(--m-text-muted)" }}>
+                          {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h3 className="mb-2 text-base font-semibold leading-snug" style={{ color: "var(--m-text)" }}>

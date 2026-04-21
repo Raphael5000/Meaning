@@ -11,6 +11,7 @@ export interface Article {
   duration?: string;
   featured?: boolean;
   author?: string;
+  coverImage?: string;
   publishedAt?: Date;
 }
 
@@ -124,6 +125,7 @@ export async function getAllArticles(): Promise<Article[]> {
       duration: true,
       featured: true,
       author: true,
+      coverImage: true,
       publishedAt: true,
     },
     orderBy: { publishedAt: "desc" },
@@ -140,6 +142,7 @@ export async function getAllArticles(): Promise<Article[]> {
     duration: r.duration ?? undefined,
     featured: r.featured || undefined,
     author: r.author ?? undefined,
+    coverImage: r.coverImage ?? undefined,
     publishedAt: r.publishedAt,
   }));
   _articlesCacheTime = now;

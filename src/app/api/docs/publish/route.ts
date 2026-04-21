@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     const featured = (data.featured as boolean) || false;
     const author = (data.author as string) || null;
     const keywords = Array.isArray(data.keywords) ? (data.keywords as string[]) : [];
+    const coverImage = (data.coverImage as string) || null;
     const publishedAt = data.date ? new Date(data.date as string) : new Date();
 
     // Verify mdxBody is not empty
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         featured,
         author,
         keywords,
+        coverImage,
         content: body.content,
         publishedAt,
       },
@@ -95,6 +97,7 @@ export async function POST(request: NextRequest) {
         featured,
         author,
         keywords,
+        coverImage,
         content: body.content,
         publishedAt,
       },

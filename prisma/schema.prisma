@@ -261,6 +261,7 @@ model Article {
   featured    Boolean  @default(false)
   author      String?
   keywords    String[] @default([])
+  coverImage  String?  // URL to cover image (1200x630, used in cards + OG)
   content     String   // raw MDX content (including frontmatter)
   publishedAt DateTime @default(now())
 
