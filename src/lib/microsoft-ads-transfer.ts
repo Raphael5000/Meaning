@@ -572,41 +572,30 @@ export async function syncMicrosoftAdsData(
 
   // Idempotent delete for the date range
   const fqDataset = `\`${projectId}.${datasetId}\``;
-  const deleteTasks: Promise<unknown>[] = [];
 
-  if (campaignRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
-    );
-  }
-  if (keywordRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
-    );
-  }
-  if (searchQueryRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
-    );
-  }
-
-  await Promise.all(deleteTasks);
+  const deleteResults = await Promise.all([
+    campaignRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+    keywordRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+    searchQueryRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+  ]);
+  const [campaignDeleteOk, keywordDeleteOk, searchQueryDeleteOk] = deleteResults;
 
   // Streaming insert into BigQuery
   const insertTasks: Promise<unknown>[] = [];
   const dataset = bq.dataset(datasetId);
 
-  if (campaignRows.length > 0) {
+  // Only insert if the corresponding DELETE succeeded (avoid duplicates)
+  if (campaignRows.length > 0 && campaignDeleteOk) {
     insertTasks.push(dataset.table("campaign_performance").insert(campaignRows));
   }
-  if (keywordRows.length > 0) {
+  if (keywordRows.length > 0 && keywordDeleteOk) {
     insertTasks.push(dataset.table("keyword_performance").insert(keywordRows));
   }
-  if (searchQueryRows.length > 0) {
+  if (searchQueryRows.length > 0 && searchQueryDeleteOk) {
     insertTasks.push(dataset.table("search_query_performance").insert(searchQueryRows));
   }
 
-  // Account info: truncate and replace (use currency from campaign report data)
+  // Account info: always safe to replace (small, non-partitioned)
   const accountRows = [{
     account_id: accountId,
     account_name: `Account ${accountId}`,

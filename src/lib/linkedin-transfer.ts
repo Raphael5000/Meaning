@@ -466,41 +466,28 @@ export async function syncLinkedInData(
 
   // ── Delete existing rows for today's snapshot (idempotent re-sync) ──
   const fqDataset = `\`${projectId}.${datasetId}\``;
-  const deleteTasks: Promise<unknown>[] = [];
 
-  // Post performance: replace all (we re-fetch every post each sync)
-  if (postRows.length > 0) {
-    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.post_performance WHERE TRUE`, "linkedin-sync"));
-  }
-  if (followerRows.length > 0) {
-    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.follower_stats WHERE stats_date = '${today}'`, "linkedin-sync"));
-  }
-  if (pageStatRows.length > 0) {
-    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.page_stats WHERE stats_date = '${today}'`, "linkedin-sync"));
-  }
-  // Demographics: replace all (it's a lifetime snapshot)
-  if (demographicRows.length > 0) {
-    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.follower_demographics WHERE TRUE`, "linkedin-sync"));
-  }
-  await Promise.all(deleteTasks);
-
-  // ── Streaming insert into BigQuery ──
-  const insertTasks: Promise<unknown>[] = [];
+  // Delete then insert. Skip insert if DELETE blocked by streaming buffer.
   const dataset = bq.dataset(datasetId);
+  const insertTasks: Promise<unknown>[] = [];
 
   if (postRows.length > 0) {
-    insertTasks.push(dataset.table("post_performance").insert(postRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.post_performance WHERE TRUE`, "linkedin-sync");
+    if (ok) insertTasks.push(dataset.table("post_performance").insert(postRows));
   }
   if (followerRows.length > 0) {
-    insertTasks.push(dataset.table("follower_stats").insert(followerRows));
-  }
-  if (demographicRows.length > 0) {
-    insertTasks.push(dataset.table("follower_demographics").insert(demographicRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.follower_stats WHERE stats_date = '${today}'`, "linkedin-sync");
+    if (ok) insertTasks.push(dataset.table("follower_stats").insert(followerRows));
   }
   if (pageStatRows.length > 0) {
-    insertTasks.push(dataset.table("page_stats").insert(pageStatRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.page_stats WHERE stats_date = '${today}'`, "linkedin-sync");
+    if (ok) insertTasks.push(dataset.table("page_stats").insert(pageStatRows));
   }
-  // Org info: truncate and replace
+  if (demographicRows.length > 0) {
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.follower_demographics WHERE TRUE`, "linkedin-sync");
+    if (ok) insertTasks.push(dataset.table("follower_demographics").insert(demographicRows));
+  }
+  // Org info: always safe (small, non-partitioned)
   if (orgInfoRows.length > 0) {
     await safeDelete(bq, `DELETE FROM ${fqDataset}.org_info WHERE TRUE`, "linkedin-sync");
     insertTasks.push(dataset.table("org_info").insert(orgInfoRows));

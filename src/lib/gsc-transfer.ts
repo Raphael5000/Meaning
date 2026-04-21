@@ -418,18 +418,17 @@ export async function syncGscData(
 
   const fqDataset = `\`${projectId}.${datasetId}\``;
 
-  // Delete existing rows for the date range (idempotent re-sync)
-  if (searchRows.length > 0) {
-    await safeDelete(bq, `DELETE FROM ${fqDataset}.search_performance WHERE query_date >= '${startDate}' AND query_date <= '${endDate}'`, "gsc-sync");
-  }
-
-  // Streaming insert into BigQuery (batch to stay under 10k row limit)
+  // Delete existing rows then insert fresh data.
+  // If DELETE is blocked by streaming buffer, skip insert to avoid duplicates.
   const dataset = bq.dataset(datasetId);
   const BATCH_SIZE = 5000;
 
   if (searchRows.length > 0) {
-    for (let i = 0; i < searchRows.length; i += BATCH_SIZE) {
-      await dataset.table("search_performance").insert(searchRows.slice(i, i + BATCH_SIZE));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.search_performance WHERE query_date >= '${startDate}' AND query_date <= '${endDate}'`, "gsc-sync");
+    if (ok) {
+      for (let i = 0; i < searchRows.length; i += BATCH_SIZE) {
+        await dataset.table("search_performance").insert(searchRows.slice(i, i + BATCH_SIZE));
+      }
     }
   }
 

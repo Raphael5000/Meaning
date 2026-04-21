@@ -342,49 +342,29 @@ export async function syncAdsData(
 
   console.log(`[ads-sync] Fetched: ${campaignRows.length} campaign, ${keywordRows.length} keyword, ${clickRows.length} click, ${accountRows.length} account rows`);
 
-  // Delete existing rows for the date range (idempotent re-sync)
+  // Delete existing rows for the date range, then insert fresh data.
+  // If DELETE is blocked by streaming buffer, skip the insert to avoid duplicates.
   const fqDataset = `\`${projectId}.${datasetId}\``;
-  const deleteTasks: Promise<unknown>[] = [];
-
-  if (campaignRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync"),
-    );
-  }
-  if (keywordRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync"),
-    );
-  }
-  if (clickRows.length > 0) {
-    deleteTasks.push(
-      safeDelete(bq, `DELETE FROM ${fqDataset}.click_attribution WHERE click_date >= '${startDate}' AND click_date <= '${endDate}'`, "ads-sync"),
-    );
-  }
-
-  await Promise.all(deleteTasks);
-
-  // Streaming insert into BigQuery
-  const insertTasks: Promise<unknown>[] = [];
   const dataset = bq.dataset(datasetId);
 
   if (campaignRows.length > 0) {
-    insertTasks.push(dataset.table("campaign_performance").insert(campaignRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("campaign_performance").insert(campaignRows);
   }
   if (keywordRows.length > 0) {
-    insertTasks.push(dataset.table("keyword_performance").insert(keywordRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("keyword_performance").insert(keywordRows);
   }
   if (clickRows.length > 0) {
-    insertTasks.push(dataset.table("click_attribution").insert(clickRows));
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.click_attribution WHERE click_date >= '${startDate}' AND click_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("click_attribution").insert(clickRows);
   }
 
-  // Account info: truncate and replace
+  // Account info: always safe to replace (small, non-partitioned)
   if (accountRows.length > 0) {
     await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "ads-sync");
-    insertTasks.push(dataset.table("account_info").insert(accountRows));
+    await dataset.table("account_info").insert(accountRows);
   }
-
-  await Promise.all(insertTasks);
 
   console.log(`[ads-sync] Sync complete for customer ${cleanId}`);
   return {
