@@ -615,6 +615,23 @@ body {
   100% { transform: translateY(0); }
 }
 
+/* ── Book: cover opens slightly ── */
+.group:hover .docs-icon-book {
+  animation: docs-book-open 0.5s ease-in-out;
+  transform-origin: 20% 50%;
+}
+@keyframes docs-book-open {
+  0% { transform: rotateY(0deg); }
+  40% { transform: rotateY(-14deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+/* ── Docs sidebar article link hover ── */
+.docs-sidebar-link:hover {
+  color: var(--m-text) !important;
+  background: var(--m-surface-elevated) !important;
+}
+
 /* Sidebar icon hover animations — animate individual SVG elements */
 
 /* ── Bell: body stays, clapper (first path) swings ── */

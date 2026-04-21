@@ -286,7 +286,7 @@ function SidebarSection({
                 <li key={article.slug}>
                   <Link
                     href={href}
-                    className="block rounded-md px-3 py-1.5 text-sm transition-colors"
+                    className="docs-sidebar-link block rounded-md px-3 py-1.5 text-sm transition-colors"
                     style={{
                       color: active ? "var(--m-text)" : "var(--m-text-muted)",
                       fontWeight: active ? 500 : 400,
@@ -367,7 +367,7 @@ export function DocsSidebar({
                 <Link
                   key={article.slug}
                   href={href}
-                  className="block rounded-md px-3 py-1.5 text-sm transition-colors"
+                  className="docs-sidebar-link block rounded-md px-3 py-1.5 text-sm transition-colors"
                   style={{
                     color: active ? "var(--m-text)" : "var(--m-text-muted)",
                     fontWeight: active ? 500 : 400,
