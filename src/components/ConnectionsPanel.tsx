@@ -673,7 +673,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
             {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
           </span>
         </div>
-        {ds.lastSyncError ? (
+        {ds.status === "ERROR" && ds.lastSyncError ? (
           <p className="max-w-[200px] truncate text-[10px]" style={{ color: "var(--error, #ef4444)" }} title={ds.lastSyncError}>
             {ds.lastSyncError}
           </p>
