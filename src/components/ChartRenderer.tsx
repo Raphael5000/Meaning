@@ -445,11 +445,13 @@ function applyTheme(
     themed.series = (themed.series as Record<string, unknown>[]).map((s) => {
       const type = s.type as string;
       if (type === "pie") {
+        // Only override center/radius if the widget didn't set them
+        const hasCustomCenter = Array.isArray(s.center) && s.center[0] !== "50%";
         return {
           ...s,
-          center: ["50%", "55%"],
+          ...(!hasCustomCenter && { center: ["50%", "55%"] }),
           radius: s.radius || ["30%", "60%"],
-          label: { show: false },
+          label: s.label ?? { show: false },
           labelLine: { show: false },
           emphasis: {
             label: { show: false },
