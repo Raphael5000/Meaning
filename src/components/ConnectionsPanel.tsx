@@ -612,27 +612,27 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
             <StatusDot status={ds.status} />
             <StatusLabel status={ds.status} />
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-1.5"
-            style={{ color: "var(--text-muted)" }}
-            disabled={resyncing[ds.id] || ds.status === "BACKFILLING"}
-            onClick={() => handleResync(ds.id, label)}
+          <span
+            role="button"
+            tabIndex={0}
+            className="inline-flex h-6 cursor-pointer items-center rounded-md px-1.5 transition-colors hover:bg-accent disabled:opacity-50"
+            style={{ color: "var(--text-muted)", opacity: resyncing[ds.id] || ds.status === "BACKFILLING" ? 0.5 : 1 }}
+            onClick={(e) => { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); } }}
             title="Resync data (90-day backfill)"
           >
             <RefreshCw className={`h-3 w-3 ${resyncing[ds.id] || ds.status === "BACKFILLING" ? "animate-spin" : ""}`} />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 text-[10px] px-2"
-            style={{ color: "var(--text-muted)" }}
-            disabled={disconnecting[ds.id]}
-            onClick={() => handleDisconnect(ds.id, label)}
+          </span>
+          <span
+            role="button"
+            tabIndex={0}
+            className="inline-flex h-6 cursor-pointer items-center rounded-md px-2 text-[10px] transition-colors hover:bg-accent disabled:opacity-50"
+            style={{ color: "var(--text-muted)", opacity: disconnecting[ds.id] ? 0.5 : 1 }}
+            onClick={(e) => { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); } }}
           >
             {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-          </Button>
+          </span>
         </div>
         {ds.lastSyncError ? (
           <p className="max-w-[200px] truncate text-[10px]" style={{ color: "var(--error, #ef4444)" }} title={ds.lastSyncError}>
