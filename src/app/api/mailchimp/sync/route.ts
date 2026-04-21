@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncMailchimpData } from "@/lib/mailchimp-transfer";
+import { syncWithRetry } from "@/lib/sync-utils";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/mailchimp/sync
- *
- * Cron endpoint that syncs Mailchimp data for all active accounts.
- * Protected by CRON_SECRET in the Authorization header.
- */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -23,11 +18,7 @@ export async function POST(request: NextRequest) {
       type: "MAILCHIMP",
       status: { in: ["ACTIVE", "BACKFILLING"] },
     },
-    select: {
-      id: true,
-      userId: true,
-      propertyId: true, // listId
-    },
+    select: { id: true, userId: true, propertyId: true },
   });
 
   if (dataSources.length === 0) {
@@ -38,18 +29,13 @@ export async function POST(request: NextRequest) {
   let failed = 0;
 
   for (const ds of dataSources) {
-    try {
-      const result = await syncMailchimpData(ds.userId, ds.propertyId);
-      console.log(`[mailchimp-sync-cron] Synced list ${ds.propertyId}:`, result);
-      await prisma.dataSource.update({
-        where: { id: ds.id },
-        data: { updatedAt: new Date() },
-      });
-      synced++;
-    } catch (err) {
-      console.error(`[mailchimp-sync-cron] Failed list ${ds.propertyId}:`, err);
-      failed++;
-    }
+    const ok = await syncWithRetry(
+      ds,
+      () => syncMailchimpData(ds.userId, ds.propertyId),
+      `mailchimp-sync ${ds.propertyId}`,
+    );
+    if (ok) synced++;
+    else failed++;
   }
 
   return NextResponse.json({ synced, failed, total: dataSources.length });

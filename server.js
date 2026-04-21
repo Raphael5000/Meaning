@@ -43,39 +43,38 @@ function startCronJobs() {
   // Alerts: check every hour
   setInterval(() => callLocal("/api/alerts/send"), 60 * 60 * 1000);
 
-  // Ads sync: run on startup (catch up after restarts), then daily at ~06:00 UTC
-  setTimeout(() => callLocal("/api/ads/sync"), 30 * 1000); // 30s after boot
+  // ── Data syncs: run on startup (staggered), then daily at 06:00 UTC ──
+  // Each sync now has a 16-day window and 1 retry built in.
+
+  setTimeout(() => callLocal("/api/ads/sync"), 30 * 1000);
+  setTimeout(() => callLocal("/api/linkedin/sync"), 60 * 1000);
+  setTimeout(() => callLocal("/api/mailchimp/sync"), 90 * 1000);
+  setTimeout(() => callLocal("/api/microsoft-ads/sync"), 120 * 1000);
+  setTimeout(() => callLocal("/api/gsc/sync"), 150 * 1000);
+
+  // Daily sync at 06:00 UTC
   setInterval(() => {
     if (new Date().getUTCHours() === 6) {
       callLocal("/api/ads/sync");
-    }
-  }, 60 * 60 * 1000);
-
-  // LinkedIn sync: run on startup, then daily at ~06:00 UTC
-  setTimeout(() => callLocal("/api/linkedin/sync"), 60 * 1000); // 60s after boot
-  setInterval(() => {
-    if (new Date().getUTCHours() === 6) {
+      callLocal("/api/gsc/sync");
       callLocal("/api/linkedin/sync");
-    }
-  }, 60 * 60 * 1000);
-
-  // Mailchimp sync: run on startup, then daily at ~06:00 UTC
-  setTimeout(() => callLocal("/api/mailchimp/sync"), 90 * 1000); // 90s after boot
-  setInterval(() => {
-    if (new Date().getUTCHours() === 6) {
       callLocal("/api/mailchimp/sync");
-    }
-  }, 60 * 60 * 1000);
-
-  // Microsoft Ads sync: run on startup, then daily at ~06:00 UTC
-  setTimeout(() => callLocal("/api/microsoft-ads/sync"), 120 * 1000); // 120s after boot
-  setInterval(() => {
-    if (new Date().getUTCHours() === 6) {
       callLocal("/api/microsoft-ads/sync");
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), ads/linkedin/mailchimp/microsoft-ads sync (daily + startup)");
+  // Retry window at 12:00 UTC — catches anything that failed at 06:00
+  setInterval(() => {
+    if (new Date().getUTCHours() === 12) {
+      callLocal("/api/ads/sync");
+      callLocal("/api/gsc/sync");
+      callLocal("/api/linkedin/sync");
+      callLocal("/api/mailchimp/sync");
+      callLocal("/api/microsoft-ads/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup)");
 }
 
 // ---------------------------------------------------------------------------

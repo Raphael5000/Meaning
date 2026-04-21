@@ -36,17 +36,15 @@ export async function getValidMicrosoftAdsTokenForUser(
 
     // Token is expired — try to refresh
     if (!account.refresh_token) {
-      console.error(
-        `[microsoft-ads-token] No refresh_token for user ${userId}, cannot refresh`
+      throw new Error(
+        `Microsoft Ads token expired and no refresh_token for user ${userId}. User must reconnect their Microsoft account.`
       );
-      return account.access_token ?? null;
     }
 
     const clientId = process.env.MICROSOFT_ADS_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_ADS_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      console.error("[microsoft-ads-token] Missing MICROSOFT_ADS_CLIENT_ID or MICROSOFT_ADS_CLIENT_SECRET");
-      return account.access_token ?? null;
+      throw new Error("Missing MICROSOFT_ADS_CLIENT_ID or MICROSOFT_ADS_CLIENT_SECRET env vars");
     }
 
     const response = await fetch(
@@ -71,7 +69,9 @@ export async function getValidMicrosoftAdsTokenForUser(
         response.status,
         errorBody
       );
-      return account.access_token ?? null;
+      throw new Error(
+        `Microsoft Ads token refresh failed (${response.status}). User may need to reconnect their Microsoft account.`
+      );
     }
 
     const tokens = (await response.json()) as {

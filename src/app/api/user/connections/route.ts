@@ -60,6 +60,8 @@ export async function GET(req: NextRequest) {
         adsCustomerId: true,
         ga4PropertyId: true,
         status: true,
+        lastSyncedAt: true,
+        lastSyncError: true,
       },
     });
 

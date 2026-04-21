@@ -38,17 +38,15 @@ export async function getValidLinkedInTokenForUser(
 
     // Token is expired — try to refresh
     if (!account.refresh_token) {
-      console.error(
-        `[linkedin-token] No refresh_token for user ${userId}, cannot refresh`
+      throw new Error(
+        `LinkedIn token expired and no refresh_token for user ${userId}. User must reconnect their LinkedIn account.`
       );
-      return account.access_token ?? null;
     }
 
     const clientId = process.env.LINKEDIN_CLIENT_ID;
     const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      console.error("[linkedin-token] Missing LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET");
-      return account.access_token ?? null;
+      throw new Error("Missing LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET env vars");
     }
 
     const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
@@ -69,7 +67,9 @@ export async function getValidLinkedInTokenForUser(
         response.status,
         errorBody
       );
-      return account.access_token ?? null;
+      throw new Error(
+        `LinkedIn token refresh failed (${response.status}). User may need to reconnect their LinkedIn account.`
+      );
     }
 
     const tokens = (await response.json()) as {

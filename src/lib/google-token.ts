@@ -69,17 +69,15 @@ export async function getValidGoogleTokenForUser(
 
     // Token is expired — try to refresh
     if (!account.refresh_token) {
-      console.error(
-        `[google-token] No refresh_token for user ${userId}, cannot refresh`
+      throw new Error(
+        `Google token expired and no refresh_token for user ${userId}. User must reconnect their Google account.`
       );
-      return account.access_token ?? null;
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      console.error("[google-token] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
-      return account.access_token ?? null;
+      throw new Error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET env vars");
     }
 
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -100,7 +98,9 @@ export async function getValidGoogleTokenForUser(
         response.status,
         errorBody
       );
-      return account.access_token ?? null;
+      throw new Error(
+        `Google token refresh failed (${response.status}). User may need to reconnect their Google account.`
+      );
     }
 
     const tokens = (await response.json()) as {

@@ -288,6 +288,9 @@ model DataSource {
   dtsTransferId   String?                      // BigQuery Data Transfer Service config name
   status     String   @default("PENDING")      // PENDING | ACTIVE | BACKFILLING | ERROR
 
+  lastSyncedAt  DateTime?                      // Last successful sync timestamp
+  lastSyncError String?                        // Error message from last failed sync (null = healthy)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
