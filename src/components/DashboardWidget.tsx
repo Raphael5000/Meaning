@@ -637,9 +637,9 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
 
       {/* Body */}
       <div className="relative flex-1 overflow-hidden">
-        {/* Loading overlay — skeleton shimmer */}
+        {/* Loading overlay — skeleton shimmer (fully opaque to hide stale data) */}
         {refreshing && (
-          <div className="absolute inset-0 z-10 flex flex-col gap-3 p-4" style={{ background: "var(--card-bg, var(--bg-secondary, transparent))" }}>
+          <div className="absolute inset-0 z-10 flex flex-col gap-3 p-4" style={{ background: "var(--bg-primary)" }}>
             <div className="h-3 w-3/4 animate-pulse rounded-md bg-muted" />
             <div className="h-3 w-1/2 animate-pulse rounded-md bg-muted" style={{ animationDelay: "150ms" }} />
             <div className="flex-1 animate-pulse rounded-lg bg-muted" style={{ animationDelay: "300ms" }} />
