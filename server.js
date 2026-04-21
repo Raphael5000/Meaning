@@ -52,9 +52,13 @@ function startCronJobs() {
   setTimeout(() => callLocal("/api/microsoft-ads/sync"), 120 * 1000);
   setTimeout(() => callLocal("/api/gsc/sync"), 150 * 1000);
 
+  // Exchange rates: sync on startup + daily (must run before data syncs)
+  setTimeout(() => callLocal("/api/exchange-rates/sync"), 10 * 1000);
+
   // Daily sync at 06:00 UTC
   setInterval(() => {
     if (new Date().getUTCHours() === 6) {
+      callLocal("/api/exchange-rates/sync");
       callLocal("/api/ads/sync");
       callLocal("/api/gsc/sync");
       callLocal("/api/linkedin/sync");
@@ -66,6 +70,7 @@ function startCronJobs() {
   // Retry window at 12:00 UTC — catches anything that failed at 06:00
   setInterval(() => {
     if (new Date().getUTCHours() === 12) {
+      callLocal("/api/exchange-rates/sync");
       callLocal("/api/ads/sync");
       callLocal("/api/gsc/sync");
       callLocal("/api/linkedin/sync");
