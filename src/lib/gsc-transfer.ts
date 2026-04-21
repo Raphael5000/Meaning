@@ -426,11 +426,14 @@ export async function syncGscData(
     });
   }
 
-  // Streaming insert into BigQuery
+  // Streaming insert into BigQuery (batch to stay under 10k row limit)
   const dataset = bq.dataset(datasetId);
+  const BATCH_SIZE = 5000;
 
   if (searchRows.length > 0) {
-    await dataset.table("search_performance").insert(searchRows);
+    for (let i = 0; i < searchRows.length; i += BATCH_SIZE) {
+      await dataset.table("search_performance").insert(searchRows.slice(i, i + BATCH_SIZE));
+    }
   }
 
   // Update site_info
