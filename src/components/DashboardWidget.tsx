@@ -57,6 +57,28 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
   // Remove title — it's shown in the widget header
   delete option.title;
 
+  // ── Date formatting helper (consistent across all time series) ──
+  function formatDateLabel(v: string): string {
+    // Monthly: "2026-01" → "Jan 2026"
+    if (/^\d{4}-\d{2}$/.test(v)) {
+      const [y, m] = v.split("-");
+      return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    }
+    // Daily: "2026-01-23" → "Jan 23"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      const d = new Date(v + "T00:00:00");
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+    return v.length > 20 ? v.slice(0, 18) + "..." : v;
+  }
+
+  // ── Check if first column is a date dimension ──
+  function isDateColumn(key: string, firstVal: unknown): boolean {
+    const s = String(firstVal ?? "");
+    return key.includes("date") || key === "d" || key === "day" || key === "month" || key === "week"
+      || /^\d{4}-\d{2}(-\d{2})?$/.test(s);
+  }
+
   // Legend: always top-right, compact for dashboard widgets.
   // Explicitly set bottom/left to undefined to override applyTheme defaults.
   const legendConfig = {
@@ -97,15 +119,58 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       return typeof v === "string" || k === "date" || k.includes("date");
     }) || keys[0];
     const metricKeys = keys.filter((k) => k !== dimKey);
+    const isTimeSeries = isDateColumn(dimKey, rows[0][dimKey]);
 
-    const categories = rows.map((r) => {
-      const v = String(r[dimKey] ?? "");
-      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        const d = new Date(v + "T00:00:00");
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    // Fill date gaps for time series so every day/month shows (even with 0 values)
+    let filledRows = rows;
+    if (isTimeSeries && rows.length >= 2) {
+      const dateVals = rows.map((r) => String(r[dimKey] ?? ""));
+      const isDaily = /^\d{4}-\d{2}-\d{2}$/.test(dateVals[0]);
+      const isMonthly = /^\d{4}-\d{2}$/.test(dateVals[0]);
+
+      if (isDaily) {
+        const dateSet = new Set(dateVals);
+        const sorted = [...dateSet].sort();
+        const start = new Date(sorted[0] + "T00:00:00");
+        const end = new Date(sorted[sorted.length - 1] + "T00:00:00");
+        const allDates: string[] = [];
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          allDates.push(d.toISOString().split("T")[0]);
+        }
+        if (allDates.length > dateSet.size) {
+          const rowMap = new Map(rows.map((r) => [String(r[dimKey]), r]));
+          filledRows = allDates.map((date) => {
+            if (rowMap.has(date)) return rowMap.get(date)!;
+            const zero: Record<string, unknown> = { [dimKey]: date };
+            for (const mk of metricKeys) zero[mk] = 0;
+            return zero;
+          });
+        }
+      } else if (isMonthly) {
+        const dateSet = new Set(dateVals);
+        const sorted = [...dateSet].sort();
+        const [startY, startM] = sorted[0].split("-").map(Number);
+        const [endY, endM] = sorted[sorted.length - 1].split("-").map(Number);
+        const allMonths: string[] = [];
+        let y = startY, m = startM;
+        while (y < endY || (y === endY && m <= endM)) {
+          allMonths.push(`${y}-${String(m).padStart(2, "0")}`);
+          m++;
+          if (m > 12) { m = 1; y++; }
+        }
+        if (allMonths.length > dateSet.size) {
+          const rowMap = new Map(rows.map((r) => [String(r[dimKey]), r]));
+          filledRows = allMonths.map((month) => {
+            if (rowMap.has(month)) return rowMap.get(month)!;
+            const zero: Record<string, unknown> = { [dimKey]: month };
+            for (const mk of metricKeys) zero[mk] = 0;
+            return zero;
+          });
+        }
       }
-      return v.length > 20 ? v.slice(0, 18) + "..." : v;
-    });
+    }
+
+    const categories = filledRows.map((r) => formatDateLabel(String(r[dimKey] ?? "")));
 
     option.xAxis = {
       type: "category",
@@ -136,7 +201,7 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
     }
 
     for (let i = 0; i < series.length && i < metricKeys.length; i++) {
-      series[i].data = rows.map((r) => Number(r[metricKeys[i]] ?? 0));
+      series[i].data = filledRows.map((r) => Number(r[metricKeys[i]] ?? 0));
       if (chartType === "line") {
         series[i].smooth = true;
         series[i].symbol = "circle";

@@ -100,6 +100,8 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
           containerPadding={[0, 0] as const}
           onLayoutChange={handleLayoutChange}
           dragConfig={{ handle: ".widget-drag-handle" }}
+          compactType="vertical"
+          isResizable={false}
         >
           {layout.map((item) => {
             const widget = widgetMap.get(item.i);

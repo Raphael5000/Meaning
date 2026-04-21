@@ -223,21 +223,41 @@ export async function POST(
           } else {
             // For raw SQL tools (ads, linkedin, mailchimp, gsc), substitute date params
             let sql = queryConfig.input.sql as string;
-            // Replace hardcoded dates or @startDate/@endDate params
             const sqlParams: Record<string, unknown> = {};
+
+            // Preferred path: @startDate/@endDate parameters (all new widgets use this)
             if (sql.includes("@startDate")) {
               sqlParams.startDate = startDate;
             }
             if (sql.includes("@endDate")) {
               sqlParams.endDate = endDate;
             }
-            // Also replace hardcoded date literals like '2026-03-01'
-            sql = sql.replace(/'\d{4}-\d{2}-\d{2}'(\s+AND\s+\w+\s*<=\s*)'\d{4}-\d{2}-\d{2}'/g,
-              `'${startDate}'$1'${endDate}'`);
+
+            // Fallback for legacy widgets with hardcoded dates:
+            // Match any 'YYYY-MM-DD' >= AND <= pattern
+            if (!sqlParams.startDate) {
+              sql = sql.replace(
+                />=\s*'(\d{4}-\d{2}-\d{2})'/g,
+                `>= '${startDate}'`
+              );
+              sql = sql.replace(
+                /<=\s*'(\d{4}-\d{2}-\d{2})'/g,
+                `<= '${endDate}'`
+              );
+              // Also handle DATE_SUB patterns
+              sql = sql.replace(
+                /DATE_SUB\s*\(\s*CURRENT_DATE\s*\(\s*\)\s*,\s*INTERVAL\s+\d+\s+DAY\s*\)/gi,
+                `'${startDate}'`
+              );
+              sql = sql.replace(
+                /CURRENT_DATE\s*\(\s*\)/gi,
+                `'${endDate}'`
+              );
+            }
 
             const result = await runPropertyQuery(
               propertyId,
-              Object.keys(sqlParams).length > 0 ? sql : sql,
+              sql,
               Object.keys(sqlParams).length > 0 ? sqlParams : undefined,
               adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl
             );

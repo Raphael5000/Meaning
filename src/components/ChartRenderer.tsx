@@ -194,119 +194,80 @@ function removeSankeyCycles(series: any): any {
   return { ...series, data: nodes, links: safeLinks };
 }
 
-/** Apply vibrant styling to sankey series for the neon-gradient look */
+/** Apply clean styling to sankey series — optimized for readability */
 function applySankeyTheme(
   option: Record<string, unknown>,
   isDark: boolean
 ): Record<string, unknown> {
-  const textColor = isDark ? "#f0f0f0" : "#1a1a1a";
-  const bubbleBg = isDark ? "rgba(22,22,35,0.85)" : "rgba(255,255,255,0.9)";
-  const bubbleBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const textColor = isDark ? "#e0e0e0" : "#1a1a1a";
+  const mutedColor = isDark ? "#888" : "#777";
   const series = option.series;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const styleSeries = (s: any) => {
     if (s.type !== "sankey") return s;
 
-    // Assign colors to nodes if not already set
     const nodes = Array.isArray(s.data) ? s.data : s.nodes || [];
     const coloredNodes = nodes.map((node: Record<string, unknown>, i: number) => {
       const nodeColor = SANKEY_PALETTE[i % SANKEY_PALETTE.length];
+      // Truncate long names for readability
+      const name = String(node.name ?? "");
+      const shortName = name.length > 25 ? name.slice(0, 23) + "..." : name;
       return {
         ...node,
+        name: shortName,
         itemStyle: {
           color: nodeColor,
           borderColor: "transparent",
           borderWidth: 0,
-          ...(node.itemStyle as Record<string, unknown> | undefined),
-        },
-        // Per-node label with colored accent dot
-        label: {
-          backgroundColor: bubbleBg,
-          borderColor: bubbleBorder,
-          borderWidth: 1,
-          borderRadius: 8,
-          padding: [8, 12],
-          shadowColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
-          shadowBlur: 12,
-          rich: {
-            name: {
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "'Inter', system-ui, sans-serif",
-              color: textColor,
-              padding: [0, 0, 2, 0],
-            },
-            value: {
-              fontSize: 14,
-              fontWeight: 700,
-              fontFamily: "'Inter', system-ui, sans-serif",
-              color: nodeColor,
-              padding: [2, 0, 0, 0],
-            },
-          },
         },
       };
     });
 
+    // Also truncate link source/target to match
+    const links = Array.isArray(s.links) ? s.links : [];
+    const truncate = (n: string) => n.length > 25 ? n.slice(0, 23) + "..." : n;
+    const truncatedLinks = links.map((link: Record<string, unknown>) => ({
+      ...link,
+      source: truncate(String(link.source ?? "")),
+      target: truncate(String(link.target ?? "")),
+    }));
+
     return {
       ...s,
       data: coloredNodes,
+      links: truncatedLinks,
       type: "sankey",
-      layoutIterations: s.layoutIterations ?? 32,
-      nodeWidth: s.nodeWidth ?? 8,
-      nodeGap: s.nodeGap ?? 18,
-      nodeAlign: s.nodeAlign ?? "justify",
-      draggable: s.draggable ?? true,
+      layoutIterations: 32,
+      nodeWidth: 12,
+      nodeGap: 24,
+      nodeAlign: "justify",
+      draggable: true,
       emphasis: {
         focus: "adjacency",
-        lineStyle: { opacity: 0.65 },
-        ...(s.emphasis as Record<string, unknown> | undefined),
+        lineStyle: { opacity: 0.6 },
       },
       lineStyle: {
         color: "gradient",
-        opacity: 0.35,
+        opacity: 0.25,
         curveness: 0.5,
-        ...(s.lineStyle as Record<string, unknown> | undefined),
       },
       label: {
         show: true,
         position: "right",
+        fontSize: 10,
+        fontWeight: 500,
+        color: textColor,
         formatter: (params: { name: string; value: number | string }) => {
           const val = typeof params.value === "number"
             ? params.value.toLocaleString()
             : params.value ?? "";
-          return `{name|${params.name}}\n{value|${val}}`;
+          return `${params.name}  ${val}`;
         },
-        backgroundColor: bubbleBg,
-        borderColor: bubbleBorder,
-        borderWidth: 1,
-        borderRadius: 8,
-        padding: [8, 12],
-        shadowColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)",
-        shadowBlur: 12,
-        rich: {
-          name: {
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: "'Inter', system-ui, sans-serif",
-            color: textColor,
-            padding: [0, 0, 2, 0],
-          },
-          value: {
-            fontSize: 14,
-            fontWeight: 700,
-            fontFamily: "'Inter', system-ui, sans-serif",
-            color: isDark ? "#a78bfa" : "#7c3aed",
-            padding: [2, 0, 0, 0],
-          },
-        },
-        ...(s.label as Record<string, unknown> | undefined),
       },
       itemStyle: {
-        borderRadius: 4,
+        borderRadius: 3,
         borderColor: "transparent",
         borderWidth: 0,
-        ...(s.itemStyle as Record<string, unknown> | undefined),
       },
     };
   };
@@ -325,17 +286,14 @@ function applySankeyTheme(
       trigger: "item",
       triggerOn: "mousemove",
       backgroundColor: isDark ? "rgba(20,20,30,0.92)" : "rgba(255,255,255,0.95)",
-      borderColor: isDark ? "rgba(139,92,246,0.3)" : "rgba(0,0,0,0.1)",
+      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       borderWidth: 1,
-      padding: [10, 14],
+      padding: [8, 12],
       textStyle: {
         color: textColor,
-        fontSize: 13,
-        fontFamily: "'Inter', system-ui, sans-serif",
+        fontSize: 12,
       },
-      extraCssText: isDark
-        ? "backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.5);border-radius:10px;"
-        : "backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.12);border-radius:10px;",
+      extraCssText: "border-radius:8px;",
       ...(option.tooltip as Record<string, unknown> | undefined),
     },
   };

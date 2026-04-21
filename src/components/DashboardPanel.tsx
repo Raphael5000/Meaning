@@ -157,22 +157,12 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
     const lower = prompt.toLowerCase();
     const isScorecard = /\bhow many\b|\btotal\b|\bcount\b|\bhow much\b|\bwhat is the\b|\bwhat was\b/.test(lower) && !/\bby\b|\bper\b|\bbreakdown\b|\bchart\b|\bgraph\b|\btrend\b/.test(lower);
     const isSankey = /\bsankey\b|\bflow\b|\bjourney\b/.test(lower);
-    const placeholderSize = isScorecard ? { w: 3, h: 2 } : isSankey ? { w: 12, h: 6 } : { w: 6, h: 4 };
+    const isTable = /\btable\b|\blist\b|\btop \d+\b/.test(lower) && !/\bchart\b|\bgraph\b|\btrend\b|\bover time\b/.test(lower);
+    const placeholderSize = isScorecard ? { w: 4, h: 2 } : isSankey ? { w: 12, h: 6 } : isTable ? { w: 12, h: 4 } : { w: 6, h: 4 };
 
+    // Always place new widgets below existing ones — vertical compact handles stacking
     const maxBottom = (dashboard?.layout || []).reduce((max, item) => Math.max(max, item.y + item.h), 0);
-    // Try side-by-side placement
-    let placeholderX = 0;
-    let placeholderY = maxBottom;
-    if (dashboard?.layout && dashboard.layout.length > 0) {
-      const lastRowY = Math.max(...dashboard.layout.map((item) => item.y));
-      const lastRowItems = dashboard.layout.filter((item) => item.y === lastRowY);
-      const lastRowRight = lastRowItems.reduce((max, item) => Math.max(max, item.x + item.w), 0);
-      if (lastRowRight + placeholderSize.w <= 12) {
-        placeholderX = lastRowRight;
-        placeholderY = lastRowY;
-      }
-    }
-    const placeholderLayout: LayoutItem = { i: tempId, x: placeholderX, y: placeholderY, ...placeholderSize };
+    const placeholderLayout: LayoutItem = { i: tempId, x: 0, y: maxBottom, ...placeholderSize };
 
     setDashboard((d) => {
       if (!d) return d;

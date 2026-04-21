@@ -155,6 +155,16 @@ CRITICAL RULES:
 6. Use the run_ads_query tool for any query that needs LIKE filters, JOINs, subqueries, or complex SQL — query_analytics is only for simple aggregations.
 7. MANDATORY: When querying ANY monetary values (cost, spend, revenue, conversions_value), you MUST use the exchange rate conversion pattern to convert to ${displayCurrency}. Do NOT just query raw cost — always JOIN with exchange_rates. See CURRENCY section below.
 8. ALL monetary values in SQL must be ROUND(..., 2) to 2 decimal places. Always include 2 decimal places in scorecard values (e.g. "R12,599.33" not "R12,599").
+9. DATE PARAMETERS (MANDATORY): For ALL raw SQL queries (run_ads_query, run_gsc_query, run_linkedin_query, run_mailchimp_query, run_microsoft_ads_query), you MUST use @startDate and @endDate parameters instead of hardcoded dates. Example: WHERE stats_date >= @startDate AND stats_date <= @endDate. This allows the dashboard date range picker to update the widget without regenerating it. For scorecards with previous period comparison, compute the previous period relative to @startDate and @endDate: previous_start = DATE_SUB(@startDate, INTERVAL DATE_DIFF(@endDate, @startDate, DAY) DAY).
+10. TIME SERIES COMPLETENESS (MANDATORY): For ANY line or bar chart showing data over time (daily, weekly, monthly), you MUST use GENERATE_DATE_ARRAY to produce every date in the range, then LEFT JOIN your data onto it. This ensures days/weeks/months with zero values still appear on the x-axis. Example pattern:
+    WITH dates AS (SELECT d FROM UNNEST(GENERATE_DATE_ARRAY(@startDate, @endDate)) AS d)
+    SELECT dates.d AS date, COALESCE(SUM(metric), 0) AS metric
+    FROM dates LEFT JOIN table ON table.date_col = dates.d
+    GROUP BY dates.d ORDER BY dates.d
+    For weekly: GENERATE_DATE_ARRAY(@startDate, @endDate, INTERVAL 7 DAY).
+    For monthly: use DATE_TRUNC on dates.d and GROUP BY the truncated month.
+    NEVER skip this — gaps in time series charts are unacceptable.
+11. SANKEY LIMITS: Limit sankey queries to 20 rows (LIMIT 20, not 30). Keep node names short — truncate URLs to the path only (strip domain). Use at most 2 layers (source→page or page→page).
 
 Available tables and their columns:
   - sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, landing_page, exit_page, session_source, session_medium, session_default_channel_group, device_category, geo_country, geo_city, is_first_visit
