@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidLinkedInTokenForUser } from "@/lib/linkedin-token";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -469,25 +470,17 @@ export async function syncLinkedInData(
 
   // Post performance: replace all (we re-fetch every post each sync)
   if (postRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.post_performance WHERE TRUE` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.post_performance WHERE TRUE`, "linkedin-sync"));
   }
   if (followerRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.follower_stats WHERE stats_date = '${today}'` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.follower_stats WHERE stats_date = '${today}'`, "linkedin-sync"));
   }
   if (pageStatRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.page_stats WHERE stats_date = '${today}'` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.page_stats WHERE stats_date = '${today}'`, "linkedin-sync"));
   }
   // Demographics: replace all (it's a lifetime snapshot)
   if (demographicRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.follower_demographics WHERE TRUE` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.follower_demographics WHERE TRUE`, "linkedin-sync"));
   }
   await Promise.all(deleteTasks);
 
@@ -509,7 +502,7 @@ export async function syncLinkedInData(
   }
   // Org info: truncate and replace
   if (orgInfoRows.length > 0) {
-    await bq.query({ query: `DELETE FROM ${fqDataset}.org_info WHERE TRUE` }).catch(() => {});
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.org_info WHERE TRUE`, "linkedin-sync");
     insertTasks.push(dataset.table("org_info").insert(orgInfoRows));
   }
 

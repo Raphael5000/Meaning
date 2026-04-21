@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -347,17 +348,17 @@ export async function syncAdsData(
 
   if (campaignRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync"),
     );
   }
   if (keywordRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync"),
     );
   }
   if (clickRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.click_attribution WHERE click_date >= '${startDate}' AND click_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.click_attribution WHERE click_date >= '${startDate}' AND click_date <= '${endDate}'`, "ads-sync"),
     );
   }
 
@@ -379,7 +380,7 @@ export async function syncAdsData(
 
   // Account info: truncate and replace
   if (accountRows.length > 0) {
-    await bq.query({ query: `DELETE FROM ${fqDataset}.account_info WHERE TRUE` }).catch(() => {});
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "ads-sync");
     insertTasks.push(dataset.table("account_info").insert(accountRows));
   }
 

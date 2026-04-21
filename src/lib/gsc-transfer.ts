@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -378,9 +379,7 @@ export async function syncUrlInspection(
 
   // Delete today's existing inspection data (idempotent re-run)
   const today = new Date().toISOString().split("T")[0];
-  await bq.query({
-    query: `DELETE FROM ${fqDataset}.url_inspection WHERE inspected_date = '${today}'`,
-  }).catch(() => {});
+  await safeDelete(bq, `DELETE FROM ${fqDataset}.url_inspection WHERE inspected_date = '${today}'`, "url-inspection");
 
   // Insert results
   const BATCH = 500;
@@ -421,9 +420,7 @@ export async function syncGscData(
 
   // Delete existing rows for the date range (idempotent re-sync)
   if (searchRows.length > 0) {
-    await bq.query({
-      query: `DELETE FROM ${fqDataset}.search_performance WHERE query_date >= '${startDate}' AND query_date <= '${endDate}'`,
-    });
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.search_performance WHERE query_date >= '${startDate}' AND query_date <= '${endDate}'`, "gsc-sync");
   }
 
   // Streaming insert into BigQuery (batch to stay under 10k row limit)
@@ -437,7 +434,7 @@ export async function syncGscData(
   }
 
   // Update site_info
-  await bq.query({ query: `DELETE FROM ${fqDataset}.site_info WHERE TRUE` }).catch(() => {});
+  await safeDelete(bq, `DELETE FROM ${fqDataset}.site_info WHERE TRUE`, "gsc-sync");
   await dataset.table("site_info").insert([{
     site_url: siteUrl,
     permission_level: "synced",

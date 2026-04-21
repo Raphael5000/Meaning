@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidMicrosoftAdsTokenForUser } from "@/lib/microsoft-ads-token";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -575,17 +576,17 @@ export async function syncMicrosoftAdsData(
 
   if (campaignRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
     );
   }
   if (keywordRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
     );
   }
   if (searchQueryRows.length > 0) {
     deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'` }),
+      safeDelete(bq, `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync"),
     );
   }
 
@@ -612,7 +613,7 @@ export async function syncMicrosoftAdsData(
     currency_code: currencyCode,
     last_synced_at: new Date().toISOString(),
   }];
-  await bq.query({ query: `DELETE FROM ${fqDataset}.account_info WHERE TRUE` }).catch(() => {});
+  await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "msads-sync");
   insertTasks.push(dataset.table("account_info").insert(accountRows));
 
   await Promise.all(insertTasks);

@@ -1,5 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getMailchimpCredentials } from "@/lib/mailchimp-token";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -303,7 +304,7 @@ export async function syncMailchimpData(
     }];
 
     const fqDataset = `\`${projectId}.${datasetId}\``;
-    await bq.query({ query: `DELETE FROM ${fqDataset}.mc_account_info WHERE TRUE` }).catch(() => {});
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.mc_account_info WHERE TRUE`, "mailchimp-sync");
     await bq.dataset(datasetId).table("mc_account_info").insert(accountInfoRows).catch(() => {});
   } catch (err) {
     console.warn(`[mailchimp-sync] List stats fetch failed (non-fatal):`, (err as Error).message);
@@ -352,20 +353,13 @@ export async function syncMailchimpData(
   const deleteTasks: Promise<unknown>[] = [];
 
   if (campaignRows.length > 0) {
-    // Delete all campaigns and re-insert (stats update over time)
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.campaign_reports WHERE TRUE` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_reports WHERE TRUE`, "mailchimp-sync"));
   }
   if (audienceRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.audience_stats WHERE stats_date = '${today}'` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.audience_stats WHERE stats_date = '${today}'`, "mailchimp-sync"));
   }
   if (growthRows.length > 0) {
-    deleteTasks.push(
-      bq.query({ query: `DELETE FROM ${fqDataset}.audience_growth WHERE TRUE` }).catch(() => {})
-    );
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.audience_growth WHERE TRUE`, "mailchimp-sync"));
   }
 
   await Promise.all(deleteTasks);
