@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidMicrosoftAdsTokenForUser } from "@/lib/microsoft-ads-token";
-import { mergeRows } from "@/lib/bq-helpers";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -577,17 +577,26 @@ export async function syncMicrosoftAdsData(
 
   console.log(`[msads-sync] Fetched: ${campaignRows.length} campaign, ${keywordRows.length} keyword, ${searchQueryRows.length} search query rows`);
 
-  // MERGE rows into BigQuery (idempotent — no duplicates even with concurrent syncs)
+  // Delete + streaming insert (fast). Daily dedup cron cleans any duplicates.
   const fqDataset = `\`${projectId}.${datasetId}\``;
+  const dataset = bq.dataset(datasetId);
 
-  if (campaignRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.campaign_performance`, campaignRows, MSADS_KEY_COLUMNS.campaign_performance, TABLE_SCHEMAS.campaign_performance.fields, "msads-sync");
+  const deleteResults = await Promise.all([
+    campaignRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+    keywordRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+    searchQueryRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
+  ]);
+  const [campaignDeleteOk, keywordDeleteOk, searchQueryDeleteOk] = deleteResults;
+
+  const insertTasks: Promise<unknown>[] = [];
+  if (campaignRows.length > 0 && campaignDeleteOk) {
+    insertTasks.push(dataset.table("campaign_performance").insert(campaignRows));
   }
-  if (keywordRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.keyword_performance`, keywordRows, MSADS_KEY_COLUMNS.keyword_performance, TABLE_SCHEMAS.keyword_performance.fields, "msads-sync");
+  if (keywordRows.length > 0 && keywordDeleteOk) {
+    insertTasks.push(dataset.table("keyword_performance").insert(keywordRows));
   }
-  if (searchQueryRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.search_query_performance`, searchQueryRows, MSADS_KEY_COLUMNS.search_query_performance, TABLE_SCHEMAS.search_query_performance.fields, "msads-sync");
+  if (searchQueryRows.length > 0 && searchQueryDeleteOk) {
+    insertTasks.push(dataset.table("search_query_performance").insert(searchQueryRows));
   }
 
   const accountRows = [{
@@ -596,7 +605,9 @@ export async function syncMicrosoftAdsData(
     currency_code: currencyCode,
     last_synced_at: new Date().toISOString(),
   }];
-  await mergeRows(bq, `${fqDataset}.account_info`, accountRows, MSADS_KEY_COLUMNS.account_info, TABLE_SCHEMAS.account_info.fields, "msads-sync");
+  await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "msads-sync");
+  insertTasks.push(dataset.table("account_info").insert(accountRows));
+  await Promise.all(insertTasks);
 
   console.log(`[msads-sync] Sync complete for account ${accountId}`);
   return {

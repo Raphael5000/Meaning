@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getMailchimpCredentials } from "@/lib/mailchimp-token";
-import { mergeRows } from "@/lib/bq-helpers";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -311,7 +311,8 @@ export async function syncMailchimpData(
     }];
 
     const fqDataset = `\`${projectId}.${datasetId}\``;
-    await mergeRows(bq, `${fqDataset}.mc_account_info`, accountInfoRows, MAILCHIMP_KEY_COLUMNS.mc_account_info, TABLE_SCHEMAS.mc_account_info.fields, "mailchimp-sync");
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.mc_account_info WHERE TRUE`, "mailchimp-sync");
+    await bq.dataset(datasetId).table("mc_account_info").insert(accountInfoRows).catch(() => {});
   } catch (err) {
     console.warn(`[mailchimp-sync] List stats fetch failed (non-fatal):`, (err as Error).message);
   }
@@ -354,18 +355,34 @@ export async function syncMailchimpData(
     `[mailchimp-sync] Fetched: ${campaignRows.length} campaigns, ${audienceRows.length} audience, ${growthRows.length} growth rows`
   );
 
-  // MERGE rows into BigQuery (idempotent — no duplicates even with concurrent syncs)
+  // Delete + streaming insert (fast). Daily dedup cron cleans any duplicates.
   const fqDataset = `\`${projectId}.${datasetId}\``;
+  const dataset = bq.dataset(datasetId);
 
+  const deleteTasks: Promise<boolean>[] = [];
   if (campaignRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.campaign_reports`, campaignRows, MAILCHIMP_KEY_COLUMNS.campaign_reports, TABLE_SCHEMAS.campaign_reports.fields, "mailchimp-sync");
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_reports WHERE TRUE`, "mailchimp-sync"));
   }
   if (audienceRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.audience_stats`, audienceRows, MAILCHIMP_KEY_COLUMNS.audience_stats, TABLE_SCHEMAS.audience_stats.fields, "mailchimp-sync");
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.audience_stats WHERE stats_date = '${today}'`, "mailchimp-sync"));
   }
   if (growthRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.audience_growth`, growthRows, MAILCHIMP_KEY_COLUMNS.audience_growth, TABLE_SCHEMAS.audience_growth.fields, "mailchimp-sync");
+    deleteTasks.push(safeDelete(bq, `DELETE FROM ${fqDataset}.audience_growth WHERE TRUE`, "mailchimp-sync"));
   }
+  const deleteResults = await Promise.all(deleteTasks);
+
+  const insertTasks: Promise<unknown>[] = [];
+  let di = 0;
+  if (campaignRows.length > 0 && deleteResults[di++]) {
+    insertTasks.push(dataset.table("campaign_reports").insert(campaignRows));
+  }
+  if (audienceRows.length > 0 && deleteResults[di++]) {
+    insertTasks.push(dataset.table("audience_stats").insert(audienceRows));
+  }
+  if (growthRows.length > 0 && deleteResults[di++]) {
+    insertTasks.push(dataset.table("audience_growth").insert(growthRows));
+  }
+  await Promise.all(insertTasks);
 
   console.log(`[mailchimp-sync] Sync complete for list ${listId}`);
   return {

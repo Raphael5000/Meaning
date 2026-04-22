@@ -67,6 +67,13 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
+  // Daily dedup at 08:00 UTC — cleans any duplicates from concurrent syncs
+  setInterval(() => {
+    if (new Date().getUTCHours() === 8) {
+      callLocal("/api/dedup");
+    }
+  }, 60 * 60 * 1000);
+
   // Retry window at 12:00 UTC — catches anything that failed at 06:00
   setInterval(() => {
     if (new Date().getUTCHours() === 12) {

@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
-import { mergeRows } from "@/lib/bq-helpers";
+import { safeDelete } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -352,22 +352,27 @@ export async function syncAdsData(
 
   console.log(`[ads-sync] Fetched: ${campaignRows.length} campaign, ${keywordRows.length} keyword, ${clickRows.length} click, ${accountRows.length} account rows`);
 
-  // MERGE rows into BigQuery (idempotent — no duplicates even with concurrent syncs).
-  // Uses DML MERGE instead of DELETE + streaming INSERT to avoid streaming buffer
-  // race conditions that caused duplicate data and inflated spend figures.
+  // Delete existing rows for the date range, then insert fresh data.
+  // If DELETE is blocked by streaming buffer, skip the insert to avoid duplicates.
+  // A daily dedup cron cleans any duplicates that slip through from concurrent syncs.
   const fqDataset = `\`${projectId}.${datasetId}\``;
+  const dataset = bq.dataset(datasetId);
 
   if (campaignRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.campaign_performance`, campaignRows, ADS_KEY_COLUMNS.campaign_performance, TABLE_SCHEMAS.campaign_performance.fields, "ads-sync");
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("campaign_performance").insert(campaignRows);
   }
   if (keywordRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.keyword_performance`, keywordRows, ADS_KEY_COLUMNS.keyword_performance, TABLE_SCHEMAS.keyword_performance.fields, "ads-sync");
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("keyword_performance").insert(keywordRows);
   }
   if (clickRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.click_attribution`, clickRows, ADS_KEY_COLUMNS.click_attribution, TABLE_SCHEMAS.click_attribution.fields, "ads-sync");
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.click_attribution WHERE click_date >= '${startDate}' AND click_date <= '${endDate}'`, "ads-sync");
+    if (ok) await dataset.table("click_attribution").insert(clickRows);
   }
   if (accountRows.length > 0) {
-    await mergeRows(bq, `${fqDataset}.account_info`, accountRows, ADS_KEY_COLUMNS.account_info, TABLE_SCHEMAS.account_info.fields, "ads-sync");
+    await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "ads-sync");
+    await dataset.table("account_info").insert(accountRows);
   }
 
   console.log(`[ads-sync] Sync complete for customer ${cleanId}`);
