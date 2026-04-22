@@ -3,6 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, ArrowLeft, Check, AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +110,7 @@ function StatusDot({ status }: { status: string }) {
     BACKFILLING: "#3b82f6",
     PENDING: "#f59e0b",
     ERROR: "var(--error, #ef4444)",
+    DISCONNECTED: "var(--text-muted)",
   };
   const color = colors[status] ?? "var(--text-muted)";
   return (
@@ -118,12 +129,14 @@ function StatusLabel({ status }: { status: string }) {
     BACKFILLING: "Syncing",
     PENDING: "Pending",
     ERROR: "Error",
+    DISCONNECTED: "Disconnected",
   };
   const colors: Record<string, string> = {
     ACTIVE: "var(--accent)",
     BACKFILLING: "#3b82f6",
     PENDING: "#f59e0b",
     ERROR: "var(--error, #ef4444)",
+    DISCONNECTED: "var(--text-muted)",
   };
   return (
     <span className="text-[11px] font-medium" style={{ color: colors[status] ?? "var(--text-muted)" }}>
@@ -379,15 +392,23 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
 
   const [resyncing, setResyncing] = useState<Record<string, boolean>>({});
   const [disconnecting, setDisconnecting] = useState<Record<string, boolean>>({});
+  const [disconnectTarget, setDisconnectTarget] = useState<{ id: string; label: string } | null>(null);
 
-  async function handleDisconnect(dataSourceId: string, label: string) {
-    setDisconnecting((prev) => ({ ...prev, [dataSourceId]: true }));
+  function handleDisconnect(dataSourceId: string, label: string) {
+    setDisconnectTarget({ id: dataSourceId, label });
+  }
+
+  async function confirmDisconnect() {
+    if (!disconnectTarget) return;
+    const { id, label } = disconnectTarget;
+    setDisconnectTarget(null);
+    setDisconnecting((prev) => ({ ...prev, [id]: true }));
     setMessage(null);
     try {
       const res = await fetch("/api/user/connections/disconnect", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataSourceId }),
+        body: JSON.stringify({ dataSourceId: id }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -399,7 +420,7 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
     } catch {
       setMessage({ type: "error", text: "Something went wrong." });
     } finally {
-      setDisconnecting((prev) => ({ ...prev, [dataSourceId]: false }));
+      setDisconnecting((prev) => ({ ...prev, [id]: false }));
     }
   }
 
@@ -638,12 +659,34 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
           })}
         </div>
       </div>
+
+      {/* Disconnect confirmation dialog */}
+      <AlertDialog open={!!disconnectTarget} onOpenChange={(open) => { if (!open) setDisconnectTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect {disconnectTarget?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disconnect {disconnectTarget?.label} and stop syncing data across all your teams. Your historical data will be preserved and you can reconnect at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDisconnect}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
   // ── Shared connected-source actions ──
   function renderConnectedActions(ds: DataSourceInfo, label: string) {
     const syncAge = formatTimeAgo(ds.lastSyncedAt);
+    const isDisconnected = ds.status === "DISCONNECTED";
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="flex items-center gap-2">
@@ -651,27 +694,42 @@ export default function ConnectionsPanel({ onClose, orgId, orgName }: Connection
             <StatusDot status={ds.status} />
             <StatusLabel status={ds.status} />
           </div>
-          <span
-            role="button"
-            tabIndex={0}
-            className="inline-flex h-6 cursor-pointer items-center rounded-md px-1.5 transition-colors hover:bg-accent disabled:opacity-50"
-            style={{ color: "var(--text-muted)", opacity: resyncing[ds.id] || ds.status === "BACKFILLING" ? 0.5 : 1 }}
-            onClick={(e) => { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); } }}
-            title="Resync data (90-day backfill)"
-          >
-            <RefreshCw className={`h-3 w-3 ${resyncing[ds.id] || ds.status === "BACKFILLING" ? "animate-spin" : ""}`} />
-          </span>
-          <span
-            role="button"
-            tabIndex={0}
-            className="inline-flex h-6 cursor-pointer items-center rounded-md px-2 text-[10px] transition-colors hover:bg-accent disabled:opacity-50"
-            style={{ color: "var(--text-muted)", opacity: disconnecting[ds.id] ? 0.5 : 1 }}
-            onClick={(e) => { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); } }}
-          >
-            {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-          </span>
+          {isDisconnected ? (
+            <span
+              role="button"
+              tabIndex={0}
+              className="inline-flex h-6 cursor-pointer items-center rounded-md px-2 text-[10px] font-medium transition-colors hover:bg-accent"
+              style={{ color: "var(--accent)" }}
+              onClick={(e) => { e.stopPropagation(); handleResync(ds.id, label); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); handleResync(ds.id, label); } }}
+            >
+              {resyncing[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Reconnect"}
+            </span>
+          ) : (
+            <>
+              <span
+                role="button"
+                tabIndex={0}
+                className="inline-flex h-6 cursor-pointer items-center rounded-md px-1.5 transition-colors hover:bg-accent disabled:opacity-50"
+                style={{ color: "var(--text-muted)", opacity: resyncing[ds.id] || ds.status === "BACKFILLING" ? 0.5 : 1 }}
+                onClick={(e) => { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!resyncing[ds.id] && ds.status !== "BACKFILLING") handleResync(ds.id, label); } }}
+                title="Resync data (90-day backfill)"
+              >
+                <RefreshCw className={`h-3 w-3 ${resyncing[ds.id] || ds.status === "BACKFILLING" ? "animate-spin" : ""}`} />
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                className="inline-flex h-6 cursor-pointer items-center rounded-md px-2 text-[10px] transition-colors hover:bg-accent disabled:opacity-50"
+                style={{ color: "var(--text-muted)", opacity: disconnecting[ds.id] ? 0.5 : 1 }}
+                onClick={(e) => { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (!disconnecting[ds.id]) handleDisconnect(ds.id, label); } }}
+              >
+                {disconnecting[ds.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+              </span>
+            </>
+          )}
         </div>
         {ds.status === "ERROR" && ds.lastSyncError ? (
           <p className="max-w-[200px] truncate text-[10px]" style={{ color: "var(--error, #ef4444)" }} title={ds.lastSyncError}>

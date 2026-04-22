@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-/** DELETE /api/user/connections/disconnect — remove a DataSource record (keeps BigQuery data) */
+/**
+ * DELETE /api/user/connections/disconnect
+ *
+ * Soft-disconnects a DataSource: sets status to DISCONNECTED and clears
+ * sync error state. BigQuery data is preserved — the user can reconnect later.
+ *
+ * Also disconnects all DataSources of the same type for this user across
+ * all orgs (e.g. disconnecting Google Ads disconnects it everywhere).
+ */
 export async function DELETE(request: NextRequest) {
   const session = await auth();
   const userId = (session as { userId?: string })?.userId;
@@ -17,10 +25,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "dataSourceId is required" }, { status: 400 });
   }
 
-  // Verify ownership — user must own this data source
+  // Verify ownership
   const ds = await prisma.dataSource.findUnique({
     where: { id: dataSourceId },
-    select: { id: true, userId: true, orgId: true },
+    select: { id: true, userId: true, type: true, propertyId: true },
   });
 
   if (!ds) {
@@ -31,8 +39,19 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  // Delete the DataSource record — BigQuery data is intentionally preserved
-  await prisma.dataSource.delete({ where: { id: dataSourceId } });
+  // Soft-disconnect: mark as DISCONNECTED (preserves BigQuery data)
+  // Also disconnect all DataSources of the same type for this user
+  // so it shows as disconnected across all their orgs/teams.
+  const result = await prisma.dataSource.updateMany({
+    where: { userId, type: ds.type, propertyId: ds.propertyId },
+    data: {
+      status: "DISCONNECTED",
+      lastSyncError: null,
+      updatedAt: new Date(),
+    },
+  });
 
-  return NextResponse.json({ success: true });
+  console.log(`[disconnect] User ${userId} disconnected ${ds.type} (${ds.propertyId}), ${result.count} record(s) updated`);
+
+  return NextResponse.json({ success: true, disconnected: result.count });
 }
