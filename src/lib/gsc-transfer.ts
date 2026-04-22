@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
-import { safeDelete } from "@/lib/bq-helpers";
+import { mergeRows } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -103,6 +103,12 @@ const TABLE_SCHEMAS: Record<string, { fields: { name: string; type: string }[]; 
       { name: "last_synced_at", type: "TIMESTAMP" },
     ],
   },
+};
+
+export const GSC_KEY_COLUMNS: Record<string, string[]> = {
+  search_performance: ["query_date", "query", "page", "country", "device"],
+  url_inspection: ["inspected_date", "url"],
+  site_info: ["site_url"],
 };
 
 // ---------------------------------------------------------------------------
@@ -377,17 +383,10 @@ export async function syncUrlInspection(
 
   if (results.length === 0) return 0;
 
-  // Delete today's existing inspection data (idempotent re-run)
-  const today = new Date().toISOString().split("T")[0];
-  await safeDelete(bq, `DELETE FROM ${fqDataset}.url_inspection WHERE inspected_date = '${today}'`, "url-inspection");
+  // MERGE inspection results (idempotent — no duplicates)
+  await mergeRows(bq, `${fqDataset}.url_inspection`, results, GSC_KEY_COLUMNS.url_inspection, TABLE_SCHEMAS.url_inspection.fields, "url-inspection");
 
-  // Insert results
-  const BATCH = 500;
-  for (let i = 0; i < results.length; i += BATCH) {
-    await bq.dataset(datasetId).table("url_inspection").insert(results.slice(i, i + BATCH));
-  }
-
-  console.log(`[url-inspection] Inserted ${results.length} inspection results`);
+  console.log(`[url-inspection] Merged ${results.length} inspection results`);
   return results.length;
 }
 
@@ -418,27 +417,17 @@ export async function syncGscData(
 
   const fqDataset = `\`${projectId}.${datasetId}\``;
 
-  // Delete existing rows then insert fresh data.
-  // If DELETE is blocked by streaming buffer, skip insert to avoid duplicates.
-  const dataset = bq.dataset(datasetId);
-  const BATCH_SIZE = 5000;
-
+  // MERGE rows into BigQuery (idempotent — no duplicates even with concurrent syncs)
   if (searchRows.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.search_performance WHERE query_date >= '${startDate}' AND query_date <= '${endDate}'`, "gsc-sync");
-    if (ok) {
-      for (let i = 0; i < searchRows.length; i += BATCH_SIZE) {
-        await dataset.table("search_performance").insert(searchRows.slice(i, i + BATCH_SIZE));
-      }
-    }
+    await mergeRows(bq, `${fqDataset}.search_performance`, searchRows, GSC_KEY_COLUMNS.search_performance, TABLE_SCHEMAS.search_performance.fields, "gsc-sync");
   }
 
   // Update site_info
-  await safeDelete(bq, `DELETE FROM ${fqDataset}.site_info WHERE TRUE`, "gsc-sync");
-  await dataset.table("site_info").insert([{
+  await mergeRows(bq, `${fqDataset}.site_info`, [{
     site_url: siteUrl,
     permission_level: "synced",
     last_synced_at: new Date().toISOString(),
-  }]);
+  }], GSC_KEY_COLUMNS.site_info, TABLE_SCHEMAS.site_info.fields, "gsc-sync");
 
   console.log(`[gsc-sync] Sync complete for ${siteUrl}`);
   return { searchRows: searchRows.length };

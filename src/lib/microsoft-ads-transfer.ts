@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getValidMicrosoftAdsTokenForUser } from "@/lib/microsoft-ads-token";
-import { safeDelete } from "@/lib/bq-helpers";
+import { mergeRows } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -112,6 +112,13 @@ const TABLE_SCHEMAS: Record<string, { fields: { name: string; type: string }[]; 
       { name: "last_synced_at", type: "TIMESTAMP" },
     ],
   },
+};
+
+export const MSADS_KEY_COLUMNS: Record<string, string[]> = {
+  campaign_performance: ["stats_date", "campaign_id"],
+  keyword_performance: ["stats_date", "campaign_id", "ad_group_id", "keyword_text"],
+  search_query_performance: ["stats_date", "campaign_id", "ad_group_id", "search_query"],
+  account_info: ["account_id"],
 };
 
 // ---------------------------------------------------------------------------
@@ -570,42 +577,26 @@ export async function syncMicrosoftAdsData(
 
   console.log(`[msads-sync] Fetched: ${campaignRows.length} campaign, ${keywordRows.length} keyword, ${searchQueryRows.length} search query rows`);
 
-  // Idempotent delete for the date range
+  // MERGE rows into BigQuery (idempotent — no duplicates even with concurrent syncs)
   const fqDataset = `\`${projectId}.${datasetId}\``;
 
-  const deleteResults = await Promise.all([
-    campaignRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.campaign_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
-    keywordRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.keyword_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
-    searchQueryRows.length > 0 ? safeDelete(bq, `DELETE FROM ${fqDataset}.search_query_performance WHERE stats_date >= '${startDate}' AND stats_date <= '${endDate}'`, "msads-sync") : true,
-  ]);
-  const [campaignDeleteOk, keywordDeleteOk, searchQueryDeleteOk] = deleteResults;
-
-  // Streaming insert into BigQuery
-  const insertTasks: Promise<unknown>[] = [];
-  const dataset = bq.dataset(datasetId);
-
-  // Only insert if the corresponding DELETE succeeded (avoid duplicates)
-  if (campaignRows.length > 0 && campaignDeleteOk) {
-    insertTasks.push(dataset.table("campaign_performance").insert(campaignRows));
+  if (campaignRows.length > 0) {
+    await mergeRows(bq, `${fqDataset}.campaign_performance`, campaignRows, MSADS_KEY_COLUMNS.campaign_performance, TABLE_SCHEMAS.campaign_performance.fields, "msads-sync");
   }
-  if (keywordRows.length > 0 && keywordDeleteOk) {
-    insertTasks.push(dataset.table("keyword_performance").insert(keywordRows));
+  if (keywordRows.length > 0) {
+    await mergeRows(bq, `${fqDataset}.keyword_performance`, keywordRows, MSADS_KEY_COLUMNS.keyword_performance, TABLE_SCHEMAS.keyword_performance.fields, "msads-sync");
   }
-  if (searchQueryRows.length > 0 && searchQueryDeleteOk) {
-    insertTasks.push(dataset.table("search_query_performance").insert(searchQueryRows));
+  if (searchQueryRows.length > 0) {
+    await mergeRows(bq, `${fqDataset}.search_query_performance`, searchQueryRows, MSADS_KEY_COLUMNS.search_query_performance, TABLE_SCHEMAS.search_query_performance.fields, "msads-sync");
   }
 
-  // Account info: always safe to replace (small, non-partitioned)
   const accountRows = [{
     account_id: accountId,
     account_name: `Account ${accountId}`,
     currency_code: currencyCode,
     last_synced_at: new Date().toISOString(),
   }];
-  await safeDelete(bq, `DELETE FROM ${fqDataset}.account_info WHERE TRUE`, "msads-sync");
-  insertTasks.push(dataset.table("account_info").insert(accountRows));
-
-  await Promise.all(insertTasks);
+  await mergeRows(bq, `${fqDataset}.account_info`, accountRows, MSADS_KEY_COLUMNS.account_info, TABLE_SCHEMAS.account_info.fields, "msads-sync");
 
   console.log(`[msads-sync] Sync complete for account ${accountId}`);
   return {
