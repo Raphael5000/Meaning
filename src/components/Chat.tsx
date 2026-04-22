@@ -588,6 +588,12 @@ export default function Chat() {
               onSelect={(org) => {
                 setActiveOrgId(org.id);
                 setActiveOrgName(org.name);
+                // Reset to new chat screen when switching teams
+                setActiveDashboardId(null);
+                setDashboardListOpen(false);
+                setConnectionsOpen(false);
+                setAlertsOpen(false);
+                setAccountOpen(false);
                 fetch("/api/user/active-org", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
