@@ -28,6 +28,16 @@ export async function safeDelete(bq: BigQuery, query: string, label = "bq"): Pro
 /**
  * Format a JS value as a BigQuery SQL literal for use in MERGE statements.
  */
+function escapeBqString(val: unknown): string {
+  return String(val)
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t")
+    .replace(/\0/g, "");
+}
+
 function formatBqValue(val: unknown, type: string): string {
   if (val === null || val === undefined) return "NULL";
   switch (type) {
@@ -35,16 +45,14 @@ function formatBqValue(val: unknown, type: string): string {
       return `DATE '${val}'`;
     case "TIMESTAMP":
       return `TIMESTAMP '${val}'`;
-    case "STRING": {
-      const escaped = String(val).replace(/'/g, "''");
-      return `'${escaped}'`;
-    }
+    case "STRING":
+      return `'${escapeBqString(val)}'`;
     case "INT64":
       return String(Math.round(Number(val)));
     case "FLOAT64":
       return String(Number(val));
     default:
-      return `'${String(val).replace(/'/g, "''")}'`;
+      return `'${escapeBqString(val)}'`;
   }
 }
 
