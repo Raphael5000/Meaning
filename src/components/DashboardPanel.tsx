@@ -191,7 +191,8 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || data.message || `Server error (${res.status})`);
+        const detail = data.raw ? `\n\nAI response: ${data.raw}` : "";
+        throw new Error((data.error || data.message || `Server error (${res.status})`) + detail);
       }
       const data = await res.json();
       const newWidget = data.widget as Widget;

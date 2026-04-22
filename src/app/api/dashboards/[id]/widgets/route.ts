@@ -527,9 +527,9 @@ export async function POST(
     }
 
     if (!parsed) {
-      console.error("[widget-gen] Failed to parse widget from response:", rawText.slice(0, 300));
+      console.error("[widget-gen] Failed to parse widget from response:", rawText.slice(0, 500));
       return NextResponse.json(
-        { error: "Failed to generate widget. Please try rephrasing your request.", raw: rawText.slice(0, 200) },
+        { error: "Failed to generate widget.", raw: rawText.slice(0, 500) || "(empty response — check API credits)" },
         { status: 422 }
       );
     }
