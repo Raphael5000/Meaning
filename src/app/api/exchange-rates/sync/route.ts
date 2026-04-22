@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BigQuery } from "@google-cloud/bigquery";
+import { mergeRows } from "@/lib/bq-helpers";
 
 export const dynamic = "force-dynamic";
 
 const DBT_DATASET = "dbt_meaning";
 const TABLE_NAME = "exchange_rates";
+
+const EXCHANGE_RATE_SCHEMA = [
+  { name: "rate_date", type: "DATE" },
+  { name: "base", type: "STRING" },
+  { name: "target", type: "STRING" },
+  { name: "rate", type: "FLOAT64" },
+];
+
+const EXCHANGE_RATE_KEYS = ["rate_date", "target"];
 
 function getBqClient(): BigQuery {
   const raw = process.env.GOOGLE_BIGQUERY_CREDENTIALS;
@@ -51,17 +61,12 @@ async function fetchRatesForDate(date: string): Promise<Record<string, number> |
 }
 
 /**
- * Insert rates into BigQuery for a given date.
+ * Insert rates into BigQuery for a given date using MERGE (idempotent, no duplicates).
  */
 async function insertRates(date: string, rates: Record<string, number>): Promise<number> {
   const bq = getBqClient();
   const projectId = JSON.parse(process.env.GOOGLE_BIGQUERY_CREDENTIALS!).project_id;
   const fqTable = `\`${projectId}.${DBT_DATASET}.${TABLE_NAME}\``;
-
-  // Delete existing rows for this date (idempotent)
-  await bq.query({
-    query: `DELETE FROM ${fqTable} WHERE rate_date = '${date}'`,
-  }).catch(() => {});
 
   // Build rows — include USD→USD = 1.0
   const rows = [
@@ -74,42 +79,48 @@ async function insertRates(date: string, rates: Record<string, number>): Promise
     })),
   ];
 
-  await bq.dataset(DBT_DATASET).table(TABLE_NAME).insert(rows);
+  await mergeRows(bq, fqTable, rows, EXCHANGE_RATE_KEYS, EXCHANGE_RATE_SCHEMA, "exchange-rates");
   return rows.length;
 }
 
 /**
  * Fill weekend/holiday gaps by carrying forward the last known rate.
  * Frankfurter only provides business day rates — this ensures every calendar day has a rate.
+ * Uses MERGE to avoid creating duplicates if run multiple times.
  */
 async function fillGaps(): Promise<void> {
   const bq = getBqClient();
+  const projectId = JSON.parse(process.env.GOOGLE_BIGQUERY_CREDENTIALS!).project_id;
+  const fqTable = `\`${projectId}.${DBT_DATASET}.${TABLE_NAME}\``;
+
   await bq.query({
     query: `
-      INSERT INTO ${DBT_DATASET}.${TABLE_NAME} (rate_date, base, target, rate)
-      WITH all_dates AS (
-        SELECT d FROM UNNEST(GENERATE_DATE_ARRAY(
-          (SELECT MIN(rate_date) FROM ${DBT_DATASET}.${TABLE_NAME}),
-          CURRENT_DATE()
-        )) AS d
-      ),
-      rates_with_gaps AS (
-        SELECT d.d AS rate_date, t.target,
-          LAST_VALUE(e.rate IGNORE NULLS) OVER (
-            PARTITION BY t.target ORDER BY d.d
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-          ) AS rate
-        FROM all_dates d
-        CROSS JOIN (SELECT DISTINCT target FROM ${DBT_DATASET}.${TABLE_NAME}) t
-        LEFT JOIN ${DBT_DATASET}.${TABLE_NAME} e ON e.rate_date = d.d AND e.target = t.target
-      ),
-      existing AS (
-        SELECT rate_date, target FROM ${DBT_DATASET}.${TABLE_NAME}
-      )
-      SELECT r.rate_date, 'USD' as base, r.target, r.rate
-      FROM rates_with_gaps r
-      LEFT JOIN existing ex ON ex.rate_date = r.rate_date AND ex.target = r.target
-      WHERE ex.rate_date IS NULL AND r.rate IS NOT NULL
+      MERGE ${fqTable} T
+      USING (
+        WITH all_dates AS (
+          SELECT d FROM UNNEST(GENERATE_DATE_ARRAY(
+            (SELECT MIN(rate_date) FROM ${fqTable}),
+            CURRENT_DATE()
+          )) AS d
+        ),
+        rates_with_gaps AS (
+          SELECT d.d AS rate_date, t.target,
+            LAST_VALUE(e.rate IGNORE NULLS) OVER (
+              PARTITION BY t.target ORDER BY d.d
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS rate
+          FROM all_dates d
+          CROSS JOIN (SELECT DISTINCT target FROM ${fqTable}) t
+          LEFT JOIN ${fqTable} e ON e.rate_date = d.d AND e.target = t.target
+        )
+        SELECT rate_date, 'USD' AS base, target, rate
+        FROM rates_with_gaps
+        WHERE rate IS NOT NULL
+      ) S
+      ON T.rate_date = S.rate_date AND T.target = S.target
+      WHEN NOT MATCHED THEN INSERT (rate_date, base, target, rate)
+        VALUES (S.rate_date, S.base, S.target, S.rate)
+      WHEN MATCHED THEN UPDATE SET rate = S.rate, base = S.base
     `,
   });
   console.log("[exchange-rates] Gap fill complete");

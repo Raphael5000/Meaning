@@ -101,6 +101,21 @@ export async function POST(req: NextRequest) {
   let totalDupes = 0;
   const results: Array<{ type: string; dataset: string; table: string; removed: number }> = [];
 
+  // Always dedup exchange_rates (shared table, not per-connector)
+  try {
+    const [erExists] = await bq.dataset("dbt_meaning").table("exchange_rates").exists().catch(() => [false]);
+    if (erExists) {
+      const fqER = `\`${projectId}.dbt_meaning.exchange_rates\``;
+      const removed = await deduplicateTable(bq, fqER, ["rate_date", "target"], "rate_date", "dedup");
+      if (removed > 0) {
+        totalDupes += removed;
+        results.push({ type: "SHARED", dataset: "dbt_meaning", table: "exchange_rates", removed });
+      }
+    }
+  } catch (err) {
+    console.error(`[dedup] Error deduping exchange_rates:`, (err as Error).message);
+  }
+
   for (const ds of dataSources) {
     const tables = TABLE_CONFIGS[ds.type];
     if (!tables) continue;
