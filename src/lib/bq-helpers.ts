@@ -125,7 +125,18 @@ ON ${onClause}
 ${matchedClause}
 WHEN NOT MATCHED THEN INSERT (${insertCols}) VALUES (${insertVals})`;
 
-    await bq.query({ query: sql });
+    try {
+      await bq.query({ query: sql });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("streaming buffer") || msg.includes("UPDATE or DELETE")) {
+        // Streaming buffer from previous (old-style) sync still active.
+        // Skip this batch — data will sync on the next run once buffer clears.
+        console.log(`[${label}] MERGE blocked by streaming buffer — skipping batch, will retry next sync`);
+        return;
+      }
+      throw err;
+    }
 
     if (uniqueRows.length > BATCH_SIZE) {
       console.log(
