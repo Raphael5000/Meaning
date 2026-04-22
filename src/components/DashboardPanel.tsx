@@ -46,6 +46,7 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
   const [editWidgetId, setEditWidgetId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  const [widgetError, setWidgetError] = useState<string | null>(null);
   const hasRefreshedRef = useRef(false);
 
   const fetchDashboard = useCallback(() => {
@@ -174,25 +175,23 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
     });
     setGeneratingIds((s) => new Set(s).add(tempId));
 
-    // Fire API in background
+    // Fire API in background with timeout
     try {
+      setWidgetError(null);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
+
       const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        // Remove placeholder on error
-        setDashboard((d) => {
-          if (!d) return d;
-          return {
-            ...d,
-            widgets: d.widgets.filter((w) => w.id !== tempId),
-            layout: d.layout.filter((l) => l.i !== tempId),
-          };
-        });
-        throw new Error(data.error || "Failed to create widget");
+        throw new Error(data.error || data.message || `Server error (${res.status})`);
       }
       const data = await res.json();
       const newWidget = data.widget as Widget;
@@ -207,6 +206,23 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
           layout: newLayout,
         };
       });
+    } catch (err) {
+      const msg = err instanceof Error
+        ? err.name === "AbortError" ? "Widget generation timed out. Try a simpler prompt." : err.message
+        : "Failed to create widget";
+      console.error("[widget] Error:", msg);
+      setWidgetError(msg);
+      // Remove placeholder on error
+      setDashboard((d) => {
+        if (!d) return d;
+        return {
+          ...d,
+          widgets: d.widgets.filter((w) => w.id !== tempId),
+          layout: d.layout.filter((l) => l.i !== tempId),
+        };
+      });
+      // Auto-dismiss error after 8 seconds
+      setTimeout(() => setWidgetError(null), 8000);
     } finally {
       setGeneratingIds((s) => {
         const next = new Set(s);
@@ -344,6 +360,18 @@ export default function DashboardPanel({ dashboardId, onClose, orgId }: Dashboar
           onSubmit={handleEditSubmit}
           initialPrompt={editPrompt}
         />
+
+        {/* Widget error banner */}
+        {widgetError && (
+          <div
+            className="mx-2 mt-2 flex items-center gap-2 rounded-lg px-4 py-3 text-sm"
+            style={{ background: "rgba(239,68,68,0.12)", color: "var(--text-primary)" }}
+          >
+            <span style={{ color: "#ef4444", fontWeight: 600 }}>Error:</span>
+            <span className="flex-1">{widgetError}</span>
+            <button onClick={() => setWidgetError(null)} className="ml-2 text-xs opacity-60 hover:opacity-100">dismiss</button>
+          </div>
+        )}
 
         {/* Grid area */}
         <div className="flex-1 overflow-y-auto px-2 py-4">

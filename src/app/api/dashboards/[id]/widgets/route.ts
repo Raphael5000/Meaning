@@ -9,7 +9,7 @@ import { getSourceCurrencies } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
-const anthropic = new Anthropic();
+const anthropic = new Anthropic({ timeout: 60_000 }); // 60s timeout per API call
 
 // ---------------------------------------------------------------------------
 // Reuse the same SQL builder from the chat route
@@ -371,7 +371,7 @@ export async function POST(
     // Call Claude with tools
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: systemPrompt,
       tools: BIGQUERY_TOOLS,
       messages: [{ role: "user", content: body.prompt }],
@@ -458,7 +458,7 @@ export async function POST(
 
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: systemPrompt,
         tools: BIGQUERY_TOOLS,
         messages: conversationMessages,
@@ -483,7 +483,7 @@ export async function POST(
       conversationMessages.push({ role: "user", content: emptyResults });
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: systemPrompt,
         messages: conversationMessages,
       });
