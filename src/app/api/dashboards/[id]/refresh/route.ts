@@ -194,12 +194,14 @@ export async function POST(
 
     // Resolve data sources from the org
     const orgDataSources = await getOrgDataSources(dashboard.orgId);
-    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
+    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && connectedStatuses.includes(ds.status));
     const propertyId = ga4Ds?.propertyId ?? "";
-    const adsCustomerId = orgDataSources.find((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.adsCustomerId ?? null;
-    const linkedInOrgId = orgDataSources.find((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
-    const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
-    const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
+    const adsCustomerId = orgDataSources.find((ds) => ds.type === "GOOGLE_ADS" && connectedStatuses.includes(ds.status))?.adsCustomerId ?? null;
+    const linkedInOrgId = orgDataSources.find((ds) => ds.type === "LINKEDIN" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
 
     // Refresh each widget in parallel
     const results = await Promise.all(
@@ -218,10 +220,10 @@ export async function POST(
             const { sql, params } = buildAnalyticsSQL(input);
             console.log(`[dashboard-refresh] Widget ${widget.id}: dates=${startDate}→${endDate}, SQL=${sql.slice(0, 200)}`);
             console.log(`[dashboard-refresh] Params:`, JSON.stringify(params));
-            const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl);
+            const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
             rows = result.rows;
           } else {
-            // For raw SQL tools (ads, linkedin, mailchimp, gsc), substitute date params
+            // For raw SQL tools (ads, linkedin, mailchimp, gsc, msads), substitute date params
             let sql = queryConfig.input.sql as string;
             const sqlParams: Record<string, unknown> = {};
 
@@ -259,7 +261,7 @@ export async function POST(
               propertyId,
               sql,
               Object.keys(sqlParams).length > 0 ? sqlParams : undefined,
-              adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl
+              adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId
             );
             rows = result.rows;
           }

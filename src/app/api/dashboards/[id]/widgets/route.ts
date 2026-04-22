@@ -353,14 +353,16 @@ export async function POST(
     ]);
     const displayCurrency = org?.displayCurrency ?? "USD";
     console.log(`[widget-gen] displayCurrency=${displayCurrency}`);
-    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    // Include ERROR status — data still exists in BigQuery even if the last sync failed
+    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
+    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && connectedStatuses.includes(ds.status));
     const propertyId = ga4Ds?.propertyId ?? "";
 
-    const adsCustomerId = orgDataSources.find((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.adsCustomerId ?? null;
-    const linkedInOrgId = orgDataSources.find((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
-    const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
-    const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
-    const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"))?.propertyId ?? null;
+    const adsCustomerId = orgDataSources.find((ds) => ds.type === "GOOGLE_ADS" && connectedStatuses.includes(ds.status))?.adsCustomerId ?? null;
+    const linkedInOrgId = orgDataSources.find((ds) => ds.type === "LINKEDIN" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
 
     // Fetch source currencies so the AI knows them without querying account_info
     const sourceCurrencies = await getSourceCurrencies(adsCustomerId, msAdsAccountId);

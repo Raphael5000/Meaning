@@ -564,27 +564,29 @@ export async function POST(request: NextRequest) {
 
     // Org-based: fetch all org data sources and pick the first GA4 property
     const orgDataSources = await getOrgDataSources(body.orgId);
-    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    // Include ERROR status — data still exists in BigQuery even if the last sync failed
+    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
+    const ga4Ds = orgDataSources.find((ds) => ds.type === "GA4_BIGQUERY" && connectedStatuses.includes(ds.status));
     if (ga4Ds) {
       propertyId = ga4Ds.propertyId;
     }
-    const adsDsList = orgDataSources.filter((ds) => ds.type === "GOOGLE_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const adsDsList = orgDataSources.filter((ds) => ds.type === "GOOGLE_ADS" && connectedStatuses.includes(ds.status));
     if (adsDsList.length > 0) {
       adsCustomerIdFromOrg = adsDsList[0].adsCustomerId ?? null;
     }
-    const linkedInDsList = orgDataSources.filter((ds) => ds.type === "LINKEDIN" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const linkedInDsList = orgDataSources.filter((ds) => ds.type === "LINKEDIN" && connectedStatuses.includes(ds.status));
     if (linkedInDsList.length > 0) {
       linkedInOrgIdFromOrg = linkedInDsList[0].propertyId;
     }
-    const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const mailchimpDsList = orgDataSources.filter((ds) => ds.type === "MAILCHIMP" && connectedStatuses.includes(ds.status));
     if (mailchimpDsList.length > 0) {
       mailchimpListIdFromOrg = mailchimpDsList[0].propertyId;
     }
-    const gscDsList = orgDataSources.filter((ds) => ds.type === "SEARCH_CONSOLE" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const gscDsList = orgDataSources.filter((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status));
     if (gscDsList.length > 0) {
       gscSiteUrlFromOrg = gscDsList[0].propertyId;
     }
-    const msAdsDsList = orgDataSources.filter((ds) => ds.type === "MICROSOFT_ADS" && (ds.status === "ACTIVE" || ds.status === "BACKFILLING"));
+    const msAdsDsList = orgDataSources.filter((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status));
     if (msAdsDsList.length > 0) {
       msAdsAccountIdFromOrg = msAdsDsList[0].propertyId;
     }
