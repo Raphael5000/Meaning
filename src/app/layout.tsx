@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { JsonLd } from "@/components/JsonLd";
 import "./globals.css";
+import "./tokens-v2.css";
 
 const martel = Martel({
   subsets: ["latin"],

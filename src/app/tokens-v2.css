@@ -1,0 +1,387 @@
+/* =====================================================================
+   Meaning v2 — unified token system
+   Scoped to `.meaning-v2` so v1 styling is untouched. Inside this scope
+   Tailwind still works, but components primarily read these CSS vars.
+   ===================================================================== */
+
+.meaning-v2 {
+  /* Neutral scale — tinted toward brand green (hue 155, very low chroma).
+     Reads as paper/ink first, greenish second. Built in OKLCH for
+     perceptual evenness across the ramp.                                  */
+  --ink-0:  oklch(0.995 0.004 155);
+  --ink-1:  oklch(0.985 0.008 155);
+  --ink-2:  oklch(0.970 0.010 155);
+  --ink-3:  oklch(0.940 0.012 155);
+  --ink-4:  oklch(0.895 0.014 155);
+  --ink-5:  oklch(0.790 0.016 155);
+  --ink-6:  oklch(0.660 0.014 155);
+  --ink-7:  oklch(0.520 0.012 155);
+  --ink-8:  oklch(0.380 0.012 155);
+  --ink-9:  oklch(0.260 0.014 155);
+  --ink-10: oklch(0.180 0.012 155);
+  --ink-11: oklch(0.135 0.010 155);
+  --ink-12: oklch(0.080 0.010 155);
+
+  /* Semantic aliases — light defaults */
+  --v2-bg:           var(--ink-1);
+  --v2-surface:      var(--ink-0);
+  --v2-surface-2:    var(--ink-2);
+  --v2-surface-3:    var(--ink-3);
+  --v2-line:         var(--ink-3);
+  --v2-line-strong:  var(--ink-4);
+  --v2-ink:          var(--ink-11);
+  --v2-ink-muted:    var(--ink-7);
+  --v2-ink-subtle:   var(--ink-6);
+  --v2-ink-inverse:  var(--ink-0);
+
+  /* Brand — Hivory green. Derived darker values for light-mode legibility. */
+  --v2-brand:        #00A352;
+  --v2-brand-ink:    #00803F;
+  --v2-brand-vivid:  #00EE7F;
+  --v2-brand-bg:     oklch(0.960 0.050 155);
+  --v2-on-brand:     #071A10;
+
+  /* Functional palette — light mode values */
+  --v2-pos:          #067647;
+  --v2-pos-bg:       oklch(0.960 0.050 155);
+  --v2-neg:          #B42318;
+  --v2-neg-bg:       oklch(0.955 0.035 25);
+  --v2-info:         #1570EF;
+  --v2-info-bg:      oklch(0.960 0.035 245);
+  --v2-warn:         #B54708;
+  --v2-warn-bg:      oklch(0.965 0.045 80);
+  --v2-accent:       #C4320A;
+  --v2-accent-bg:    oklch(0.960 0.045 45);
+
+  /* Chart categorical scale (light) */
+  --v2-c-1:          #00A352;
+  --v2-c-2:          #1570EF;
+  --v2-c-3:          #C4320A;
+  --v2-c-4:          #B54708;
+  --v2-c-5:          #B42318;
+  --v2-c-6:          #6941C6;
+
+  /* Motion */
+  --v2-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* System font stack — no webfonts, identical everywhere */
+  --v2-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --v2-font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  --v2-shadow-card: 0 1px 0 rgba(0,0,0,0.02), 0 0 0 1px var(--v2-line);
+  --v2-shadow-pop:  0 10px 40px -12px rgba(0,0,0,0.18), 0 0 0 1px var(--v2-line);
+
+  /* Scope-wide defaults */
+  font-family: var(--v2-font-sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--v2-ink);
+  background: var(--v2-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dark overrides — triggered by the app's existing `html.dark` or a local `.dark` */
+html.dark .meaning-v2,
+.dark .meaning-v2,
+.meaning-v2.dark {
+  --v2-bg:           oklch(0.125 0.012 155);
+  --v2-surface:      oklch(0.155 0.012 155);
+  --v2-surface-2:    oklch(0.190 0.014 155);
+  --v2-surface-3:    oklch(0.235 0.014 155);
+  --v2-line:         oklch(0.255 0.014 155);
+  --v2-line-strong:  oklch(0.320 0.014 155);
+  --v2-ink:          oklch(0.965 0.008 155);
+  --v2-ink-muted:    oklch(0.640 0.012 155);
+  --v2-ink-subtle:   oklch(0.450 0.014 155);
+  --v2-ink-inverse:  oklch(0.125 0.012 155);
+
+  --v2-brand:        #00EE7F;
+  --v2-brand-ink:    #5FF5A5;
+  --v2-brand-vivid:  #00EE7F;
+  --v2-brand-bg:     rgba(0, 238, 127, 0.10);
+  --v2-on-brand:     #071A10;
+
+  --v2-pos:          #32D583;
+  --v2-pos-bg:       rgba(50, 213, 131, 0.12);
+  --v2-neg:          #F97066;
+  --v2-neg-bg:       rgba(249, 112, 102, 0.12);
+  --v2-info:         #53B1FD;
+  --v2-info-bg:      rgba(83, 177, 253, 0.12);
+  --v2-warn:         #FEC84B;
+  --v2-warn-bg:      rgba(254, 200, 75, 0.12);
+  --v2-accent:       #FDB022;
+  --v2-accent-bg:    rgba(253, 176, 34, 0.12);
+
+  --v2-c-1:          #00EE7F;
+  --v2-c-2:          #53B1FD;
+  --v2-c-3:          #FDB022;
+  --v2-c-4:          #FEC84B;
+  --v2-c-5:          #F97066;
+  --v2-c-6:          #B692F6;
+
+  --v2-shadow-card: 0 1px 0 rgba(255,255,255,0.02), 0 0 0 1px var(--v2-line);
+  --v2-shadow-pop:  0 24px 60px -18px rgba(0,0,0,0.6), 0 0 0 1px var(--v2-line);
+}
+
+/* Utilities used across v2 */
+.meaning-v2 .kicker {
+  font-family: var(--v2-font-sans);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--v2-ink-muted);
+  font-weight: 600;
+}
+
+.meaning-v2 .num, .meaning-v2 .tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.meaning-v2 .mono {
+  font-family: var(--v2-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus ring — applies to actionable elements.  Textareas and inputs that
+   live inside a parent with `focus-within` styling (like the composer) should
+   opt-out with `.no-focus-ring` so the ring lives on the outer container
+   instead of the inner control.                                             */
+.meaning-v2 button:focus-visible,
+.meaning-v2 a:focus-visible,
+.meaning-v2 input:not(.no-focus-ring):focus-visible,
+.meaning-v2 textarea:not(.no-focus-ring):focus-visible {
+  outline: 1.5px solid var(--v2-ink);
+  outline-offset: 2px;
+}
+
+/* Chat prose */
+.meaning-v2 .prose-chat {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--v2-ink);
+}
+.meaning-v2 .prose-chat > :first-child { margin-top: 0; }
+.meaning-v2 .prose-chat > :last-child { margin-bottom: 0; }
+.meaning-v2 .prose-chat p { margin: 0 0 0.9em; }
+.meaning-v2 .prose-chat strong { font-weight: 600; color: var(--v2-ink); }
+.meaning-v2 .prose-chat ul, .meaning-v2 .prose-chat ol {
+  margin: 0.75em 0;
+  padding-left: 1.4em;
+}
+.meaning-v2 .prose-chat ul {
+  list-style: disc outside;
+}
+.meaning-v2 .prose-chat ol {
+  list-style: decimal outside;
+}
+.meaning-v2 .prose-chat li {
+  margin: 0.25em 0;
+  padding-left: 0.25em;
+}
+.meaning-v2 .prose-chat ul li::marker {
+  color: var(--v2-ink-subtle);
+}
+.meaning-v2 .prose-chat ol li::marker {
+  color: var(--v2-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.meaning-v2 .prose-chat code {
+  font-family: var(--v2-font-mono);
+  font-size: 12px;
+  padding: 1px 5px;
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line);
+  border-radius: 4px;
+}
+.meaning-v2 .prose-chat pre {
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-size: 12px;
+}
+.meaning-v2 .prose-chat pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.meaning-v2 .prose-chat a {
+  color: var(--v2-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.meaning-v2 .prose-chat h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 1.1em 0 0.4em;
+  letter-spacing: -0.015em;
+}
+.meaning-v2 .prose-chat h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 1em 0 0.3em;
+  letter-spacing: -0.005em;
+}
+.meaning-v2 .prose-chat blockquote {
+  border-left: 2px solid var(--v2-ink);
+  padding-left: 14px;
+  margin: 0.9em 0;
+  color: var(--v2-ink-muted);
+  font-style: italic;
+}
+.meaning-v2 .prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 12.5px;
+}
+.meaning-v2 .prose-chat th, .meaning-v2 .prose-chat td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--v2-line);
+  text-align: left;
+}
+.meaning-v2 .prose-chat th {
+  font-weight: 600;
+  color: var(--v2-ink-muted);
+  border-bottom-color: var(--v2-line-strong);
+}
+
+/* Blinking caret for streaming text */
+@keyframes v2-caret-blink { 50% { opacity: 0; } }
+.meaning-v2 .caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: -2px;
+  animation: v2-caret-blink 1s steps(2, start) infinite;
+}
+
+/* Scribble draw animation for ThinkingBlob */
+@keyframes v2-scribble-draw {
+  0%   { stroke-dashoffset: 140; }
+  45%  { stroke-dashoffset: 0; }
+  55%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -140; }
+}
+
+/* Pulse dot */
+@keyframes v2-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.35); opacity: 0.55; }
+}
+.meaning-v2 .pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--v2-brand-vivid);
+  animation: v2-pulse-dot 1.4s ease-in-out infinite;
+}
+
+/* Shimmer — chart skeleton background */
+@keyframes v2-shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.meaning-v2 .shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--v2-surface-2) 0%,
+    color-mix(in oklab, var(--v2-surface-2) 60%, var(--v2-line-strong)) 50%,
+    var(--v2-surface-2) 100%
+  );
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: v2-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Attachment entry — fade + rise, used when an attachment card (scorecard,
+   chart, etc) pops into the bubble after the streaming text completes.    */
+@keyframes v2-attach-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.meaning-v2 .v2-attach-in {
+  animation: v2-attach-in 220ms var(--v2-ease);
+}
+
+/* Bar pulse — chart skeleton bars */
+@keyframes v2-bar-pulse {
+  0%, 100% { opacity: 0.55; transform: scaleY(0.85); }
+  50%      { opacity: 1;    transform: scaleY(1); }
+}
+.meaning-v2 .barpulse {
+  transform-origin: bottom;
+  animation: v2-bar-pulse 1.2s ease-in-out infinite;
+}
+
+/* Row hover */
+.meaning-v2 .row-hover { transition: background 120ms var(--v2-ease); }
+.meaning-v2 .row-hover:hover { background: var(--v2-surface-2); }
+
+/* Card bases */
+.meaning-v2 .bw-card {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-line);
+  border-radius: 10px;
+}
+.meaning-v2 .bw-card-tight { border-radius: 8px; }
+
+/* Tables */
+.meaning-v2 .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.meaning-v2 .data-table thead th {
+  text-align: left;
+  font-family: var(--v2-font-sans);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--v2-ink-muted);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--v2-line-strong);
+  background: transparent;
+}
+.meaning-v2 .data-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--v2-line);
+  color: var(--v2-ink);
+  height: 38px;
+  vertical-align: middle;
+}
+.meaning-v2 .data-table tbody tr:last-child td { border-bottom: 0; }
+.meaning-v2 .data-table td.num, .meaning-v2 .data-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.meaning-v2 .data-table tbody tr:hover td { background: var(--v2-surface-2); }
+
+/* Delta pill */
+.meaning-v2 .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+}
+.meaning-v2 .delta.pos { color: var(--v2-pos); }
+.meaning-v2 .delta.neg { color: var(--v2-neg); }
+
+/* Scrollbars — minimal within the v2 scope */
+.meaning-v2 ::-webkit-scrollbar { width: 10px; height: 10px; }
+.meaning-v2 ::-webkit-scrollbar-thumb {
+  background: var(--v2-line-strong);
+  border-radius: 8px;
+  border: 2px solid var(--v2-bg);
+}
+.meaning-v2 ::-webkit-scrollbar-thumb:hover { background: var(--v2-ink-subtle); }
+.meaning-v2 ::-webkit-scrollbar-track { background: transparent; }

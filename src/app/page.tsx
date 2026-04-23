@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Chat from "@/components/Chat";
+import ChatV2 from "@/components/v2/ChatV2";
 import LandingPage from "@/components/LandingPage";
+import { CHAT_V2 } from "@/lib/flags";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -45,7 +47,7 @@ export default function Home() {
         </div>
       );
     }
-    return <Chat />;
+    return CHAT_V2 ? <ChatV2 /> : <Chat />;
   }
 
   // Still loading session — show spinner to avoid flashing the landing page

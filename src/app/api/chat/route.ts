@@ -666,6 +666,27 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  function describeToolDetail(name: string, input: Record<string, unknown>): string | undefined {
+    if (typeof input.description === "string" && input.description.trim()) {
+      return input.description;
+    }
+    const parts: string[] = [];
+    if (Array.isArray(input.metrics) && input.metrics.length > 0) {
+      parts.push((input.metrics as string[]).join(", "));
+    }
+    if (Array.isArray(input.dimensions) && input.dimensions.length > 0) {
+      parts.push(`by ${(input.dimensions as string[]).join(", ")}`);
+    }
+    if (typeof input.startDate === "string" || typeof input.endDate === "string") {
+      const range = [input.startDate, input.endDate].filter(Boolean).join(" → ");
+      if (range) parts.push(range);
+    }
+    if (name === "get_realtime_data" || name === "run_realtime_report") {
+      return "last 30 minutes";
+    }
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  }
+
   // Stream NDJSON: each line is a JSON object with { type, ... }
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -683,14 +704,29 @@ export async function POST(request: NextRequest) {
 
         send({ type: "status", message: "Thinking..." });
 
+        // Helper: call Anthropic with streaming so text deltas reach the client
+        // as they're generated.  Also emits `round_start` so the client can
+        // reset its streaming-text buffer at each LLM round boundary.
+        async function callAnthropicStream(
+          msgs: Anthropic.MessageParam[],
+          withTools: boolean
+        ): Promise<Anthropic.Message> {
+          send({ type: "round_start" });
+          const streamResp = anthropic.messages.stream({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4096,
+            system: systemPrompt,
+            ...(withTools ? { tools } : {}),
+            messages: msgs,
+          });
+          streamResp.on("text", (text: string) => {
+            send({ type: "text_delta", text });
+          });
+          return await streamResp.finalMessage();
+        }
+
         // Run the agentic loop: Claude may call tools multiple times
-        let response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 4096,
-          system: systemPrompt,
-          tools,
-          messages: anthropicMessages,
-        });
+        let response = await callAnthropicStream(anthropicMessages, true);
 
         // Accumulate conversation history across tool rounds so Claude sees ALL prior results
         const conversationMessages: Anthropic.MessageParam[] = [...anthropicMessages];
@@ -706,14 +742,15 @@ export async function POST(request: NextRequest) {
               block.type === "tool_use"
           );
 
-          // Send status for each tool call
-          for (const toolUse of toolUseBlocks) {
-            send({ type: "status", message: describeToolCall(toolUse.name, toolUse.input) });
-          }
-
           const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
           for (const toolUse of toolUseBlocks) {
+            const stageLabel = describeToolCall(toolUse.name, toolUse.input);
+            const stageDetail = describeToolDetail(toolUse.name, toolUse.input);
+            send({ type: "status", message: stageLabel });
+            send({ type: "stage_start", id: toolUse.id, label: stageLabel, detail: stageDetail });
+            const stageStartedAt = Date.now();
+
             let result: unknown;
             let isError = false;
 
@@ -842,6 +879,12 @@ export async function POST(request: NextRequest) {
               isError = true;
             }
 
+            send({
+              type: "stage_done",
+              id: toolUse.id,
+              duration: (Date.now() - stageStartedAt) / 1000,
+            });
+
             toolResults.push({
               type: "tool_result",
               tool_use_id: toolUse.id,
@@ -857,13 +900,7 @@ export async function POST(request: NextRequest) {
           conversationMessages.push({ role: "user", content: toolResults });
 
           // Continue the conversation with full history
-          response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 4096,
-            system: systemPrompt,
-            tools,
-            messages: conversationMessages,
-          });
+          response = await callAnthropicStream(conversationMessages, true);
         }
 
         // If the loop ended because of max rounds but Claude still wants tools,
@@ -884,12 +921,7 @@ export async function POST(request: NextRequest) {
           }));
           conversationMessages.push({ role: "assistant", content: assistantContent });
           conversationMessages.push({ role: "user", content: emptyResults });
-          response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 4096,
-            system: systemPrompt,
-            messages: conversationMessages,
-          });
+          response = await callAnthropicStream(conversationMessages, false);
         }
 
         // Extract the final text response
