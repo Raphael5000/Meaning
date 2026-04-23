@@ -88,9 +88,10 @@ export async function POST(req: NextRequest) {
       })
       .catch(async (err) => {
         console.error(`[enable-msads-export] Backfill failed for ${accountId}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
         await prisma.dataSource.update({
           where: { id: dataSource.id },
-          data: { status: "ERROR" },
+          data: { status: "ERROR", lastSyncError: msg.slice(0, 500) },
         }).catch(() => {});
       });
 

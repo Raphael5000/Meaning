@@ -990,23 +990,60 @@ function ConnectionsDetail({
               (rawId && nameMap.get(`${sourceType}:${rawId}`)) || rawId;
             const isPendingConfirm = pendingRemoveId === ds.id;
             const isBusy = !!disconnecting[ds.id];
+            const isErrored = ds.status === "ERROR";
+            const isSyncing =
+              ds.status === "BACKFILLING" || ds.status === "PENDING";
             return (
               <div
                 key={ds.id}
-                className="flex items-center justify-between gap-3 border-b border-v2-line py-3.5"
+                className="flex items-start justify-between gap-3 border-b border-v2-line py-3.5"
               >
-                <div className="min-w-0">
-                  <div className="truncate text-[13.5px] text-v2-ink">
-                    {accountLabel}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-[13.5px] text-v2-ink">
+                      {accountLabel}
+                    </span>
+                    {isErrored && (
+                      <span
+                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                        style={{
+                          background: "var(--v2-neg-bg)",
+                          color: "var(--v2-neg)",
+                        }}
+                      >
+                        Error
+                      </span>
+                    )}
+                    {isSyncing && (
+                      <span
+                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                        style={{
+                          background: "var(--v2-info-bg)",
+                          color: "var(--v2-info)",
+                        }}
+                      >
+                        Syncing…
+                      </span>
+                    )}
                   </div>
                   {ds.bigqueryDataset && (
                     <div className="mono mt-0.5 truncate text-[11px] text-v2-ink-muted">
                       {ds.bigqueryDataset}
                     </div>
                   )}
-                  {ds.lastSyncError && (
-                    <div className="mt-1 text-[11.5px] text-v2-neg">
-                      {ds.lastSyncError}
+                  {isErrored && (
+                    <div
+                      className="mt-2 rounded-md px-2.5 py-2 text-[11.5px] leading-[1.5]"
+                      style={{
+                        background: "var(--v2-neg-bg)",
+                        color: "var(--v2-neg)",
+                      }}
+                    >
+                      <div className="font-medium">Last sync failed</div>
+                      <div className="mt-0.5 break-words">
+                        {ds.lastSyncError ||
+                          "No error details were saved. Click Retry to re-run sync — the failure reason will be captured."}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1040,14 +1077,26 @@ function ConnectionsDetail({
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPendingRemoveId(ds.id)}
-                    disabled={isBusy}
-                  >
-                    {isBusy ? "Removing…" : "Remove"}
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {isErrored && (
+                      <RetrySyncButton
+                        dataSourceId={ds.id}
+                        label={accountLabel}
+                        onDone={(msg) => {
+                          onMessage(msg);
+                          onRefresh();
+                        }}
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPendingRemoveId(ds.id)}
+                      disabled={isBusy}
+                    >
+                      {isBusy ? "Removing…" : "Remove"}
+                    </Button>
+                  </div>
                 )}
               </div>
             );
@@ -1189,6 +1238,60 @@ function ResetOAuthButton({
         {busy ? "Resetting…" : "Confirm reconnect"}
       </Button>
     </div>
+  );
+}
+
+/** Per-account Retry sync.  Calls /api/resync which clears lastSyncError,
+ * marks BACKFILLING, and re-runs the sync.  If sync fails again, the new
+ * error message gets written — the point of this button is to capture WHY
+ * a sync is failing when the initial enable-export catch block swallowed
+ * the error message. */
+function RetrySyncButton({
+  dataSourceId,
+  label,
+  onDone,
+}: {
+  dataSourceId: string;
+  label: string;
+  onDone: (
+    msg: { kind: "success" | "error"; text: string } | null
+  ) => void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        onDone(null);
+        try {
+          const res = await fetch("/api/resync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dataSourceId }),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            onDone({
+              kind: "error",
+              text:
+                data.error || data.message || "Retry failed",
+            });
+            return;
+          }
+          onDone({ kind: "success", text: `${label}: retry started.` });
+        } catch {
+          onDone({ kind: "error", text: "Retry failed." });
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <I.Refresh size={12} className={busy ? "animate-spin" : ""} />
+      {busy ? "Retrying…" : "Retry sync"}
+    </Button>
   );
 }
 
