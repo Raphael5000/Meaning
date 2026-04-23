@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import AccountPanel from "@/components/AccountPanel";
 import AlertsPanel from "@/components/AlertsPanel";
-import ConnectionsPanel from "@/components/ConnectionsPanel";
+import ConnectionsV2 from "./connections/ConnectionsV2";
 import TeamPanel from "@/components/TeamPanel";
 import DashboardListPanel from "@/components/DashboardListPanel";
 import DashboardPanel from "@/components/DashboardPanel";
@@ -869,17 +869,17 @@ export default function ChatV2() {
         </header>
 
         {hasActivePanel ? (
+          activePanel.kind === "connections" ? (
+            <ConnectionsV2
+              onClose={() => {
+                setActivePanel({ kind: "none" });
+                setConnectionsVersion((v) => v + 1);
+              }}
+              orgId={activeOrgId}
+              orgName={activeOrg?.name ?? ""}
+            />
+          ) : (
           <V1PanelWrapper>
-            {activePanel.kind === "connections" && (
-              <ConnectionsPanel
-                onClose={() => {
-                  setActivePanel({ kind: "none" });
-                  setConnectionsVersion((v) => v + 1);
-                }}
-                orgId={activeOrgId}
-                orgName={activeOrg?.name ?? ""}
-              />
-            )}
             {activePanel.kind === "alerts" && (
               <AlertsPanel
                 onClose={() => setActivePanel({ kind: "none" })}
@@ -914,6 +914,7 @@ export default function ChatV2() {
               />
             )}
           </V1PanelWrapper>
+          )
         ) : (
           <>
             <div
