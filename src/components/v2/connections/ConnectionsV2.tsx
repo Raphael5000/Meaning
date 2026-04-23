@@ -1086,24 +1086,127 @@ function ConnectionsDetail({
         </div>
       )}
 
-      {/* Danger zone: "Disconnect [source]" with inline confirm */}
-      {hasAny && (
-        <div className="mt-12 border-t border-v2-line pt-6">
+      {/* Danger zone: disconnect + fully reconnect */}
+      <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-v2-line pt-6">
+        {hasAny && (
           <DisconnectSourceButton
             sourceLabel={source.label}
             busy={activeSources.some((s) => !!disconnecting[s.id])}
             onConfirm={async () => {
-              // Disconnect every active DataSource for this source type so
-              // the whole integration goes DISCONNECTED at once.
               for (const ds of activeSources) {
                 await doDisconnect(ds.id, source.label);
               }
             }}
           />
-        </div>
-      )}
+        )}
+        {oauthProviderFor(sourceType) && isAuthed && (
+          <ResetOAuthButton
+            sourceLabel={source.label}
+            sourceType={sourceType}
+            onDone={(msg) => {
+              onMessage(msg);
+              onRefresh();
+            }}
+          />
+        )}
+      </div>
     </>
   );
+}
+
+/** "Fully reconnect" — deletes the OAuth Account row for the provider and
+ * redirects into a fresh OAuth consent flow. This is the escape hatch for
+ * the MS Ads "No Microsoft Ads token for user X" sync loop: when the stored
+ * refresh_token is missing / revoked / corrupt, nothing short of a clean
+ * re-auth fixes it, and previously the user had no way to trigger that in
+ * the UI. Works for every provider we support. */
+function ResetOAuthButton({
+  sourceLabel,
+  sourceType,
+  onDone,
+}: {
+  sourceLabel: string;
+  sourceType: SourceType;
+  onDone: (
+    msg: { kind: "success" | "error"; text: string } | null
+  ) => void;
+}) {
+  const [armed, setArmed] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+
+  async function doReset() {
+    const provider = oauthProviderFor(sourceType);
+    if (!provider) return;
+    setBusy(true);
+    onDone(null);
+    try {
+      const res = await fetch("/api/user/connections/oauth-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        onDone({
+          kind: "error",
+          text: data.error || "Failed to reset connection",
+        });
+        return;
+      }
+      // Kick the browser straight into the provider's OAuth flow.  When it
+      // comes back, ChatV2's OAuth-redirect handler drops us on this
+      // source's detail view.
+      window.location.href = connectUrl(sourceType);
+    } catch {
+      onDone({ kind: "error", text: "Something went wrong." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!armed) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setArmed(true)}
+        disabled={busy}
+      >
+        <I.Refresh size={12} /> Fully reconnect {sourceLabel}
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[12.5px] text-v2-ink-muted">
+        Sign out of {sourceLabel} and re-authorize? Fixes stuck tokens.
+      </span>
+      <Button variant="ghost" size="sm" onClick={() => setArmed(false)}>
+        Cancel
+      </Button>
+      <Button variant="primary" size="sm" onClick={doReset} disabled={busy}>
+        {busy ? "Resetting…" : "Confirm reconnect"}
+      </Button>
+    </div>
+  );
+}
+
+function oauthProviderFor(type: SourceType): string | null {
+  switch (type) {
+    case "GA4_BIGQUERY":
+    case "GOOGLE_ADS":
+    case "SEARCH_CONSOLE":
+      return "google";
+    case "MICROSOFT_ADS":
+      return "microsoft-ads";
+    case "LINKEDIN":
+      return "linkedin";
+    case "MAILCHIMP":
+      return "mailchimp";
+    default:
+      return null;
+  }
 }
 
 /** Two-click inline confirm for "Disconnect [source]".  No portal / no dialog
@@ -1239,19 +1342,24 @@ function AccountPicker({
   onError: (text: string) => void;
 }) {
   const [items, setItems] = React.useState<PickerItem[] | null>(null);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [enabling, setEnabling] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
 
     async function load() {
       try {
         const list = await fetchAccessibleAccounts(sourceType);
         if (!cancelled) setItems(list);
-      } catch {
-        if (!cancelled) setItems([]);
+      } catch (err) {
+        if (!cancelled) {
+          setItems([]);
+          setLoadError(err instanceof Error ? err.message : String(err));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1300,7 +1408,17 @@ function AccountPicker({
   if (!items || items.length === 0) {
     return (
       <div className="rounded-[10px] border border-v2-line bg-v2-surface px-4 py-6 text-center text-[13px] text-v2-ink-muted">
-        No accounts accessible with the signed-in identity.
+        {loadError ? (
+          <>
+            <div className="text-v2-neg">{loadError}</div>
+            <div className="mt-2 text-v2-ink-muted">
+              Try <span className="font-medium text-v2-ink">Fully reconnect {" "}{sourceType === "MICROSOFT_ADS" ? "Microsoft Ads" : "this source"}</span>
+              {" "}below — it clears stuck OAuth state.
+            </div>
+          </>
+        ) : (
+          "No accounts accessible with the signed-in identity."
+        )}
       </div>
     );
   }
@@ -1344,9 +1462,27 @@ function AccountPicker({
 async function fetchAccessibleAccounts(
   sourceType: SourceType
 ): Promise<PickerItem[]> {
+  // Shared fetch helper: surface the API's `error`/`message`/`detail` text so
+  // the picker's error UI shows something actionable like "No Microsoft Ads
+  // token. Please connect your account first." instead of a generic "No
+  // accounts accessible" dead-end.
+  async function getJson(url: string): Promise<Record<string, unknown>> {
+    const res = await fetch(url);
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      const msg =
+        (typeof data.error === "string" && data.error) ||
+        (typeof data.message === "string" && data.message) ||
+        (typeof data.detail === "string" && data.detail) ||
+        `${res.status} ${res.statusText}`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
   switch (sourceType) {
     case "GA4_BIGQUERY": {
-      const r = await fetch("/api/analytics/properties").then((r) => r.json());
+      const r = await getJson("/api/analytics/properties");
       return ((r.properties ?? []) as Ga4Property[]).map((p) => ({
         id: p.propertyId,
         label: p.displayName,
@@ -1354,12 +1490,13 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "GOOGLE_ADS": {
-      const r = await fetch("/api/ads/accessible-customers").then((r) =>
-        r.json()
-      );
+      const r = await getJson("/api/ads/accessible-customers");
       const raw =
-        r.customers ||
-        (r.customerIds || []).map((id: string) => ({ id, name: `Account ${id}` }));
+        (r.customers as AdsCustomer[] | undefined) ||
+        ((r.customerIds as string[] | undefined) || []).map((id: string) => ({
+          id,
+          name: `Account ${id}`,
+        }));
       return (raw as AdsCustomer[]).map((c) => ({
         id: c.id,
         label: c.name,
@@ -1367,7 +1504,7 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "SEARCH_CONSOLE": {
-      const r = await fetch("/api/gsc/accessible-sites").then((r) => r.json());
+      const r = await getJson("/api/gsc/accessible-sites");
       return ((r.sites ?? []) as GscSite[]).map((s) => ({
         id: s.siteUrl,
         label: s.siteUrl,
@@ -1375,9 +1512,7 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "LINKEDIN": {
-      const r = await fetch("/api/linkedin/accessible-organizations").then((r) =>
-        r.json()
-      );
+      const r = await getJson("/api/linkedin/accessible-organizations");
       return ((r.organizations ?? []) as LinkedInOrg[]).map((o) => ({
         id: o.id,
         label: o.name,
@@ -1385,9 +1520,7 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "MAILCHIMP": {
-      const r = await fetch("/api/mailchimp/accessible-audiences").then((r) =>
-        r.json()
-      );
+      const r = await getJson("/api/mailchimp/accessible-audiences");
       return ((r.audiences ?? []) as MailchimpAudience[]).map((a) => ({
         id: a.id,
         label: a.name,
@@ -1395,9 +1528,7 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "MICROSOFT_ADS": {
-      const r = await fetch("/api/microsoft-ads/accessible-accounts").then(
-        (r) => r.json()
-      );
+      const r = await getJson("/api/microsoft-ads/accessible-accounts");
       return ((r.accounts ?? []) as MicrosoftAdsAccount[]).map((a) => ({
         id: a.accountId,
         label: a.accountName,
