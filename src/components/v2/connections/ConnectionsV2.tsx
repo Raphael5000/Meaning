@@ -1,16 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { I } from "../icons";
 import { Button } from "../ui/button";
 
@@ -890,16 +880,28 @@ function ConnectionsDetail({
   onMessage,
 }: ConnectionsDetailProps) {
   const source = SOURCES.find((s) => s.type === sourceType)!;
-  const sources =
+  // Treat DISCONNECTED sources as logically gone for UI purposes — they exist
+  // in the DB only so BigQuery data is preserved and the next enable-export
+  // can upsert them back to BACKFILLING.  Hiding them from the Accounts list
+  // AND from the "already connected" set in the picker is what unblocks the
+  // reconnect flow: otherwise the picker labels them "Connected" with no
+  // Enable button, a dead end (the exact MS Ads reconnect bug).
+  const allSources =
     status?.dataSources.filter((ds) => ds.type === sourceType) ?? [];
-  const hasAny = sources.length > 0;
-  const overallStatus = summariseStatus(sources);
-  const lastSync = formatTimeAgo(pickLastSync(sources));
+  const activeSources = allSources.filter(
+    (ds) => ds.status !== "DISCONNECTED"
+  );
+  const hasAny = activeSources.length > 0;
+  const overallStatus = summariseStatus(activeSources);
+  const lastSync = formatTimeAgo(pickLastSync(activeSources));
 
-  const [disconnectTarget, setDisconnectTarget] = React.useState<{
-    id: string;
-    label: string;
-  } | null>(null);
+  // Inline confirmation — no Radix AlertDialog.  Rendering through a portal
+  // into document.body meant the dialog escaped the `.meaning-v2` CSS scope
+  // (v2 tokens live there only), so users saw either nothing or an invisible
+  // dialog and clicks appeared to do nothing.  Inline state is deterministic.
+  const [pendingRemoveId, setPendingRemoveId] = React.useState<string | null>(
+    null
+  );
   const [disconnecting, setDisconnecting] = React.useState<
     Record<string, boolean>
   >({});
@@ -924,10 +926,8 @@ function ConnectionsDetail({
     }
   })();
 
-  async function confirmDisconnect() {
-    if (!disconnectTarget) return;
-    const { id, label } = disconnectTarget;
-    setDisconnectTarget(null);
+  async function doDisconnect(id: string, label: string) {
+    setPendingRemoveId(null);
     setDisconnecting((p) => ({ ...p, [id]: true }));
     onMessage(null);
     try {
@@ -979,24 +979,28 @@ function ConnectionsDetail({
         )}
       </div>
 
-      {/* Connected accounts */}
+      {/* Connected accounts (excludes soft-disconnected rows) */}
       {hasAny && (
         <>
           <SectionLabel>Accounts</SectionLabel>
-          {sources.map((ds) => {
+          {activeSources.map((ds) => {
             const rawId =
               ds.propertyId || ds.adsCustomerId || ds.id.slice(0, 12);
             const accountLabel =
               (rawId && nameMap.get(`${sourceType}:${rawId}`)) || rawId;
+            const isPendingConfirm = pendingRemoveId === ds.id;
+            const isBusy = !!disconnecting[ds.id];
             return (
               <div
                 key={ds.id}
-                className="flex items-center justify-between border-b border-v2-line py-3.5"
+                className="flex items-center justify-between gap-3 border-b border-v2-line py-3.5"
               >
-                <div>
-                  <div className="text-[13.5px] text-v2-ink">{accountLabel}</div>
+                <div className="min-w-0">
+                  <div className="truncate text-[13.5px] text-v2-ink">
+                    {accountLabel}
+                  </div>
                   {ds.bigqueryDataset && (
-                    <div className="mono mt-0.5 text-[11px] text-v2-ink-muted">
+                    <div className="mono mt-0.5 truncate text-[11px] text-v2-ink-muted">
                       {ds.bigqueryDataset}
                     </div>
                   )}
@@ -1006,19 +1010,45 @@ function ConnectionsDetail({
                     </div>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setDisconnectTarget({
-                      id: ds.id,
-                      label: `${source.label} — ${accountLabel}`,
-                    })
-                  }
-                  disabled={!!disconnecting[ds.id]}
-                >
-                  {disconnecting[ds.id] ? "Removing…" : "Remove"}
-                </Button>
+                {isPendingConfirm ? (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-[11.5px] text-v2-ink-muted">
+                      Remove this account?
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPendingRemoveId(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() =>
+                        doDisconnect(
+                          ds.id,
+                          `${source.label} — ${accountLabel}`
+                        )
+                      }
+                      style={{
+                        background: "var(--v2-neg)",
+                        borderColor: "var(--v2-neg)",
+                      }}
+                    >
+                      Confirm remove
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPendingRemoveId(ds.id)}
+                    disabled={isBusy}
+                  >
+                    {isBusy ? "Removing…" : "Remove"}
+                  </Button>
+                )}
               </div>
             );
           })}
@@ -1042,7 +1072,7 @@ function ConnectionsDetail({
             sourceType={sourceType}
             isAuthed={isAuthed}
             orgId={orgId}
-            connectedIds={sources}
+            connectedIds={activeSources}
             onEnabled={() => {
               onMessage({
                 kind: "success",
@@ -1056,57 +1086,76 @@ function ConnectionsDetail({
         </div>
       )}
 
-      {/* Disconnect all (danger zone) */}
+      {/* Danger zone: "Disconnect [source]" with inline confirm */}
       {hasAny && (
         <div className="mt-12 border-t border-v2-line pt-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // Disconnect the first one as a shortcut — full disconnect flow
-              // handles one-source-at-a-time above via the Remove buttons.
-              // This is intentional: "disconnect the source entirely" means
-              // removing each account, so we expose it as a batch prompt.
-              const first = sources[0];
-              if (first)
-                setDisconnectTarget({
-                  id: first.id,
-                  label: source.label,
-                });
+          <DisconnectSourceButton
+            sourceLabel={source.label}
+            busy={activeSources.some((s) => !!disconnecting[s.id])}
+            onConfirm={async () => {
+              // Disconnect every active DataSource for this source type so
+              // the whole integration goes DISCONNECTED at once.
+              for (const ds of activeSources) {
+                await doDisconnect(ds.id, source.label);
+              }
             }}
-            style={{ color: "var(--v2-neg)" }}
-          >
-            Disconnect {source.label}
-          </Button>
+          />
         </div>
       )}
+    </>
+  );
+}
 
-      <AlertDialog
-        open={!!disconnectTarget}
-        onOpenChange={(open) => {
-          if (!open) setDisconnectTarget(null);
+/** Two-click inline confirm for "Disconnect [source]".  No portal / no dialog
+ * — we discovered that Radix dialogs render outside the `.meaning-v2` scope
+ * and appear invisible, so users kept reporting "the button does nothing." */
+function DisconnectSourceButton({
+  sourceLabel,
+  busy,
+  onConfirm,
+}: {
+  sourceLabel: string;
+  busy: boolean;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const [armed, setArmed] = React.useState(false);
+  if (!armed) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setArmed(true)}
+        disabled={busy}
+        style={{ color: "var(--v2-neg)" }}
+      >
+        Disconnect {sourceLabel}
+      </Button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[12.5px] text-v2-ink-muted">
+        Disconnect all {sourceLabel} accounts? Historical data is preserved.
+      </span>
+      <Button variant="ghost" size="sm" onClick={() => setArmed(false)}>
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
+        size="sm"
+        disabled={busy}
+        onClick={async () => {
+          setArmed(false);
+          await onConfirm();
+        }}
+        style={{
+          background: "var(--v2-neg)",
+          borderColor: "var(--v2-neg)",
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect {disconnectTarget?.label}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You&apos;ll stop receiving new data from this account. Historical
-              data stays intact and can be re-enabled by reconnecting later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDisconnect}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Disconnect
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        {busy ? "Disconnecting…" : "Confirm disconnect"}
+      </Button>
+    </div>
   );
 }
 
