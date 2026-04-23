@@ -96,21 +96,82 @@ const SHARED_PROMPT_RULES = `CRITICAL — DATA ACCURACY RULES (you must follow t
 9. NEVER claim that data "only goes to" or "is available until" a specific date unless you have explicitly queried for MAX(date) and confirmed this. If a query returns less data than expected, run a follow-up query to check the actual date range (e.g. SELECT MIN(session_date), MAX(session_date) FROM {dataset}.sessions) before making any claims about data availability.
 10. When presenting time series data, always ensure your query covers the full date range the user asked about. If the results show gaps or end early, verify whether this is a data issue or a query issue before telling the user.`;
 
-const SHARED_PROMPT_OUTPUT = `Tips:
-- Default date range is the last 28 days unless the user specifies otherwise.
-- For trend analysis, use the "date" dimension.
-- For traffic source analysis, use source, medium, or channel grouping dimensions.
-- For geographic analysis, use country or city dimensions.
-- Always provide context and interpretation, not just raw numbers.
-- When comparing periods, run two queries with different date ranges.
-- Format large numbers with commas for readability.
-- When providing recommendations or actionable advice, wrap them in [[rec]]...[[/rec]] blocks. Each recommendation can be its own block, e.g. [[rec]]Focus on improving your top 3 landing pages — they drive 60% of conversions.[[/rec]] This will render them as green bubbles with a tick icon.
+const SHARED_PROMPT_OUTPUT = `╔════════════════════════════════════════════════════════════════════╗
+║ YOU ARE A SENIOR GROWTH MARKETING ANALYST — not a data formatter. ║
+║ North star: every answer grows the user's Return On Marketing    ║
+║ Investment (ROMI). A literal one-number answer is a FAILURE.     ║
+╚════════════════════════════════════════════════════════════════════╝
 
-- When the user asks for a specific number or metric (e.g. "how many users visited my site this week?", "what was my revenue?", "how many sessions?"), you must put the scorecard at the very start of your response so it renders correctly. Use exactly this format on the first line: [[scorecard]]VALUE|LABEL[[/scorecard]] where VALUE is the main number (use commas for thousands, e.g. 12,847) and LABEL is a short description (e.g. "Users this week" or "Sessions"). Then add a blank line, then write your full explanation. The scorecard block must be first—nothing before it. Example: [[scorecard]]12,847|Users this week[[/scorecard]]
+HOW TO THINK (read every time):
 
-- When the user asks for a comparison (e.g. week-over-week, month-over-month, vs previous period), include an optional CHANGE in the scorecard: [[scorecard]]VALUE|LABEL|+CHANGE[[/scorecard]] for a positive change (e.g. +1,234 or +12%) or [[scorecard]]VALUE|LABEL|-CHANGE[[/scorecard]] for negative (e.g. -500 or -5%). The CHANGE will appear below the main number with a green up arrow (positive) or red down arrow (negative). Example: [[scorecard]]12,847|Users this week|+1,234[[/scorecard]]
+Before answering, ask yourself: "If I were the user's Head of Growth, what would I NOTICE in this data that they didn't ask for?" Then go fetch that too — in the SAME parallel tool round as the literal question.
 
-Then your full answer with context and interpretation.
+Expert thinking examples:
+- User asks "top 20 pages" → don't just dump a list. In PARALLEL fetch: pageviews this period, pageviews prior period, and the trailing average. Then show a table with THREE metric columns (current / prior / Δ%) so they instantly see which pages are rising and which are declining. Call out the rising stars and the bleeders.
+- User asks "sessions this week" → fetch this week, last week, 4-week avg, AND the channel breakdown. Surface whether the change came from one channel or was broad-based.
+- User asks "bounce rate" → fetch overall AND bounce by channel AND bounce by top pages. Surface which landing pages are wasting paid spend.
+- User asks "revenue this month" → fetch revenue, conversion rate, AOV, and top-converting channels. Surface whether lift came from traffic, conversion, or basket size.
+- User asks "top campaigns" → fetch this period's spend, conversions, ROAS — AND prior period for the same campaigns. Flag campaigns where ROAS moved meaningfully.
+
+PROACTIVE PARALLEL FETCHES ARE MANDATORY. You get 4 tool rounds total. Spend round 1 going DEEP in parallel — typically 2-4 queries that capture the question + proactive context. Every extra round is a 2-3 second penalty, so do NOT serialize fetches that could run together.
+
+CURRENCY IS NON-OPTIONAL. Every monetary value you display (cost, spend, revenue, conversions_value, CPC, CPA) MUST be in the organisation's display currency. If the ad account's native currency differs from the display currency, you MUST JOIN against exchange_rates in the SAME query that fetches the money — never display account-currency numbers and never "forget" to convert. A number in the wrong currency is worse than no number: it silently misleads the user and destroys ROMI decisions. See the CURRENCY CONVERSION section below for the exact JOIN pattern. If you skip conversion, say so explicitly in the ROMI line so the user is warned.
+
+HOW TO RENDER — you have three composable formats. Pick what fits the question:
+
+FORMAT A — INSIGHT CARD [[insight]]{JSON}[[/insight]]
+Use for single-headline answers ("users this week", "revenue last month", "total followers"). Shape:
+{"primary":{"value":"173","label":"Users this week"},"comparisons":[{"label":"vs last week","value":"436","delta":"-60%"},{"label":"vs 4-wk avg","value":"458","delta":"-62%"}],"chart":{"xAxis":{"type":"category","data":["Mon","Tue","Wed"]},"yAxis":{"type":"value"},"series":[{"type":"line","data":[48,70,61],"smooth":true,"showSymbol":false,"areaStyle":{"opacity":0.15}}],"tooltip":{"trigger":"axis"},"grid":{"left":4,"right":4,"top":6,"bottom":6,"containLabel":false}},"romi":"Traffic down 60% WoW at stable spend — CAC has nearly tripled this week. Audit acquisition channels before spending more.","followups":["Which channels dropped the most?","Was this driven by paid or organic?","Are conversions down by the same amount?"]}
+Rules: omit any field you can't source from real tool data. comparisons ≤ 3 items. chart is compact line, no title/axes clutter. romi is ONE concrete sentence with a growth action. No "headline" field — it duplicates what the card already shows.
+
+FORMAT B — ANALYTICAL TABLE (markdown)
+Use for breakdowns, rankings, "top N". You MUST add analytical columns the user didn't explicitly ask for. This is the whole point — expert value-add. Examples of an intelligent table for "top 10 pages":
+
+| Page | This mo | Last mo | Δ | 4-wk avg |
+|------|---------|---------|----|----------|
+| /pricing | 1,240 | 1,050 | **+18%** ↑ | 1,120 |
+| /blog/seo-guide | 890 | 1,300 | **-32%** ↓ | 1,050 |
+| /features | 450 | 420 | +7% → | 430 |
+
+Rules:
+- Max 10 rows unless user explicitly asked for more.
+- Max 5 columns. First column is the name; others are numeric (right-aligned is automatic).
+- ALWAYS include ≥1 comparison column when data allows (vs prior period, vs average, trend %).
+- Use **bold** on standout deltas (>15% change). Use ↑ ↓ → glyphs to signal direction.
+- Don't dump raw SQL-style tables (6+ irrelevant columns). Every column must earn its place.
+
+FORMAT C — MIXED (insight card + analytical table)
+Default for "top N" and breakdown questions. Lead with an insight card (total or leader + top-3 share + ROMI line), then a compact analytical table with comparison columns.
+
+Example flow for "top 20 pages":
+  [[insight]]{"primary":{"value":"3,204","label":"Top 20 share"},"comparisons":[{"label":"Top page","value":"642","delta":""},{"label":"Top-3 share","value":"40%","delta":"+5pp"}],"romi":"Your top 3 pages capture 40% of traffic — test CTA variations there first for outsized conversion lift.","followups":[...]}[[/insight]]
+  | Page | Pageviews | vs last mo | Δ |
+  | /pricing | 642 | 550 | **+17%** ↑ |
+  | /home | 352 | 380 | -7% → |
+  ...
+
+When to skip ALL formats and use plain markdown:
+- Definitional questions ("what is bounce rate?")
+- Connection status ("is GA4 connected?")
+
+CHARTS inside insight cards should be compact (no title, no axis labels, smooth line). Use a full [[chart]]...[[/chart]] block ONLY when the user explicitly asks for a chart/map/sankey and there's no single headline number.
+
+ROMI IS REQUIRED on every numeric answer. In the insight card's romi field, or as a single trailing sentence when no card applies. It must be SPECIFIC and ACTIONABLE — "pure ROMI win" and "worth investigating" are lazy. Good romi examples:
+- "Top 3 pages capture 40% of traffic but only 20% of conversions — optimize their CTAs first for compound ROMI lift."
+- "Paid spend flat, organic up 12% — you're spending less per conversion. Shift budget to SEO-focused content."
+- "Branded search up 22% QoQ suggests recent PR is working — double down on campaigns that drove referral traffic."
+- "Bounce rate on paid landing pages hit 78% — every bounce is wasted spend. Fix LP messaging before scaling."
+
+DO NOT:
+- Dump raw data with no analysis.
+- Restate numbers from the card in the body text.
+- Add trailing paragraphs that repeat what the card already shows.
+- Emit 6-column tables from raw SQL output.
+- Forget to fetch proactive comparison data.
+- Write lazy ROMI lines ("this is a good sign", "worth monitoring").
+
+LEGACY [[scorecard]] is DEPRECATED — do not emit it.
+
 
 When the user asks for a chart, graph, or visualisation (e.g. "show me a line chart of daily users", "chart my top pages"):
 1. Fetch the data using the tools FIRST. Never build a chart before you have the data.
@@ -264,8 +325,8 @@ LINKEDIN QUERIES:
 - For "how many posts this month": SELECT COUNT(*) FROM \`{dataset}.post_performance\` WHERE published_date >= DATE_TRUNC(CURRENT_DATE(), MONTH).
 - For "top posts": SELECT text_preview, impressions, likes, clicks FROM \`{dataset}.post_performance\` ORDER BY impressions DESC LIMIT 10.
 - For "impressions by month": SELECT FORMAT_DATE('%Y-%m', published_date) as month, COUNT(*) as posts, SUM(impressions) as impressions FROM \`{dataset}.post_performance\` GROUP BY month ORDER BY month.
-- SINGLE-NUMBER ANSWERS: When the user asks for a total or aggregate (e.g. "total impressions", "how many posts", "how many followers"), query for ONE number and output it as a [[scorecard]]VALUE|LABEL[[/scorecard]], NOT a table.
-- FOLLOWER COUNT: follower_stats has total_followers (cumulative), organic_gains, paid_gains. Current count: SELECT total_followers FROM \`{dataset}.follower_stats\` ORDER BY stats_date DESC LIMIT 1. Output as scorecard.
+- SINGLE-NUMBER ANSWERS: Follow the OUTPUT CONTRACT above — these resolve to an [[insight]] card with prior-period comparison fetched in parallel.
+- FOLLOWER COUNT: follower_stats has total_followers (cumulative), organic_gains, paid_gains. Current count: SELECT total_followers FROM \`{dataset}.follower_stats\` ORDER BY stats_date DESC LIMIT 1. When asked "how many followers", parallel-fetch the current count AND the count 30/7 days ago to build comparisons for the insight card.
 - Follower demographics uses a dimension/dimension_value pattern. Filter by dimension: WHERE dimension = 'country', 'industry', 'seniority', 'function', or 'company_size'.
 - page_stats columns: stats_date, page_views, unique_visitors, clicks — these are cumulative lifetime snapshots.
 - org_info has a single row with the organization name and last sync timestamp.
@@ -742,20 +803,24 @@ export async function POST(request: NextRequest) {
               block.type === "tool_use"
           );
 
-          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+          // Run all tool calls in this round in parallel. Claude is allowed to
+          // emit multiple tool_use blocks in a single response, and running
+          // them concurrently cuts latency dramatically for comparison-style
+          // questions (e.g. "this week vs last week vs 4-wk avg") where every
+          // query is independent.
+          const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+            toolUseBlocks.map(async (toolUse) => {
+              const stageLabel = describeToolCall(toolUse.name, toolUse.input);
+              const stageDetail = describeToolDetail(toolUse.name, toolUse.input);
+              send({ type: "status", message: stageLabel });
+              send({ type: "stage_start", id: toolUse.id, label: stageLabel, detail: stageDetail });
+              const stageStartedAt = Date.now();
 
-          for (const toolUse of toolUseBlocks) {
-            const stageLabel = describeToolCall(toolUse.name, toolUse.input);
-            const stageDetail = describeToolDetail(toolUse.name, toolUse.input);
-            send({ type: "status", message: stageLabel });
-            send({ type: "stage_start", id: toolUse.id, label: stageLabel, detail: stageDetail });
-            const stageStartedAt = Date.now();
+              let result: unknown;
+              let isError = false;
 
-            let result: unknown;
-            let isError = false;
-
-            try {
-              if (usesBigQuery) {
+              try {
+                if (usesBigQuery) {
                 // BigQuery tool execution
                 switch (toolUse.name) {
                   case "query_analytics": {
@@ -885,13 +950,14 @@ export async function POST(request: NextRequest) {
               duration: (Date.now() - stageStartedAt) / 1000,
             });
 
-            toolResults.push({
-              type: "tool_result",
+            return {
+              type: "tool_result" as const,
               tool_use_id: toolUse.id,
               content: JSON.stringify(result),
               is_error: isError,
-            });
-          }
+            };
+          })
+          );
 
           send({ type: "status", message: "Analysing results..." });
 
@@ -899,8 +965,24 @@ export async function POST(request: NextRequest) {
           conversationMessages.push({ role: "assistant", content: assistantContent });
           conversationMessages.push({ role: "user", content: toolResults });
 
+          // Phase marker for the client: the next LLM call is likely the
+          // final answer round (after tools). Client uses this to route
+          // incoming text_deltas from the muted Thinking tail into a
+          // proper AssistantMsg bubble so the final answer renders
+          // progressively (InsightCard skeleton → populated card,
+          // tables stream row-by-row, etc.) instead of popping in all
+          // at once when the `result` event lands.
+          send({ type: "final_start" });
+
           // Continue the conversation with full history
           response = await callAnthropicStream(conversationMessages, true);
+
+          // The model surprised us with another tool round — roll back
+          // the client's "final" rendering mode so the next tool narration
+          // goes back into the thinking tail.
+          if (response.stop_reason === "tool_use") {
+            send({ type: "final_cancel" });
+          }
         }
 
         // If the loop ended because of max rounds but Claude still wants tools,
@@ -930,15 +1012,68 @@ export async function POST(request: NextRequest) {
         );
         let rawMessage = textBlocks.map((b) => b.text).join("\n");
         console.log("[chat] rawMessage length:", rawMessage.length, "textBlocks:", textBlocks.length, "stop_reason:", response.stop_reason);
+        console.log("[chat] rawMessage preview:", rawMessage.slice(0, 800));
+        console.log("[chat] has [[insight]]:", rawMessage.includes("[[insight]]"), "has [[scorecard]]:", rawMessage.includes("[[scorecard]]"));
 
-        // Parse scorecard block at start (for "how many...?" style questions)
-        const scorecard = parseScorecard(rawMessage);
+        // Insight-card safety net: if the model disobeyed the output contract
+        // (emitted [[scorecard]] or plain text for a numeric question), force
+        // compliance by retrying the final text round with a prefill that
+        // locks the response into an [[insight]]{ ... start. The model
+        // continues from the prefill, so it MUST produce an insight card.
+        // Prefill only costs one extra LLM call and only when non-compliant.
+        const lastUserText = [...messages]
+          .reverse()
+          .find((m) => m.role === "user")?.content ?? "";
+        const NUMERIC_INTENT = /\b(how\s+many|how\s+much|what(?:'s|\s+is|\s+was)\s+(?:my|the)|total|count|number\s+of|top\s+\d*|breakdown|ranking|users?|sessions?|clicks?|impressions?|conversions?|revenue|cost|spend|bounce|ctr|cpc|cpa|roas|ROMI|traffic|visits?|visitors?|pageviews?|pages?|engagement|followers?|opens?|opens?\s+rate|campaigns?|sources?|channels?|keywords?|queries|referrers?|devices?|countries|cities)\b/i;
+        const questionLooksNumeric = NUMERIC_INTENT.test(lastUserText);
+        const hasInsight = rawMessage.includes("[[insight]]");
+
+        if (!hasInsight && questionLooksNumeric) {
+          console.log("[chat] insight safety-net: model did not emit [[insight]] for a numeric question — retrying with prefill");
+          send({ type: "status", message: "Finalising insight…" });
+          try {
+            const PREFILL = "[[insight]]{\"headline\":\"";
+            const prefillMessages: Anthropic.MessageParam[] = [
+              ...conversationMessages,
+              { role: "assistant", content: response.content },
+              {
+                role: "user",
+                content:
+                  "That response didn't follow the output contract. Using the data you already fetched (do NOT re-query), reformat your answer as a single [[insight]]{JSON}[[/insight]] block at the very start, followed by 1-3 sentences of plain-English interpretation. Include at least one comparison (vs prior period or vs average), a line chart of the trend if you have daily data, and a required one-sentence ROMI impact. Do not emit [[scorecard]] or [[chart]] blocks.",
+              },
+              { role: "assistant", content: PREFILL },
+            ];
+            const forced = await anthropic.messages.create({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 4096,
+              system: systemPrompt,
+              messages: prefillMessages,
+            });
+            const forcedText = forced.content
+              .filter((b): b is Anthropic.TextBlock => b.type === "text")
+              .map((b) => b.text)
+              .join("\n");
+            // The model's output starts AFTER the prefill — prepend the prefill so we get a complete block.
+            rawMessage = PREFILL + forcedText;
+            console.log("[chat] prefill produced:", rawMessage.slice(0, 400));
+          } catch (err) {
+            console.error("[chat] prefill retry failed:", err);
+          }
+        }
+
+        // When the response uses an [[insight]] block, the legacy scorecard /
+        // chart blocks are redundant — skip parsing them so the frontend
+        // doesn't render both the old Scorecard AND the new InsightCard.
+        const usesInsight = rawMessage.includes("[[insight]]");
+
+        // Parse scorecard block at start (legacy path — non-insight answers only)
+        const scorecard = usesInsight ? null : parseScorecard(rawMessage);
         if (scorecard) {
           rawMessage = stripScorecardBlock(rawMessage);
         }
 
-        // Parse chart block
-        const chart = parseChart(rawMessage);
+        // Parse chart block (legacy path — non-insight answers only)
+        const chart = usesInsight ? null : parseChart(rawMessage);
         if (chart) {
           rawMessage = stripChartBlock(rawMessage);
         }
