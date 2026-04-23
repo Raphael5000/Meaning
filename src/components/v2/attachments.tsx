@@ -70,6 +70,250 @@ export function Scorecard({
 }
 
 /* =============================================================
+   INSIGHT CARD — the "aha moment" card. A single headline number
+   + up-to-3 comparison scorecards + optional trend chart + a one-
+   line ROMI implication + follow-up questions. Emitted by the
+   model as a [[insight]]{...json...}[[/insight]] block.
+   ============================================================= */
+
+export interface InsightComparison {
+  label: string;
+  value: string;
+  /** e.g. "+18%", "-5%", "+1,234". Sign drives arrow colour. */
+  delta?: string;
+}
+
+export interface InsightPayload {
+  headline?: string;
+  primary: { value: string; label: string };
+  comparisons?: InsightComparison[];
+  /** ECharts option JSON, usually a line chart of the trend. */
+  chart?: Record<string, unknown>;
+  /** One-line ROMI implication. Required by the prompt. */
+  romi?: string;
+  /** Suggested follow-up questions, rendered outside this card. */
+  followups?: string[];
+}
+
+function deltaDirection(delta?: string): "pos" | "neg" | "flat" {
+  if (!delta) return "flat";
+  const trimmed = delta.trim();
+  if (trimmed.startsWith("-")) return "neg";
+  if (trimmed.startsWith("+")) return "pos";
+  return "flat";
+}
+
+function InlineComparison({ c }: { c: InsightComparison }) {
+  const dir = deltaDirection(c.delta);
+  const deltaClass = dir === "neg" ? "neg" : dir === "pos" ? "pos" : "";
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--v2-ink-muted)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {c.label}
+      </span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 6,
+          minWidth: 0,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: "-0.005em",
+            color: "var(--v2-ink)",
+            lineHeight: 1.1,
+          }}
+        >
+          {c.value}
+        </span>
+        {c.delta && (
+          <span
+            className={`delta ${deltaClass}`}
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 2,
+              lineHeight: 1,
+            }}
+          >
+            {dir === "neg" ? <I.Down size={9} /> : dir === "pos" ? <I.Up size={9} /> : null}
+            {c.delta}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Force ECharts option into a compact sparkline-style shape: no axis labels,
+ *  minimal padding, small height. Preserves series data but strips heavy
+ *  presentation config that wastes vertical space. */
+function compactChartOption(base: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...base,
+    grid: { left: 4, right: 4, top: 6, bottom: 6, containLabel: false },
+    xAxis: {
+      ...(base.xAxis as Record<string, unknown> | undefined),
+      show: false,
+      boundaryGap: false,
+    },
+    yAxis: {
+      ...(base.yAxis as Record<string, unknown> | undefined),
+      show: false,
+    },
+    tooltip: { trigger: "axis" },
+    legend: undefined,
+    title: undefined,
+  };
+}
+
+export function InsightCard({ insight }: { insight: InsightPayload }) {
+  const hasChart = !!insight.chart;
+  const comparisons = insight.comparisons ?? [];
+  const compactChart = hasChart
+    ? compactChartOption(insight.chart as Record<string, unknown>)
+    : null;
+  return (
+    <div
+      className="bw-card v2-attach-in"
+      style={{ marginBottom: 10, overflow: "hidden" }}
+    >
+      {/* Main row: primary number + comparisons inline. Sparkline is its own
+          tight strip underneath so the numbers stay fully legible.
+          Headline is intentionally not rendered here — the body text under
+          the card already carries the plain-English interpretation, and
+          showing both produces the same sentence twice.                   */}
+      <div
+        style={{
+          padding: "12px 14px 10px",
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--v2-ink-muted)",
+              marginBottom: 2,
+            }}
+          >
+            {insight.primary.label}
+          </div>
+          <div
+            className="num"
+            style={{
+              fontSize: 32,
+              fontWeight: 600,
+              lineHeight: 1,
+              letterSpacing: "-0.02em",
+              color: "var(--v2-ink)",
+            }}
+          >
+            {insight.primary.value}
+          </div>
+        </div>
+        {comparisons.slice(0, 3).map((c, i) => (
+          <InlineComparison key={i} c={c} />
+        ))}
+      </div>
+
+      {/* Tight sparkline — fixed 72px via styleOverride so ChartRenderer
+          doesn't fall back to its default 400px and blow out the card.   */}
+      {compactChart && (
+        <div style={{ padding: "0 6px", borderTop: "1px solid var(--v2-line)" }}>
+          <ChartRenderer
+            option={compactChart}
+            styleOverride={{ width: "100%", height: 72 }}
+          />
+        </div>
+      )}
+
+      {/* ROMI — compact single-line callout */}
+      {insight.romi && (
+        <div
+          style={{
+            padding: "8px 12px",
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            background: "color-mix(in oklab, var(--v2-brand-vivid) 8%, transparent)",
+            borderTop: "1px solid var(--v2-line)",
+          }}
+        >
+          <div
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: 999,
+              background: "var(--v2-brand-vivid)",
+              color: "var(--v2-on-brand)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <I.Sparkle size={9} />
+          </div>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: "0.09em",
+              textTransform: "uppercase",
+              color: "var(--v2-brand)",
+              flexShrink: 0,
+            }}
+          >
+            ROMI
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: "var(--v2-ink)",
+              minWidth: 0,
+            }}
+          >
+            {insight.romi}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =============================================================
    SPARKLINE
    ============================================================= */
 
@@ -543,38 +787,108 @@ export { Markdown } from "./Messages";
 
 const REC_OPEN = "[[rec]]";
 const REC_CLOSE = "[[/rec]]";
+const INSIGHT_OPEN = "[[insight]]";
+const INSIGHT_CLOSE = "[[/insight]]";
 
 type Segment =
   | { kind: "md"; text: string }
-  | { kind: "rec"; text: string; open?: boolean };
+  | { kind: "rec"; text: string; open?: boolean }
+  | { kind: "insight"; raw: string; payload?: InsightPayload; open?: boolean };
+
+function tryParseInsight(raw: string): InsightPayload | undefined {
+  try {
+    const parsed = JSON.parse(raw.trim()) as InsightPayload;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    if (!parsed.primary || typeof parsed.primary.value !== "string") return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Find the next opening marker. Returns the earliest one, or -1. */
+function nextMarker(text: string, cursor: number): { idx: number; kind: "rec" | "insight" } | null {
+  const recIdx = text.indexOf(REC_OPEN, cursor);
+  const insightIdx = text.indexOf(INSIGHT_OPEN, cursor);
+  if (recIdx === -1 && insightIdx === -1) return null;
+  if (recIdx === -1) return { idx: insightIdx, kind: "insight" };
+  if (insightIdx === -1) return { idx: recIdx, kind: "rec" };
+  return recIdx < insightIdx
+    ? { idx: recIdx, kind: "rec" }
+    : { idx: insightIdx, kind: "insight" };
+}
 
 function splitIntoSegments(text: string): Segment[] {
   const segments: Segment[] = [];
   let cursor = 0;
   while (cursor < text.length) {
-    const openIdx = text.indexOf(REC_OPEN, cursor);
-    if (openIdx === -1) {
+    const marker = nextMarker(text, cursor);
+    if (!marker) {
       segments.push({ kind: "md", text: text.slice(cursor) });
       break;
     }
-    if (openIdx > cursor) {
-      segments.push({ kind: "md", text: text.slice(cursor, openIdx) });
+    if (marker.idx > cursor) {
+      segments.push({ kind: "md", text: text.slice(cursor, marker.idx) });
     }
-    const contentStart = openIdx + REC_OPEN.length;
-    const closeIdx = text.indexOf(REC_CLOSE, contentStart);
-    if (closeIdx === -1) {
-      /* Still streaming — rec block is open but not yet closed */
-      segments.push({
-        kind: "rec",
-        text: text.slice(contentStart),
-        open: true,
-      });
-      return segments;
+    if (marker.kind === "rec") {
+      const contentStart = marker.idx + REC_OPEN.length;
+      const closeIdx = text.indexOf(REC_CLOSE, contentStart);
+      if (closeIdx === -1) {
+        segments.push({
+          kind: "rec",
+          text: text.slice(contentStart),
+          open: true,
+        });
+        return segments;
+      }
+      segments.push({ kind: "rec", text: text.slice(contentStart, closeIdx) });
+      cursor = closeIdx + REC_CLOSE.length;
+    } else {
+      const contentStart = marker.idx + INSIGHT_OPEN.length;
+      const closeIdx = text.indexOf(INSIGHT_CLOSE, contentStart);
+      if (closeIdx === -1) {
+        /* Still streaming — insight JSON hasn't finished arriving yet */
+        segments.push({
+          kind: "insight",
+          raw: text.slice(contentStart),
+          open: true,
+        });
+        return segments;
+      }
+      const raw = text.slice(contentStart, closeIdx);
+      segments.push({ kind: "insight", raw, payload: tryParseInsight(raw) });
+      cursor = closeIdx + INSIGHT_CLOSE.length;
     }
-    segments.push({ kind: "rec", text: text.slice(contentStart, closeIdx) });
-    cursor = closeIdx + REC_CLOSE.length;
   }
   return segments;
+}
+
+function InsightSkeleton() {
+  return (
+    <div
+      className="bw-card v2-attach-in"
+      style={{
+        marginBottom: 10,
+        padding: "10px 14px 12px",
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 24,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ width: 90, height: 9, borderRadius: 3, background: "var(--v2-surface-2)" }} />
+        <div style={{ width: 90, height: 28, borderRadius: 5, background: "var(--v2-surface-2)" }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ width: 70, height: 9, borderRadius: 3, background: "var(--v2-surface-2)" }} />
+        <div style={{ width: 60, height: 16, borderRadius: 4, background: "var(--v2-surface-2)" }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ width: 70, height: 9, borderRadius: 3, background: "var(--v2-surface-2)" }} />
+        <div style={{ width: 60, height: 16, borderRadius: 4, background: "var(--v2-surface-2)" }} />
+      </div>
+    </div>
+  );
 }
 
 export function AssistantContent({
@@ -602,6 +916,15 @@ export function AssistantContent({
               {showCaret && <span className="caret" />}
             </Rec>
           );
+        }
+        if (seg.kind === "insight") {
+          if (seg.open || !seg.payload) {
+            /* Still streaming or JSON didn't parse — show a skeleton so the
+               user knows something rich is on the way.  When the JSON
+               finally parses, the skeleton is replaced by the real card. */
+            return <InsightSkeleton key={i} />;
+          }
+          return <InsightCard key={i} insight={seg.payload} />;
         }
         const body = seg.text;
         if (!body.trim() && !showCaret) return null;

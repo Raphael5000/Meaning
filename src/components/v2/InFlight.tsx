@@ -6,10 +6,62 @@ import { ThinkingBlob } from "./primitives";
 import { Button } from "./ui/button";
 
 /* =============================================================
-   THINKING (lightweight — kicker + optional status text)
+   THINKING — the single in-flight indicator. Styled like a status
+   label (muted, small, single-ish line). When `streamingText` is
+   provided, the model's incoming prose is shown in the same
+   muted style — clamped to ~2 lines and with markdown syntax
+   stripped, so tables / insight JSON / code never bloat this
+   indicator. The full rendered answer appears in a proper
+   AssistantMsg bubble once the stream resolves.
    ============================================================= */
 
-export function Thinking({ status }: { status?: string | null }) {
+/** Strip markdown so streaming text reads as plain prose inline.
+ *  Keeps it visually a "status" line, never a full table / JSON. */
+function stripMarkdown(s: string): string {
+  return s
+    // hide any structured [[...]] blocks entirely (insight JSON, rec, etc.)
+    .replace(/\[\[[\s\S]*$/, "")
+    // code fences + inline code
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    // headings
+    .replace(/^#{1,6}\s+/gm, "")
+    // bold / italic markers
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    // table pipes — collapse into a readable run
+    .replace(/\|/g, " · ")
+    // collapse whitespace
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Show only the MOST RECENT ~220 chars of narration so the user sees the
+ *  model's current thought, not a stale first sentence frozen behind an
+ *  ellipsis. Break on the last sentence boundary when possible.          */
+function tailPrefix(s: string, max = 220): string {
+  if (s.length <= max) return s;
+  const tail = s.slice(-max);
+  // prefer to start at the next sentence boundary inside the tail, so we
+  // don't begin mid-word
+  const boundary = tail.search(/[.!?]\s+\S/);
+  if (boundary >= 0 && boundary < max - 40) {
+    return "…" + tail.slice(boundary + 2);
+  }
+  const space = tail.indexOf(" ");
+  return "…" + (space >= 0 ? tail.slice(space + 1) : tail);
+}
+
+export function Thinking({
+  status,
+  streamingText,
+}: {
+  status?: string | null;
+  streamingText?: string;
+}) {
+  const cleaned = streamingText ? tailPrefix(stripMarkdown(streamingText)) : "";
+  const hasStream = cleaned.length > 0;
+  const label = hasStream ? cleaned : status || "Thinking…";
   return (
     <div className="relative mx-auto w-full max-w-[780px] py-3">
       <div
@@ -18,15 +70,24 @@ export function Thinking({ status }: { status?: string | null }) {
       >
         <ThinkingBlob size={20} />
       </div>
-      <div className="flex items-center gap-3 md:block">
-        <span className="md:hidden">
+      <div className="flex items-start gap-3 md:block">
+        <span className="md:hidden mt-[2px] flex-shrink-0">
           <ThinkingBlob size={20} />
         </span>
-        {status ? (
-          <span className="text-[12px] text-v2-ink-muted">{status}</span>
-        ) : (
-          <span className="text-[12px] text-v2-ink-muted">Thinking…</span>
-        )}
+        <span
+          className="text-[12px] text-v2-ink-muted"
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            lineHeight: 1.5,
+            minWidth: 0,
+          }}
+        >
+          {label}
+          {hasStream && <span className="caret" />}
+        </span>
       </div>
     </div>
   );

@@ -235,18 +235,35 @@ html.dark .meaning-v2,
 .meaning-v2 .prose-chat table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.75em 0;
-  font-size: 12.5px;
+  margin: 0.6em 0;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .meaning-v2 .prose-chat th, .meaning-v2 .prose-chat td {
-  padding: 8px 12px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--v2-line);
   text-align: left;
+}
+.meaning-v2 .prose-chat tbody tr:last-child td {
+  border-bottom: none;
+}
+.meaning-v2 .prose-chat th:not(:first-child),
+.meaning-v2 .prose-chat td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .meaning-v2 .prose-chat th {
   font-weight: 600;
   color: var(--v2-ink-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 10px;
   border-bottom-color: var(--v2-line-strong);
+}
+.meaning-v2 .prose-chat tbody tr:hover td {
+  background: var(--v2-surface-2);
 }
 
 /* Blinking caret for streaming text */

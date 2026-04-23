@@ -134,44 +134,64 @@ export default function ChatV2() {
   const [toolStatus, setToolStatus] = React.useState<string | null>(null);
   const [stages, setStages] = React.useState<Stage[]>([]);
   const [streamingText, setStreamingText] = React.useState<string>("");
+  /* "narration" while the model is thinking / choosing tools — stream text
+     goes into the muted Thinking tail. "final" after the server emits
+     `final_start` (tools are done, model is composing the answer) — stream
+     text routes into a proper AssistantMsg bubble with progressive
+     rendering (InsightCard skeleton → populated card, markdown tables
+     stream row-by-row, etc.) so the final answer never pops in whole.  */
+  const [streamPhase, setStreamPhase] = React.useState<
+    "narration" | "final"
+  >("narration");
 
-  /* Streaming smoother: buffer incoming chunks and drip characters into
-     streamingText via requestAnimationFrame so the text appears to type
-     smoothly instead of landing in jerky multi-word clumps.               */
+  /* Streaming smoother: buffer incoming text_delta chunks and reveal
+     characters on a fixed 40ms cadence (~25fps). Fixed interval is
+     gentler on React than rAF — once we switch into the "final" phase
+     the AssistantMsg renders markdown + insight cards on every update,
+     and react-markdown's re-parse can exceed 16ms for a growing table,
+     causing visible chunking at 60fps. 25fps gives react-markdown ~40ms
+     of headroom per tick and keeps the typewriter feel smooth.
+     Per-tick step is capped at 6 chars (~150 cps) so big bursts from
+     the network don't dump visible chunks — we still catch up quickly
+     on big gaps, just never in a single jarring drop.                   */
   const streamTargetRef = React.useRef<string>("");
-  const streamRafRef = React.useRef<number | null>(null);
+  const streamTimerRef = React.useRef<number | null>(null);
 
-  const revealNextFrame = React.useCallback(() => {
-    setStreamingText((current) => {
-      const target = streamTargetRef.current;
-      if (current.length >= target.length) {
-        streamRafRef.current = null;
-        return current;
-      }
-      const gap = target.length - current.length;
-      /* When caught up, drip 2 chars/frame (~120 cps, close to a natural
-         typewriter). When behind, catch up proportionally so we never
-         lag the model by more than a few frames.                         */
-      const step = Math.max(2, Math.ceil(gap / 6));
-      const next = target.slice(0, current.length + step);
-      streamRafRef.current = requestAnimationFrame(revealNextFrame);
-      return next;
+  const revealTick = React.useCallback(() => {
+    streamTimerRef.current = null;
+    React.startTransition(() => {
+      setStreamingText((current) => {
+        const target = streamTargetRef.current;
+        if (current.length >= target.length) return current;
+        const gap = target.length - current.length;
+        const step = Math.min(6, Math.max(2, Math.ceil(gap / 12)));
+        return target.slice(0, current.length + step);
+      });
     });
+    // Always keep the timer running while we still have buffer to reveal.
+    if (streamTargetRef.current.length > 0) {
+      streamTimerRef.current = window.setTimeout(revealTick, 40);
+    }
   }, []);
+
+  const scheduleReveal = React.useCallback(() => {
+    if (streamTimerRef.current !== null) return;
+    streamTimerRef.current = window.setTimeout(revealTick, 40);
+  }, [revealTick]);
 
   const resetStreaming = React.useCallback(() => {
     streamTargetRef.current = "";
     setStreamingText("");
-    if (streamRafRef.current !== null) {
-      cancelAnimationFrame(streamRafRef.current);
-      streamRafRef.current = null;
+    if (streamTimerRef.current !== null) {
+      clearTimeout(streamTimerRef.current);
+      streamTimerRef.current = null;
     }
   }, []);
 
   React.useEffect(() => {
     return () => {
-      if (streamRafRef.current !== null) {
-        cancelAnimationFrame(streamRafRef.current);
+      if (streamTimerRef.current !== null) {
+        clearTimeout(streamTimerRef.current);
       }
     };
   }, []);
@@ -468,6 +488,7 @@ export default function ChatV2() {
     setError(null);
     setToolStatus(null);
     setStages([]);
+    setStreamPhase("narration");
     resetStreaming();
 
     const userMessage: Message = {
@@ -567,11 +588,19 @@ export default function ChatV2() {
             } else if (event.type === "round_start") {
               // New LLM round — prior "thinking aloud" text is done, reset buffer
               resetStreaming();
+            } else if (event.type === "final_start") {
+              // Tools are done. The next stream of text_deltas is the final
+              // answer — route them into a proper AssistantMsg bubble with
+              // progressive rendering rather than the muted thinking tail.
+              setStreamPhase("final");
+            } else if (event.type === "final_cancel") {
+              // Model surprised us with another tool round after we'd
+              // flipped to "final". Revert.
+              setStreamPhase("narration");
+              resetStreaming();
             } else if (event.type === "text_delta") {
               streamTargetRef.current += event.text as string;
-              if (streamRafRef.current === null) {
-                streamRafRef.current = requestAnimationFrame(revealNextFrame);
-              }
+              scheduleReveal();
             } else if (event.type === "stage_start") {
               const id: string = event.id;
               stageTimers.set(id, Date.now());
@@ -581,12 +610,10 @@ export default function ChatV2() {
                 detail: event.detail,
                 status: "active",
               };
-              setStages((prev) => {
-                const closed = prev.map<Stage>((s) =>
-                  s.status === "active" ? { ...s, status: "done" } : s
-                );
-                return [...closed, stage];
-              });
+              /* Tool calls now run in parallel on the server — multiple
+                 stages can be active at once. Only stage_done closes a
+                 stage; never auto-close on new start. */
+              setStages((prev) => [...prev, stage]);
             } else if (event.type === "stage_done") {
               const id: string = event.id;
               const dur =
@@ -615,6 +642,7 @@ export default function ChatV2() {
 
       setToolStatus(null);
       setStages([]);
+      setStreamPhase("narration");
       resetStreaming();
 
       const assistantMessage: Message = {
@@ -645,6 +673,7 @@ export default function ChatV2() {
       setLoading(false);
       setToolStatus(null);
       setStages([]);
+      setStreamPhase("narration");
       resetStreaming();
     }
   }
@@ -958,14 +987,26 @@ export default function ChatV2() {
                           <Stages steps={stages} />
                         </div>
                       )}
-                      {streamingText ? (
+                      {streamPhase === "final" && streamingText.length > 0 ? (
+                        /* Final answer is streaming. Render into a proper
+                           AssistantMsg bubble via AssistantContent so the
+                           InsightCard appears as a skeleton then populates,
+                           markdown tables stream row-by-row, and the body
+                           fills in progressively. No big "pop" at the end. */
                         <AssistantMsg thinking>
                           <div className="prose-chat">
-                            <AssistantContent text={streamingText} streaming />
+                            <AssistantContent
+                              text={streamingText}
+                              streaming
+                            />
                           </div>
                         </AssistantMsg>
                       ) : (
-                        stages.length === 0 && <Thinking status={toolStatus} />
+                        /* Narration phase (or empty) — muted thinking tail. */
+                        <Thinking
+                          status={toolStatus}
+                          streamingText={streamingText}
+                        />
                       )}
                       {lastMessageIsChartRequest &&
                         stages.length === 0 &&
