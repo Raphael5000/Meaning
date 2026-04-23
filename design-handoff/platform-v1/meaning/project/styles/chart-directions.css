@@ -1,0 +1,259 @@
+/* =====================================================================
+   Chart library — 3 visual directions
+   Scope each direction with .dir-editorial / .dir-minimal / .dir-expressive
+   on a wrapper. Tokens inside override the defaults from tokens.css for
+   chart-specific surfaces.
+   ===================================================================== */
+
+/* Chart-specific token names used by every chart component.
+   Direction classes override these; nothing else. */
+:root {
+  /* Axis + grid */
+  --chart-axis:        var(--ink-muted);
+  --chart-axis-line:   var(--line);
+  --chart-grid:        var(--line);
+  --chart-grid-soft:   color-mix(in oklab, var(--line) 55%, transparent);
+  --chart-tick:        var(--ink-subtle);
+
+  /* Plot surface */
+  --chart-plot-bg:     transparent;
+  --chart-plot-radius: 0px;
+
+  /* Series ink */
+  --chart-stroke-w:    1.5px;
+  --chart-stroke-w-thick: 2.25px;
+  --chart-point-r:     3px;
+  --chart-fill-opacity: 0.18;
+  --chart-fill-opacity-strong: 0.28;
+
+  /* Bar */
+  --chart-bar-radius:  1px;
+  --chart-bar-gap:     0.20;
+  --chart-bar-group-gap: 0.12;
+
+  /* Typography */
+  --chart-label:       11px;
+  --chart-tick-size:   10.5px;
+  --chart-title:       13px;
+  --chart-legend:      11.5px;
+
+  /* Annotation */
+  --chart-anno:        var(--ink);
+  --chart-anno-soft:   color-mix(in oklab, var(--ink) 35%, transparent);
+
+  /* Palette — inherit from tokens.css (--c-1..6) but expose by name so
+     directions can remap. Defaults are the standard BI qualitative set. */
+  --cat-1: var(--c-1);
+  --cat-2: var(--c-2);
+  --cat-3: var(--c-3);
+  --cat-4: var(--c-4);
+  --cat-5: var(--c-5);
+  --cat-6: var(--c-6);
+  --cat-7: color-mix(in oklab, var(--c-1) 60%, var(--c-2));
+  --cat-8: color-mix(in oklab, var(--c-3) 50%, var(--c-6));
+}
+
+/* --------------------------------------------------------------------- */
+/* DIRECTION A — Editorial                                                */
+/* Dense, amber-accented, grid-heavy newspaper feel. Matches the existing */
+/* Meaning dashboard aesthetic.                                           */
+/* --------------------------------------------------------------------- */
+.dir-editorial {
+  --chart-stroke-w:    1.25px;
+  --chart-stroke-w-thick: 1.75px;
+  --chart-point-r:     2.5px;
+  --chart-fill-opacity: 0.14;
+  --chart-fill-opacity-strong: 0.22;
+
+  --chart-bar-radius:  0px;
+  --chart-bar-gap:     0.22;
+  --chart-bar-group-gap: 0.10;
+
+  --chart-grid:        var(--line);
+  --chart-grid-soft:   color-mix(in oklab, var(--line) 40%, transparent);
+
+  --chart-label:       10.5px;
+  --chart-tick-size:   10px;
+  --chart-title:       12.5px;
+  --chart-legend:      10.5px;
+
+  font-feature-settings: 'ss01','cv11','tnum' 1,'lnum' 1;
+}
+
+/* --------------------------------------------------------------------- */
+/* DIRECTION B — Minimal                                                  */
+/* Whitespace-forward, axes removed to tick labels only, thicker strokes. */
+/* --------------------------------------------------------------------- */
+.dir-minimal {
+  --chart-stroke-w:    2px;
+  --chart-stroke-w-thick: 3px;
+  --chart-point-r:     3.5px;
+  --chart-fill-opacity: 0.10;
+  --chart-fill-opacity-strong: 0.18;
+
+  --chart-bar-radius:  3px;
+  --chart-bar-gap:     0.35;
+  --chart-bar-group-gap: 0.18;
+
+  --chart-axis-line:   transparent;
+  --chart-grid:        color-mix(in oklab, var(--line) 55%, transparent);
+  --chart-grid-soft:   color-mix(in oklab, var(--line) 25%, transparent);
+
+  --chart-label:       11.5px;
+  --chart-tick-size:   11px;
+  --chart-title:       14px;
+  --chart-legend:      12px;
+}
+
+/* --------------------------------------------------------------------- */
+/* DIRECTION C — Expressive                                               */
+/* Bolder colours, gradient fills, softer curves, rounded bars.           */
+/* --------------------------------------------------------------------- */
+.dir-expressive {
+  --chart-stroke-w:    2.5px;
+  --chart-stroke-w-thick: 3.5px;
+  --chart-point-r:     4px;
+  --chart-fill-opacity: 0.28;
+  --chart-fill-opacity-strong: 0.45;
+
+  --chart-bar-radius:  6px;
+  --chart-bar-gap:     0.28;
+  --chart-bar-group-gap: 0.14;
+
+  --chart-grid:        color-mix(in oklab, var(--line) 45%, transparent);
+  --chart-grid-soft:   color-mix(in oklab, var(--line) 20%, transparent);
+
+  --chart-label:       11.5px;
+  --chart-tick-size:   11px;
+  --chart-title:       14px;
+  --chart-legend:      12px;
+}
+
+/* --------------------------------------------------------------------- */
+/* Card shell used by every chart card in the gallery                     */
+/* --------------------------------------------------------------------- */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.dir-minimal .chart-card     { border-radius: 14px; padding: 22px 24px 24px; }
+.dir-expressive .chart-card  { border-radius: 16px; padding: 20px 22px 22px; }
+
+.chart-card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px;
+}
+.chart-card-title {
+  font-size: var(--chart-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.chart-card-desc {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+  max-width: 48ch;
+}
+.chart-card-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* SVG text inherits axis color by default */
+.chart-svg text {
+  font-family: var(--font-sans);
+  fill: var(--chart-axis);
+  font-size: var(--chart-tick-size);
+  font-variant-numeric: tabular-nums;
+}
+.chart-svg .axis-title { font-size: var(--chart-label); fill: var(--ink-muted); }
+.chart-svg .grid-line { stroke: var(--chart-grid); stroke-width: 1; }
+.chart-svg .grid-line.soft { stroke: var(--chart-grid-soft); }
+.chart-svg .axis-line { stroke: var(--chart-axis-line); stroke-width: 1; }
+.chart-svg .tick-line { stroke: var(--chart-tick); stroke-width: 1; }
+.chart-svg .zero-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* Legend chips */
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  font-size: var(--chart-legend); color: var(--ink);
+}
+.chart-legend button {
+  appearance: none; background: transparent; border: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 0; font-size: var(--chart-legend);
+  color: var(--ink); cursor: pointer; font-family: inherit;
+  letter-spacing: -0.005em;
+}
+.chart-legend button[data-off="true"] { color: var(--ink-subtle); }
+.chart-legend button[data-off="true"] .swatch { background: transparent !important; border: 1px dashed var(--ink-subtle); }
+.chart-legend .swatch {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.dir-minimal .chart-legend .swatch    { border-radius: 999px; width: 9px; height: 9px; }
+.dir-expressive .chart-legend .swatch { border-radius: 3px; width: 12px; height: 12px; }
+
+/* Tooltip */
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow-pop);
+  font-size: 11.5px;
+  min-width: 140px;
+  pointer-events: none;
+}
+.dir-minimal .chart-tooltip    { border-radius: 10px; padding: 10px 12px; }
+.dir-expressive .chart-tooltip { border-radius: 10px; padding: 10px 12px; }
+.chart-tooltip .tt-title {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-muted); font-weight: 600; margin-bottom: 6px;
+}
+.chart-tooltip .tt-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 0; font-variant-numeric: tabular-nums;
+}
+.chart-tooltip .tt-row .sw { width: 8px; height: 8px; border-radius: 2px; }
+.chart-tooltip .tt-label { color: var(--ink); flex: 1; }
+.chart-tooltip .tt-value { color: var(--ink); font-weight: 600; }
+
+/* State overlays */
+.chart-state {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 20px; text-align: center;
+  background: color-mix(in oklab, var(--surface) 70%, transparent);
+  border-radius: 8px;
+}
+.chart-state .title {
+  font-size: 12.5px; font-weight: 600; color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.chart-state .sub { font-size: 11.5px; color: var(--ink-muted); max-width: 32ch; }
+.chart-state .icon {
+  width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+/* Annotation primitives */
+.chart-svg .anno-line { stroke: var(--chart-anno); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-svg .anno-pill {
+  fill: var(--surface); stroke: var(--chart-anno); stroke-width: 1;
+}
+.chart-svg .anno-pill-text { fill: var(--ink); font-weight: 600; font-size: 10.5px; }
+.chart-svg .anno-range { fill: var(--chart-anno); opacity: 0.06; }
+.chart-svg .anno-event { fill: var(--chart-anno); }

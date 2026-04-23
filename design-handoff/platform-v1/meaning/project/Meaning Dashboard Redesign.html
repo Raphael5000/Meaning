@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meaning — Dashboard Redesign</title>
+<link rel="stylesheet" href="tokens.css?v=18" />
+<style>
+  html, body { margin: 0; padding: 0; background: #1a1a1a; }
+  .scene-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="components/primitives.jsx"></script>
+<script type="text/babel" src="components/chat.jsx"></script>
+<script type="text/babel" src="components/dash.jsx"></script>
+<script type="text/babel" src="components/dash-scenes.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useEffect } = React;
+
+const Themed = ({ mode = 'dark', children }) => (
+  <div className={mode === 'dark' ? 'dark' : 'light'} style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
+    {children}
+  </div>
+);
+
+const App = () => {
+  useEffect(() => { document.documentElement.classList.add('dark'); }, []);
+
+  return (
+    <DesignCanvas
+      title="Meaning — Dashboard Redesign · Black & White"
+      subtitle="Dark-first · Swiss-editorial · tokens.css unified · paired with the chat redesign"
+    >
+      <DCSection id="primary" title="01 — Primary dashboard (dark)">
+        <DCArtboard id="full" label="Full dashboard — KPI row · line · bar · table · sankey" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashFull /></Themed>
+        </DCArtboard>
+        <DCArtboard id="with-chat" label="With chat dock — ask about this dashboard" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashWithChat /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="states" title="02 — In-flight states">
+        <DCArtboard id="generating" label="Adding a widget — generating skeleton" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashGenerating /></Themed>
+        </DCArtboard>
+        <DCArtboard id="add-dialog" label="Add widget dialog — describe in plain English" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashAddDialog /></Themed>
+        </DCArtboard>
+        <DCArtboard id="widget-menu" label="Widget hover menu — edit / refresh / remove" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashWidgetMenu /></Themed>
+        </DCArtboard>
+        <DCArtboard id="widget-error" label="Widget error — source disconnected" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashError /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="navigation" title="03 — Navigation & landing">
+        <DCArtboard id="list" label="Dashboards list — pick a board" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashList /></Themed>
+        </DCArtboard>
+        <DCArtboard id="empty" label="Empty dashboard — first widget" width={1280} height={900}>
+          <Themed mode="dark"><SceneDashEmpty /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="light" title="04 — Light theme (parity)">
+        <DCArtboard id="light-full" label="Light — full dashboard" width={1280} height={900}>
+          <Themed mode="light"><SceneDashFull /></Themed>
+        </DCArtboard>
+        <DCArtboard id="light-list" label="Light — dashboards list" width={1280} height={900}>
+          <Themed mode="light"><SceneDashList /></Themed>
+        </DCArtboard>
+        <DCArtboard id="light-empty" label="Light — empty" width={1280} height={900}>
+          <Themed mode="light"><SceneDashEmpty /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="mobile" title="05 — Mobile">
+        <DCArtboard id="m-dash" label="Mobile dashboard" width={420} height={840}>
+          <Themed mode="dark"><div style={{ padding: 14 }}><SceneDashMobile /></div></Themed>
+        </DCArtboard>
+        <DCArtboard id="m-dash-light" label="Mobile dashboard — light" width={420} height={840}>
+          <Themed mode="light"><div style={{ padding: 14 }}><SceneDashMobile /></div></Themed>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

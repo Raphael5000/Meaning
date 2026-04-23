@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meaning — Chat Redesign</title>
+<link rel="stylesheet" href="tokens.css?v=18" />
+<style>
+  html, body { margin: 0; padding: 0; background: #1a1a1a; }
+  /* design canvas frame override — ensures scenes sit on neutral */
+  .scene-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+  .dark-theme { color-scheme: dark; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="components/primitives.jsx"></script>
+<script type="text/babel" src="components/chat.jsx"></script>
+<script type="text/babel" src="components/scenes.jsx"></script>
+<script type="text/babel" src="components/connections.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useEffect } = React;
+
+// Wrapper that applies a theme class to the subtree
+const Themed = ({ mode = 'dark', children }) => {
+  return (
+    <div className={mode === 'dark' ? 'dark' : 'light'} style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
+      {children}
+    </div>
+  );
+};
+
+const App = () => {
+  // Default the <html> to dark so the design-canvas chrome is dark too
+  useEffect(() => { document.documentElement.classList.add('dark'); }, []);
+
+  return (
+    <DesignCanvas title="Meaning — Chat Redesign · Black & White" subtitle="Dark-first · Swiss-editorial · tokens.css unified · shadcn-compatible">
+      <DCSection id="dark" title="01 — Dark theme (primary)">
+        <DCArtboard id="full"          label="Full conversation — scorecard + line chart + rec + follow-ups" width={1280} height={900}>
+          <Themed mode="dark"><SceneFullChat /></Themed>
+        </DCArtboard>
+        <DCArtboard id="breakdown"     label="Breakdown — horizontal bar + recommendation" width={1280} height={780}>
+          <Themed mode="dark"><SceneBreakdown /></Themed>
+        </DCArtboard>
+        <DCArtboard id="table"          label="Attachment — ranked table" width={1280} height={900}>
+          <Themed mode="dark"><SceneTable /></Themed>
+        </DCArtboard>
+        <DCArtboard id="long"           label="Long answer — KPI grid + chart + prose" width={1280} height={960}>
+          <Themed mode="dark"><SceneLongScroll /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="streaming" title="02 — In-flight states (the 80%)">
+        <DCArtboard id="thinking"      label="Streaming — tool-status + typewriter caret" width={1280} height={700}>
+          <Themed mode="dark"><SceneStreaming /></Themed>
+        </DCArtboard>
+        <DCArtboard id="chart-loading" label="Streaming a chart — skeleton bars + status" width={1280} height={700}>
+          <Themed mode="dark"><SceneChartLoading /></Themed>
+        </DCArtboard>
+        <DCArtboard id="error"          label="Error — inline banner with retry" width={1280} height={720}>
+          <Themed mode="dark"><SceneError /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="navigation" title="03 — Navigation & chrome">
+        <DCArtboard id="collapsed"     label="Sidebar collapsed — icon rail" width={1280} height={760}>
+          <Themed mode="dark"><SceneCollapsed /></Themed>
+        </DCArtboard>
+        <DCArtboard id="account"        label="Account menu open" width={1280} height={760}>
+          <Themed mode="dark"><SceneAccountMenu /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="empty" title="04 — Empty states">
+        <DCArtboard id="no-sources"    label="Fresh account — no connections yet" width={1280} height={760}>
+          <Themed mode="dark"><SceneEmptyNoSources /></Themed>
+        </DCArtboard>
+        <DCArtboard id="ready"          label="Sources connected — no chats yet" width={1280} height={800}>
+          <Themed mode="dark"><SceneEmptyReady /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="light" title="05 — Light theme (parity)">
+        <DCArtboard id="light-full"    label="Light — full conversation" width={1280} height={900}>
+          <Themed mode="light"><SceneFullChat /></Themed>
+        </DCArtboard>
+        <DCArtboard id="light-empty"   label="Light — empty / first question" width={1280} height={800}>
+          <Themed mode="light"><SceneEmptyReady /></Themed>
+        </DCArtboard>
+        <DCArtboard id="light-table"   label="Light — table attachment" width={1280} height={900}>
+          <Themed mode="light"><SceneTable /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="connections" title="07 — Connections">
+        <DCArtboard id="conn-main"      label="Connections" width={1280} height={820}>
+          <Themed mode="dark"><SceneConnectionsCoverage /></Themed>
+        </DCArtboard>
+        <DCArtboard id="conn-detail"    label="Source detail — Google Ads" width={1280} height={820}>
+          <Themed mode="dark"><SceneConnectionsDetail /></Themed>
+        </DCArtboard>
+        <DCArtboard id="conn-empty"     label="Empty — fresh workspace" width={1280} height={820}>
+          <Themed mode="dark"><SceneConnectionsEmpty /></Themed>
+        </DCArtboard>
+        <DCArtboard id="conn-light"     label="Connections — light" width={1280} height={820}>
+          <Themed mode="light"><SceneConnectionsCoverage /></Themed>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="mobile" title="06 — Mobile">
+        <DCArtboard id="m-chat"        label="Mobile — chat + composer" width={420} height={840}>
+          <Themed mode="dark"><div style={{ padding: 14 }}><SceneMobile /></div></Themed>
+        </DCArtboard>
+        <DCArtboard id="m-drawer"      label="Mobile — drawer open" width={420} height={840}>
+          <Themed mode="dark"><div style={{ padding: 14 }}><SceneMobile drawer /></div></Themed>
+        </DCArtboard>
+        <DCArtboard id="m-light"        label="Mobile (light)" width={420} height={840}>
+          <Themed mode="light"><div style={{ padding: 14 }}><SceneMobile /></div></Themed>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
