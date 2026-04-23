@@ -95,8 +95,7 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
             <button
               type="button"
               onClick={() => setSourcesOpen((o) => !o)}
-              className="flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-              style={{ background: "var(--bg-tertiary, rgba(128,128,128,0.08))" }}
+              className="flex cursor-pointer items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
             >
               <Database className="h-3 w-3" />
               <span>{activeSources.length} source{activeSources.length !== 1 ? "s" : ""}</span>
@@ -108,10 +107,7 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
 
             {/* Popover — opens upward */}
             {sourcesOpen && (
-              <div
-                className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-xl border py-2 shadow-xl"
-                style={{ background: "var(--bg-primary)", borderColor: "var(--border-color)" }}
-              >
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-xl border border-border bg-background py-2 shadow-xl">
                 {activeSources.map((ds, i) => {
                   const icon = SOURCE_ICONS[ds.type];
                   const fallback = SOURCE_FALLBACK[ds.type];
@@ -145,12 +141,13 @@ export default function ChatInput({ onSend, disabled, placeholder, dataSources }
           type="submit"
           disabled={disabled || !input.trim()}
           size="icon"
-          className="absolute right-2 h-8 w-8 rounded-full"
+          className={`absolute right-2 h-8 w-8 rounded-full ${
+            input.trim() ? "text-white" : "text-muted-foreground"
+          }`}
           style={{
             background: input.trim()
               ? "linear-gradient(180deg, #14b58e 0%, #10a37f 45%, #0d8c6d 100%)"
               : "transparent",
-            color: input.trim() ? "#ffffff" : "var(--text-muted)",
             bottom: activeSources.length > 0 ? "0.625rem" : "0.5rem",
           }}
         >

@@ -495,8 +495,9 @@ export default function Chat() {
         <button
           type="button"
           onClick={() => !isRenaming && selectChat(chat)}
-          className="group flex w-full items-center gap-1 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
-          style={{ backgroundColor: currentChatId === chat.id ? "var(--bg-hover)" : undefined }}
+          className={`group flex w-full items-center gap-1 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent ${
+            currentChatId === chat.id ? "bg-accent" : ""
+          }`}
         >
           {isRenaming ? (
             <input
@@ -551,10 +552,7 @@ export default function Chat() {
   }
 
   return (
-    <div
-      className="flex h-screen"
-      style={{ background: "var(--bg-primary)" }}
-    >
+    <div className="flex h-screen bg-background">
       <OnboardingGuide
         show={showOnboarding}
         onComplete={() => setShowOnboarding(false)}
@@ -569,15 +567,11 @@ export default function Chat() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r transition-all duration-200 md:relative md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r border-border bg-secondary transition-all duration-200 md:relative md:z-auto md:translate-x-0 ${
           sidebarOpen
             ? "w-64 translate-x-0"
             : "w-64 -translate-x-full md:w-14 md:translate-x-0"
         }`}
-        style={{
-          borderColor: "var(--border-color)",
-          background: "var(--bg-secondary)",
-        }}
       >
         {/* Account selector — hidden when collapsed */}
         {sidebarOpen && (
@@ -641,10 +635,13 @@ export default function Chat() {
         <div className={`flex-1 overflow-y-auto p-2 pt-4 ${sidebarOpen ? "" : "hidden md:hidden"}`}>
           {!initialLoaded ? (
             <div className="space-y-1 px-2">
-              <div className="mb-3 h-3 w-16 animate-pulse rounded" style={{ background: "var(--bg-hover)" }} />
+              <div className="mb-3 h-3 w-16 animate-pulse rounded bg-accent" />
               {[0.85, 0.7, 0.55, 0.9, 0.6, 0.75].map((w, i) => (
                 <div key={i} className="rounded-lg px-3 py-2.5">
-                  <div className="h-3.5 animate-pulse rounded" style={{ width: `${w * 100}%`, background: "var(--bg-hover)", animationDelay: `${i * 100}ms` }} />
+                  <div
+                    className="h-3.5 animate-pulse rounded bg-accent"
+                    style={{ width: `${w * 100}%`, animationDelay: `${i * 100}ms` }}
+                  />
                 </div>
               ))}
             </div>
@@ -697,8 +694,7 @@ export default function Chat() {
           <div
             ref={accountMenuRef}
             data-onboarding="connections"
-            className={`relative mt-auto border-t ${sidebarOpen ? "p-3" : "p-2"}`}
-            style={{ borderColor: "var(--border-color)" }}
+            className={`relative mt-auto border-t border-border ${sidebarOpen ? "p-3" : "p-2"}`}
           >
             <button
               type="button"
@@ -803,9 +799,8 @@ export default function Chat() {
       <button
         type="button"
         onClick={() => setSidebarOpen((o) => !o)}
-        className="sidebar-toggle absolute z-[51] hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border bg-background text-muted-foreground shadow-sm transition-all hover:text-foreground md:flex"
+        className="sidebar-toggle absolute z-[51] hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all hover:text-foreground md:flex"
         style={{
-          borderColor: "var(--border-color)",
           top: "1.55rem",
           left: sidebarOpen ? "calc(16rem - 10px)" : "calc(3.5rem - 10px)",
           transition: "left 200ms ease",
@@ -863,21 +858,15 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 && !loading && !initialLoaded ? (
             <div className="flex h-full items-center justify-center">
-              <div
-                className="h-8 w-8 animate-spin rounded-full border-2 border-current"
-                style={{ color: "var(--accent)", borderTopColor: "transparent" }}
-              />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent text-primary" />
             </div>
           ) : messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center px-4">
               {/* Welcome wizard — show when no data sources connected or no org */}
               {connectedSources.length === 0 ? (
                 <div className="flex max-w-md flex-col items-center text-center">
-                  <div
-                    className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl"
-                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-secondary)" }}>
+                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-soft">
                       <path d="M12 2L2 7l10 5 10-5-10-5z" />
                       <path d="M2 17l10 5 10-5" />
                       <path d="M2 12l10 5 10-5" />
@@ -886,7 +875,7 @@ export default function Chat() {
                   <h2 className="mb-2 text-xl text-foreground">
                     Welcome to Meaning
                   </h2>
-                  <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  <p className="mb-6 text-sm text-soft">
                     {activeOrgId
                       ? "Connect your first data source to start asking questions about your analytics in plain English."
                       : "Create a team above, then connect your first data source to get started."}
@@ -894,16 +883,12 @@ export default function Chat() {
                   {activeOrgId && (
                     <button
                       onClick={() => setConnectionsOpen(true)}
-                      className="mb-3 rounded-full px-6 py-2.5 text-sm font-medium transition-colors"
-                      style={{
-                        background: "var(--text-primary)",
-                        color: "var(--bg-primary)",
-                      }}
+                      className="mb-3 rounded-full bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-colors"
                     >
                       Connect a data source
                     </button>
                   )}
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-xs text-muted-foreground">
                     GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console
                   </p>
                 </div>
@@ -914,7 +899,7 @@ export default function Chat() {
                   ? `Ask about ${activeOrgName}`
                   : "Chat with your Analytics"}
               </h2>
-              <p className="mb-8 max-w-md text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+              <p className="mb-8 max-w-md text-center text-sm text-soft">
                 Ask any question about your website analytics in plain English.
               </p>
 
@@ -924,8 +909,7 @@ export default function Chat() {
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}
-                      className="cursor-pointer rounded-full border border-border p-3 text-left text-sm transition-colors hover:bg-accent"
-                      style={{ color: "var(--text-secondary)" }}
+                      className="cursor-pointer rounded-full border border-border p-3 text-left text-sm text-soft transition-colors hover:bg-accent"
                     >
                       {q}
                     </button>
@@ -979,10 +963,7 @@ export default function Chat() {
                       <div className="flex items-center gap-2">
                         <span className="thinking-cursor" />
                         {toolStatus && (
-                          <span
-                            className="text-xs"
-                            style={{ color: "var(--text-secondary)" }}
-                          >
+                          <span className="text-xs text-soft">
                             {toolStatus}
                           </span>
                         )}

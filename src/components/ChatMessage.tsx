@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ChartRenderer, { type ChartRendererHandle, extractPieData, extractBarLegendData, getPieMetricLabel, ACCENT_PALETTE } from "./ChartRenderer";
 import ChartShareMenu from "./ChartShareMenu";
@@ -23,6 +26,44 @@ interface ChatMessageProps {
 
 const TYPEWRITER_WORD_DELAY_MS = 25;
 const TYPEWRITER_INITIAL_DELAY_MS = 400;
+
+const REC_BLOCK_REGEX = /\[\[rec\]\]([\s\S]*?)\[\[\/rec\]\]/g;
+
+type ContentSegment =
+  | { kind: "markdown"; text: string }
+  | { kind: "rec"; text: string };
+
+function splitContent(text: string): ContentSegment[] {
+  const segments: ContentSegment[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(REC_BLOCK_REGEX)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) {
+      segments.push({ kind: "markdown", text: text.slice(lastIndex, start) });
+    }
+    segments.push({ kind: "rec", text: match[1].trim() });
+    lastIndex = start + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ kind: "markdown", text: text.slice(lastIndex) });
+  }
+  return segments;
+}
+
+function Markdown({ text }: { text: string }) {
+  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+}
+
+function RecommendationCallout({ text }: { text: string }) {
+  return (
+    <div className="rec-bubble">
+      <Sparkles className="rec-tick" aria-hidden />
+      <div className="rec-bubble-content">
+        <Markdown text={text} />
+      </div>
+    </div>
+  );
+}
 
 export default function ChatMessage({
   role,
@@ -85,6 +126,8 @@ export default function ChatMessage({
     ? parts.slice(0, visiblePartCount).join("")
     : content;
 
+  const segments = useMemo(() => splitContent(visibleContent), [visibleContent]);
+
   // Compute legend data for chart image export
   const chartLegendData = useMemo(() => {
     if (!chart) return null;
@@ -100,7 +143,6 @@ export default function ChatMessage({
       <div
         className={`flex w-full max-w-3xl ${isUser ? "justify-end" : ""}`}
       >
-        {/* Message bubble */}
         <div
           className={
             isUser
@@ -109,9 +151,7 @@ export default function ChatMessage({
           }
         >
           {role === "assistant" && scorecard && (
-            <div
-              className="scorecard mb-3 inline-flex w-fit flex-col gap-0 rounded-2xl border border-border bg-secondary px-4 py-3"
-            >
+            <div className="scorecard mb-3 inline-flex w-fit flex-col gap-0 rounded-2xl border border-border bg-secondary px-4 py-3">
               <div className="flex items-baseline gap-3">
                 <div className="flex flex-col items-baseline gap-0 text-3xl leading-[1.2]">
                   <span className="font-semibold tabular-nums tracking-tight text-foreground">
@@ -119,13 +159,11 @@ export default function ChatMessage({
                   </span>
                   {scorecard.change && (
                     <span
-                      className="tabular-nums"
-                      style={{
-                        fontSize: "0.5em",
-                        color: scorecard.change.startsWith("-")
-                          ? "var(--error)"
-                          : "var(--success)",
-                      }}
+                      className={`tabular-nums text-[0.5em] ${
+                        scorecard.change.startsWith("-")
+                          ? "text-destructive"
+                          : "text-success"
+                      }`}
                     >
                       {scorecard.change.startsWith("-") ? (
                         <>&darr; {scorecard.change}</>
@@ -135,20 +173,14 @@ export default function ChatMessage({
                     </span>
                   )}
                 </div>
-                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                <span className="text-sm text-soft">
                   {scorecard.label}
                 </span>
               </div>
             </div>
           )}
           {role === "assistant" && chart && !compact && (
-            <div
-              className="relative mb-3 overflow-hidden rounded-2xl border p-4"
-              style={{
-                borderColor: "var(--border-color)",
-                background: "var(--bg-secondary)",
-              }}
-            >
+            <div className="relative mb-3 overflow-hidden rounded-2xl border border-border bg-secondary p-4">
               <div className="absolute right-3 top-3 z-10">
                 <ChartShareMenu
                   getDataURL={() => chartRef.current?.getDataURL() ?? null}
@@ -160,19 +192,20 @@ export default function ChatMessage({
             </div>
           )}
           <div
-            className={`message-content rounded-2xl px-4 py-1 text-sm leading-relaxed ${
-              isUser ? "max-w-full" : ""
+            className={`message-content rounded-2xl border border-border px-4 py-1 text-sm leading-relaxed text-foreground ${
+              isUser
+                ? "inline-block w-fit max-w-full bg-user-bubble"
+                : "bg-secondary"
             }`}
-            style={{
-              color: "var(--text-primary)",
-              background: isUser
-                ? "var(--user-bubble)"
-                : "var(--bg-secondary)",
-              border: "1px solid var(--border-color)",
-              ...(isUser && { display: "inline-block", width: "fit-content", maxWidth: "100%" }),
-            }}
-            dangerouslySetInnerHTML={{ __html: formatContent(visibleContent) }}
-          />
+          >
+            {segments.map((seg, i) =>
+              seg.kind === "rec" ? (
+                <RecommendationCallout key={i} text={seg.text} />
+              ) : (
+                <Markdown key={i} text={seg.text} />
+              )
+            )}
+          </div>
           {role === "assistant" &&
             suggestedQuestions &&
             suggestedQuestions.length > 0 &&
@@ -182,9 +215,8 @@ export default function ChatMessage({
                   <Button
                     key={q}
                     variant="outline"
-                    className="rounded-full text-left whitespace-normal h-auto"
+                    className="rounded-full text-left whitespace-normal h-auto text-soft"
                     onClick={() => onSuggestedQuestionClick(q)}
-                    style={{ color: "var(--text-secondary)" }}
                   >
                     {q}
                   </Button>
@@ -195,149 +227,4 @@ export default function ChatMessage({
       </div>
     </div>
   );
-}
-
-const REC_BLOCK_REGEX = /\[\[rec\]\]([\s\S]*?)\[\[\/rec\]\]/g;
-
-function formatContent(text: string): string {
-  // Extract recommendation blocks first and replace with placeholders
-  const recBlocks: string[] = [];
-  let html = text.replace(REC_BLOCK_REGEX, (_, content) => {
-    recBlocks.push(content.trim());
-    return `___REC_BLOCK_${recBlocks.length - 1}___`;
-  });
-
-  // Basic markdown-like formatting
-  html = escapeHtml(html);
-
-  // Code blocks (```...```)
-  html = html.replace(
-    /```(\w*)\n([\s\S]*?)```/g,
-    '<pre><code class="language-$1">$2</code></pre>'
-  );
-
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-  // Headers
-  html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
-  html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
-  html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
-
-  // Tables
-  html = formatTables(html);
-
-  // Lists (support indented bullets like "  - item")
-  html = html.replace(/^[ \t]*- (.+)$/gm, "<li>$1</li>");
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
-
-  // Numbered lists
-  html = html.replace(/^[ \t]*\d+\. (.+)$/gm, "<li>$1</li>");
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
-    // Only wrap if not already inside a <ul>
-    if (match.startsWith("<ul>")) return match;
-    return `<ol>${match}</ol>`;
-  });
-
-  // Blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
-
-  // Paragraphs (double newlines)
-  html = html.replace(/\n\n/g, "</p><p>");
-  html = `<p>${html}</p>`;
-
-  // Remove newlines inside and around lists (prevents <br> between items and after lists)
-  html = html.replace(/<\/li>\n<li>/g, "</li><li>");
-  html = html.replace(/<\/ul>\n/g, "</ul>");
-  html = html.replace(/<\/ol>\n/g, "</ol>");
-
-  // Single newlines within paragraphs
-  html = html.replace(/\n/g, "<br>");
-
-  // Clean up empty paragraphs
-  html = html.replace(/<p><\/p>/g, "");
-  html = html.replace(/<p>(<h[1-3]>)/g, "$1");
-  html = html.replace(/(<\/h[1-3]>)<\/p>/g, "$1");
-  html = html.replace(/<p>(<ul>)/g, "$1");
-  html = html.replace(/(<\/ul>)<\/p>/g, "$1");
-  html = html.replace(/<p>(<ol>)/g, "$1");
-  html = html.replace(/(<\/ol>)<\/p>/g, "$1");
-  html = html.replace(/<p>(<pre>)/g, "$1");
-  html = html.replace(/(<\/pre>)<\/p>/g, "$1");
-  html = html.replace(/<p>(<table>)/g, "$1");
-  html = html.replace(/(<\/table>)<\/p>/g, "$1");
-  html = html.replace(/<p>(<blockquote>)/g, "$1");
-  html = html.replace(/(<\/blockquote>)<\/p>/g, "$1");
-
-  // Unwrap rec placeholders from <p> tags (block in inline is invalid)
-  recBlocks.forEach((_, i) => {
-    html = html.replace(
-      new RegExp(`<p>___REC_BLOCK_${i}___<\\/p>`, "g"),
-      `___REC_BLOCK_${i}___`
-    );
-  });
-
-  // Replace recommendation block placeholders with green bubbles
-  recBlocks.forEach((content, i) => {
-    const formatted = formatContentInner(content);
-    const bubble = `<div class="rec-bubble">${REC_TICK_SVG}<div class="rec-bubble-content">${formatted}</div></div>`;
-    html = html.replace(`___REC_BLOCK_${i}___`, bubble);
-  });
-
-  return html;
-}
-
-/** Format content without processing [[rec]] blocks (avoids recursion) */
-function formatContentInner(text: string): string {
-  let html = escapeHtml(text);
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/^- (.+)$/gm, "<li>$1</li>");
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
-  html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
-  html = html.replace(/\n\n/g, "</p><p>");
-  html = `<p>${html}</p>`;
-  html = html.replace(/\n/g, "<br>");
-  html = html.replace(/<p><\/p>/g, "");
-  return html;
-}
-
-const REC_TICK_SVG =
-  '<svg class="rec-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>';
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function formatTables(html: string): string {
-  // Match markdown tables
-  const tableRegex = /(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/g;
-
-  return html.replace(tableRegex, (_, headerRow: string, _separator: string, bodyRows: string) => {
-    const headers = headerRow
-      .split("|")
-      .filter((c: string) => c.trim())
-      .map((c: string) => `<th>${c.trim()}</th>`)
-      .join("");
-
-    const rows = bodyRows
-      .trim()
-      .split("\n")
-      .map((row: string) => {
-        const cells = row
-          .split("|")
-          .filter((c: string) => c.trim())
-          .map((c: string) => `<td>${c.trim()}</td>`)
-          .join("");
-        return `<tr>${cells}</tr>`;
-      })
-      .join("");
-
-    return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
-  });
 }
