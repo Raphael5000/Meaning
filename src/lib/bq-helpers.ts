@@ -17,6 +17,19 @@ export async function safeDelete(bq: BigQuery, query: string, label = "bq"): Pro
       console.log(`[${label}] Skipping DELETE (streaming buffer) — will NOT insert to avoid duplicates`);
       return false;
     }
+    // "Table not found" → nothing to delete (fresh table, or metadata hadn't
+    // propagated after a recent create). Return true so the caller still
+    // runs the subsequent INSERT.  Previously we rethrew and killed the
+    // entire MS Ads sync with "Table X not found" — exactly the retry
+    // failure users were seeing after a Fully-reconnect + re-Enable cycle.
+    if (
+      msg.includes("Not found: Table") ||
+      msg.includes("Table not found") ||
+      /Not found:.*Table/i.test(msg)
+    ) {
+      console.log(`[${label}] DELETE target table not found — treating as empty, proceeding to insert`);
+      return true;
+    }
     throw err;
   }
 }

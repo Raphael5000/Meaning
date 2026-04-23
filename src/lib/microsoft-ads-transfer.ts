@@ -548,6 +548,14 @@ export async function syncMicrosoftAdsData(
   const bq = getBqClient();
   const projectId = getProjectId();
 
+  // Self-heal: sync used to assume tables existed (created once by
+  // enable-export).  When /api/resync ran against a dataset whose tables
+  // had been dropped (or never fully recreated after a prior resetMsAdsTables
+  // race), DELETE would fail with "Table ... not found" and the sync died
+  // with no data. Both helpers are idempotent.
+  await ensureDataset(datasetId);
+  await ensureMsAdsTables(datasetId);
+
   console.log(`[msads-sync] Starting sync for account ${accountId}, ${startDate} → ${endDate}`);
 
   // Fetch all reports in parallel
