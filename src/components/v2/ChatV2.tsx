@@ -114,9 +114,17 @@ function orgInitials(name: string): string {
     .toUpperCase();
 }
 
+type ConnectionsSourceType =
+  | "GA4_BIGQUERY"
+  | "GOOGLE_ADS"
+  | "SEARCH_CONSOLE"
+  | "LINKEDIN"
+  | "MAILCHIMP"
+  | "MICROSOFT_ADS";
+
 type ActivePanel =
   | { kind: "none" }
-  | { kind: "connections" }
+  | { kind: "connections"; initialSourceType?: ConnectionsSourceType }
   | { kind: "alerts" }
   | { kind: "team" }
   | { kind: "account" }
@@ -325,15 +333,21 @@ export default function ChatV2() {
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (
-      params.get("ga_connected") === "true" ||
-      params.get("gsc_connected") === "true" ||
-      params.get("ads_connected") === "true" ||
-      params.get("linkedin_connected") === "true" ||
-      params.get("mailchimp_connected") === "true" ||
-      params.get("ms_ads_connected") === "true"
-    ) {
-      setActivePanel({ kind: "connections" });
+    // Map OAuth callback `*_connected=true` params to a specific source type
+    // so we can open ConnectionsV2 directly in the detail view. Landing on the
+    // list view after OAuth leaves users staring at "Not connected" rows until
+    // they go pick accounts — exactly the Microsoft Ads panic pattern.
+    const oauthMap: Array<[string, ConnectionsSourceType]> = [
+      ["ga_connected", "GA4_BIGQUERY"],
+      ["ads_connected", "GOOGLE_ADS"],
+      ["gsc_connected", "SEARCH_CONSOLE"],
+      ["linkedin_connected", "LINKEDIN"],
+      ["mailchimp_connected", "MAILCHIMP"],
+      ["ms_ads_connected", "MICROSOFT_ADS"],
+    ];
+    const hit = oauthMap.find(([p]) => params.get(p) === "true");
+    if (hit) {
+      setActivePanel({ kind: "connections", initialSourceType: hit[1] });
       window.history.replaceState({}, "", "/");
     }
   }, []);
@@ -877,6 +891,7 @@ export default function ChatV2() {
               }}
               orgId={activeOrgId}
               orgName={activeOrg?.name ?? ""}
+              initialSourceType={activePanel.initialSourceType ?? null}
             />
           ) : (
           <V1PanelWrapper>

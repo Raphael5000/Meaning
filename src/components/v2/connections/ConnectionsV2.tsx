@@ -107,20 +107,35 @@ interface ConnectionsV2Props {
   onClose: () => void;
   orgId?: string | null;
   orgName?: string;
+  /** If set, opens directly in detail view for this source (e.g. right after
+   * an OAuth redirect so the user sees the account picker, not the list). */
+  initialSourceType?: SourceType | null;
 }
 
 type View =
   | { kind: "list" }
   | { kind: "detail"; sourceType: SourceType };
 
-export default function ConnectionsV2({ onClose, orgId }: ConnectionsV2Props) {
+export default function ConnectionsV2({
+  onClose,
+  orgId,
+  initialSourceType,
+}: ConnectionsV2Props) {
   const [status, setStatus] = React.useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [view, setView] = React.useState<View>({ kind: "list" });
+  const [view, setView] = React.useState<View>(
+    initialSourceType
+      ? { kind: "detail", sourceType: initialSourceType }
+      : { kind: "list" }
+  );
   const [message, setMessage] = React.useState<
     { kind: "success" | "error"; text: string } | null
   >(null);
   const [syncingAll, setSyncingAll] = React.useState(false);
+  // Map of `${sourceType}:${id}` → human-readable account name.  Populated by
+  // calling the same /accessible-* endpoints the detail-view picker uses; the
+  // table then shows the real name instead of the raw propertyId/accountId.
+  const [nameMap, setNameMap] = React.useState<Map<string, string>>(new Map());
 
   const fetchStatus = React.useCallback(
     (silent = false) => {
@@ -151,6 +166,53 @@ export default function ConnectionsV2({ onClose, orgId }: ConnectionsV2Props) {
     const interval = setInterval(() => fetchStatus(true), 10000);
     return () => clearInterval(interval);
   }, [status, fetchStatus]);
+
+  // Fetch account names from /accessible-* endpoints for every source type
+  // that is either authed (so we can show names in the list *and* in the detail
+  // picker) or has a connected DataSource. We key a flat map by
+  // `${type}:${id}` so row rendering is a single O(1) lookup.
+  React.useEffect(() => {
+    if (!status) return;
+    const typesWithDataSources = new Set(status.dataSources.map((ds) => ds.type));
+    const authedTypes: SourceType[] = [];
+    if (status.hasGoogleAccount) authedTypes.push("GA4_BIGQUERY");
+    if (status.hasAdsScope) authedTypes.push("GOOGLE_ADS");
+    if (status.hasGscScope) authedTypes.push("SEARCH_CONSOLE");
+    if (status.hasLinkedInAccount) authedTypes.push("LINKEDIN");
+    if (status.hasMailchimpAccount) authedTypes.push("MAILCHIMP");
+    if (status.hasMicrosoftAdsAccount) authedTypes.push("MICROSOFT_ADS");
+    const toFetch = new Set<SourceType>([
+      ...authedTypes,
+      ...Array.from(typesWithDataSources).map((t) => t as SourceType),
+    ]);
+    if (toFetch.size === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries: Array<[string, string]> = [];
+      await Promise.all(
+        Array.from(toFetch).map(async (type) => {
+          try {
+            const items = await fetchAccessibleAccounts(type);
+            for (const item of items) {
+              entries.push([`${type}:${item.id}`, item.label]);
+            }
+          } catch {
+            /* ignore – fall back to raw IDs */
+          }
+        })
+      );
+      if (!cancelled && entries.length > 0) {
+        setNameMap((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of entries) next.set(k, v);
+          return next;
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   async function handleSyncAll() {
     setSyncingAll(true);
@@ -185,6 +247,7 @@ export default function ConnectionsV2({ onClose, orgId }: ConnectionsV2Props) {
           status={status}
           orgId={orgId ?? null}
           sourceType={view.sourceType}
+          nameMap={nameMap}
           onBack={() => setView({ kind: "list" })}
           onRefresh={() => fetchStatus(true)}
           onMessage={setMessage}
@@ -199,6 +262,7 @@ export default function ConnectionsV2({ onClose, orgId }: ConnectionsV2Props) {
       <ConnectionsList
         status={status}
         loading={loading}
+        nameMap={nameMap}
         syncingAll={syncingAll}
         onSyncAll={handleSyncAll}
         onOpenDetail={(t) => setView({ kind: "detail", sourceType: t })}
@@ -235,6 +299,7 @@ function V2Shell({ children }: { children: React.ReactNode }) {
 interface ConnectionsListProps {
   status: ConnectionStatus | null;
   loading: boolean;
+  nameMap: Map<string, string>;
   syncingAll: boolean;
   onSyncAll: () => void;
   onOpenDetail: (sourceType: SourceType) => void;
@@ -244,14 +309,24 @@ interface ConnectionsListProps {
 function ConnectionsList({
   status,
   loading,
+  nameMap,
   syncingAll,
   onSyncAll,
   onOpenDetail,
   onClose,
 }: ConnectionsListProps) {
-  const rows = React.useMemo(() => buildRows(status, SOURCES), [status]);
+  const rows = React.useMemo(
+    () => buildRows(status, SOURCES, nameMap),
+    [status, nameMap]
+  );
   const connected = rows.filter((r) => r.uiStatus !== "DISCONNECTED");
   const available = rows.filter((r) => r.uiStatus === "DISCONNECTED");
+
+  // Single gate: render tables only after first status load completes. This
+  // prevents the "all sources flash as Not connected" race while the API call
+  // is in flight (the user would otherwise see their connected sources briefly
+  // appear as disconnected before populating).
+  const ready = !loading && !!status;
 
   return (
     <>
@@ -271,39 +346,106 @@ function ConnectionsList({
             Connections
           </h1>
           <p className="text-[13px] text-v2-ink-muted">
-            {loading
-              ? "Loading…"
-              : `${connected.length} connected · daily sync`}
+            {ready
+              ? `${connected.length} connected · daily sync`
+              : "Loading…"}
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={onSyncAll}
-          disabled={syncingAll || connected.length === 0}
+          disabled={!ready || syncingAll || connected.length === 0}
         >
           <I.Refresh size={12} className={syncingAll ? "animate-spin" : ""} />
           {syncingAll ? "Syncing…" : "Sync all"}
         </Button>
       </header>
 
-      {loading && !status ? (
-        <div className="flex h-40 items-center justify-center text-[13px] text-v2-ink-muted">
-          Loading connections…
-        </div>
-      ) : connected.length === 0 && !loading ? (
-        <ConnectionsEmpty />
+      {!ready ? (
+        <SourceTableSkeleton rowCount={SOURCES.length} />
       ) : (
-        <div className="mb-7">
-          <SourceTable rows={connected} onOpenDetail={onOpenDetail} />
-        </div>
-      )}
+        <>
+          {connected.length === 0 ? (
+            <ConnectionsEmpty />
+          ) : (
+            <div className="mb-7">
+              <SourceTable
+                rows={connected}
+                onOpenDetail={onOpenDetail}
+                status={status}
+              />
+            </div>
+          )}
 
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-v2-ink-subtle">
-        Add source
-      </div>
-      <SourceTable rows={available} onOpenDetail={onOpenDetail} addSource />
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-v2-ink-subtle">
+            Add source
+          </div>
+          <SourceTable
+            rows={available}
+            onOpenDetail={onOpenDetail}
+            addSource
+            status={status}
+          />
+        </>
+      )}
     </>
+  );
+}
+
+/** Neutral skeleton — same outer chrome as SourceTable so layout doesn't jump
+ * when real rows swap in. Rows show the source label/icon so the user knows
+ * which platforms exist; account/status/last-sync cells remain dashes until
+ * the real state lands.  We intentionally do NOT show a "Not connected" pill
+ * here — that's the panic the user reported. */
+function SourceTableSkeleton({ rowCount }: { rowCount: number }) {
+  return (
+    <div className="overflow-hidden rounded-[10px] border border-v2-line bg-v2-surface">
+      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: "28%" }} />
+          <col />
+          <col style={{ width: 128 }} />
+          <col style={{ width: 128 }} />
+          <col style={{ width: 44 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <Th className="pl-4">Source</Th>
+            <Th>Account</Th>
+            <Th>Status</Th>
+            <Th className="text-right">Last sync</Th>
+            <Th className="pr-4" aria-label="Open">
+              {" "}
+            </Th>
+          </tr>
+        </thead>
+        <tbody>
+          {SOURCES.slice(0, rowCount).map((s) => (
+            <tr key={s.type} className="border-b border-v2-line last:border-b-0">
+              <td className="py-2.5 pl-4 pr-3">
+                <div className="flex items-center gap-2.5">
+                  <img src={s.icon} alt="" className="h-5 w-5 shrink-0" aria-hidden />
+                  <span className="text-[13.5px] font-medium text-v2-ink">
+                    {s.label}
+                  </span>
+                </div>
+              </td>
+              <td className="px-3 py-2.5">
+                <span className="inline-block h-3 w-28 rounded bg-v2-surface-2" />
+              </td>
+              <td className="px-3 py-2.5">
+                <span className="inline-block h-4 w-20 rounded-full bg-v2-surface-2" />
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <span className="inline-block h-3 w-14 rounded bg-v2-surface-2" />
+              </td>
+              <td className="pr-4 py-2.5" />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -325,7 +467,8 @@ interface UiRow {
 
 function buildRows(
   status: ConnectionStatus | null,
-  sources: SourceDef[]
+  sources: SourceDef[],
+  nameMap: Map<string, string>
 ): UiRow[] {
   const dataByType = new Map<string, DataSourceInfo[]>();
   for (const ds of status?.dataSources ?? []) {
@@ -343,7 +486,7 @@ function buildRows(
       icon: s.icon,
       uiStatus,
       lastSync,
-      accountSummary: summariseAccounts(sources),
+      accountSummary: summariseAccounts(sources, nameMap, s.type),
       comingSoon: s.comingSoon,
       dataSources: sources,
     };
@@ -370,13 +513,18 @@ function pickLastSync(sources: DataSourceInfo[]): string | null {
   return new Date(Math.max(...times)).toISOString();
 }
 
-function summariseAccounts(sources: DataSourceInfo[]): string {
+function summariseAccounts(
+  sources: DataSourceInfo[],
+  nameMap: Map<string, string>,
+  type: SourceType
+): string {
   if (sources.length === 0) return "—";
-  if (sources.length === 1) {
-    const s = sources[0];
-    return s.propertyId || s.adsCustomerId || "1 account";
-  }
-  return `${sources.length} accounts`;
+  const firstId =
+    sources[0].propertyId || sources[0].adsCustomerId || "";
+  const firstName =
+    (firstId && nameMap.get(`${type}:${firstId}`)) || firstId || "1 account";
+  if (sources.length === 1) return firstName;
+  return `${firstName} +${sources.length - 1} more`;
 }
 
 function formatTimeAgo(iso: string | null): string | null {
@@ -433,9 +581,10 @@ interface SourceTableProps {
   rows: UiRow[];
   onOpenDetail: (type: SourceType) => void;
   addSource?: boolean;
+  status: ConnectionStatus | null;
 }
 
-function SourceTable({ rows, onOpenDetail, addSource }: SourceTableProps) {
+function SourceTable({ rows, onOpenDetail, addSource, status }: SourceTableProps) {
   return (
     <div className="overflow-hidden rounded-[10px] border border-v2-line bg-v2-surface">
       <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
@@ -462,6 +611,7 @@ function SourceTable({ rows, onOpenDetail, addSource }: SourceTableProps) {
             <Row
               key={r.type}
               row={r}
+              status={status}
               onOpenDetail={onOpenDetail}
               addSource={addSource}
             />
@@ -493,10 +643,12 @@ function Th({
 
 function Row({
   row,
+  status,
   onOpenDetail,
   addSource,
 }: {
   row: UiRow;
+  status: ConnectionStatus | null;
   onOpenDetail: (type: SourceType) => void;
   addSource?: boolean;
 }) {
@@ -504,6 +656,13 @@ function Row({
   const isError = row.uiStatus === "ERROR";
   const isBackfilling = row.uiStatus === "BACKFILLING";
   const ago = formatTimeAgo(row.lastSync);
+  // "Authed but no DataSource" — the OAuth account exists (Account row in DB)
+  // but the user hasn't picked any accounts yet. We must not just re-OAuth;
+  // we need to send them into the account-picker detail view.  This is THE
+  // fix for "I connected Microsoft Ads but the list still says Not connected":
+  // after the OAuth callback, DataSource doesn't exist yet — only the Account
+  // does, so the list row would otherwise show "Connect" forever.
+  const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
@@ -516,6 +675,16 @@ function Row({
       <a href={connectUrl(row.type)} style={linkBtnStyle("var(--v2-neg)")}>
         Reconnect
       </a>
+    );
+  } else if (needsAccountPick) {
+    lastCell = (
+      <button
+        type="button"
+        onClick={() => onOpenDetail(row.type)}
+        style={linkBtnStyle("var(--v2-ink)")}
+      >
+        Pick accounts
+      </button>
     );
   } else if (!isConnected) {
     lastCell = (
@@ -557,17 +726,21 @@ function Row({
         <span className="text-[12.5px] text-v2-ink-muted">
           {row.comingSoon
             ? "Coming soon"
-            : addSource && !isConnected
-              ? "—"
-              : row.accountSummary}
+            : needsAccountPick
+              ? "Signed in · no accounts enabled"
+              : addSource && !isConnected
+                ? "—"
+                : row.accountSummary}
         </span>
       </td>
       <td className="px-3 py-2.5">
-        <StatusPill status={row.uiStatus} />
+        <StatusPill
+          status={needsAccountPick ? "NEEDS_PICK" : row.uiStatus}
+        />
       </td>
       <td className="px-3 py-2.5 text-right">{lastCell}</td>
       <td className="pr-4 py-2.5 text-right" style={{ whiteSpace: "nowrap" }}>
-        {isConnected && !row.comingSoon ? (
+        {(isConnected || needsAccountPick) && !row.comingSoon ? (
           <button
             type="button"
             onClick={() => onOpenDetail(row.type)}
@@ -582,12 +755,35 @@ function Row({
   );
 }
 
+function isAuthedForSource(
+  type: SourceType,
+  status: ConnectionStatus | null
+): boolean {
+  if (!status) return false;
+  switch (type) {
+    case "GA4_BIGQUERY":
+      return status.hasGoogleAccount;
+    case "GOOGLE_ADS":
+      return status.hasAdsScope;
+    case "SEARCH_CONSOLE":
+      return status.hasGscScope;
+    case "LINKEDIN":
+      return status.hasLinkedInAccount;
+    case "MAILCHIMP":
+      return status.hasMailchimpAccount;
+    case "MICROSOFT_ADS":
+      return status.hasMicrosoftAdsAccount;
+    default:
+      return false;
+  }
+}
+
 /* Status pill ----------------------------------------------------------- */
 
 function StatusPill({
   status,
 }: {
-  status: "ACTIVE" | "BACKFILLING" | "ERROR" | "DISCONNECTED";
+  status: "ACTIVE" | "BACKFILLING" | "ERROR" | "DISCONNECTED" | "NEEDS_PICK";
 }) {
   const cfg = {
     ACTIVE: {
@@ -616,6 +812,13 @@ function StatusPill({
       dot: "var(--v2-ink-subtle)",
       ink: "var(--v2-ink-muted)",
       bg: "var(--v2-surface-2)",
+      pulse: false,
+    },
+    NEEDS_PICK: {
+      label: "Finish setup",
+      dot: "var(--v2-info)",
+      ink: "var(--v2-info)",
+      bg: "var(--v2-info-bg)",
       pulse: false,
     },
   }[status];
@@ -669,6 +872,7 @@ interface ConnectionsDetailProps {
   status: ConnectionStatus | null;
   orgId: string | null;
   sourceType: SourceType;
+  nameMap: Map<string, string>;
   onBack: () => void;
   onRefresh: () => void;
   onMessage: (
@@ -680,6 +884,7 @@ function ConnectionsDetail({
   status,
   orgId,
   sourceType,
+  nameMap,
   onBack,
   onRefresh,
   onMessage,
@@ -779,10 +984,10 @@ function ConnectionsDetail({
         <>
           <SectionLabel>Accounts</SectionLabel>
           {sources.map((ds) => {
+            const rawId =
+              ds.propertyId || ds.adsCustomerId || ds.id.slice(0, 12);
             const accountLabel =
-              ds.propertyId ||
-              ds.adsCustomerId ||
-              ds.id.slice(0, 12);
+              (rawId && nameMap.get(`${sourceType}:${rawId}`)) || rawId;
             return (
               <div
                 key={ds.id}
