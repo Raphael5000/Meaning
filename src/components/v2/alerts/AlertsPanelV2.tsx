@@ -1,37 +1,46 @@
 "use client";
 
 import * as React from "react";
-import { AlertsIndex, type AlertSummary } from "./AlertsIndex";
-import { AlertCreate } from "./AlertCreate";
-import { AlertDetail } from "./AlertDetail";
-import { uiToDb, type UiSchedule } from "./schedule";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+
+import { Page, PageBody, PageHeader } from "../layout";
+import { Button } from "@/components/ui/button";
+import { AlertsList } from "./AlertsList";
+import { AlertEditSheet, type AlertSavePayload } from "./AlertEditSheet";
+import { dbToUi, uiToDb, type UiSchedule } from "./schedule";
+import type { AlertSummary } from "./types";
 
 interface AlertsPanelV2Props {
-  onClose: () => void;
+  /** Provided by ChatV2 for symmetry with other panels; currently unused
+   *  because the AppShell sidebar handles navigation. */
+  onClose?: () => void;
   orgId: string | null;
 }
 
-type View =
-  | { kind: "index" }
-  | { kind: "create" }
-  | { kind: "detail"; id: string };
+const DEFAULT_SCHEDULE: UiSchedule = {
+  frequency: "weekly",
+  day: "monday",
+  hour: 9,
+};
 
-interface SavePayload {
-  name: string;
-  alertType: string;
-  customPrompt: string | null;
-  recipients: string;
-  schedule: UiSchedule;
-  enabled?: boolean;
-}
-
-export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
+/**
+ * Alerts panel — list view + create/edit Sheet drawer.
+ *
+ * Replaces the old multi-route panel (index / create / detail) with a
+ * single Table + Sheet pattern. Sending a test (existing API) is the
+ * way to preview what the email looks like.
+ */
+export default function AlertsPanelV2({ orgId }: AlertsPanelV2Props) {
   const [alerts, setAlerts] = React.useState<AlertSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [view, setView] = React.useState<View>({ kind: "index" });
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
-  const [toast, setToast] = React.useState<string | null>(null);
+
+  // Sheet state — null = closed, "create" = new, "<id>" = edit existing.
+  const [editingId, setEditingId] = React.useState<string | "create" | null>(
+    null,
+  );
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -42,6 +51,7 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
       setAlerts(Array.isArray(data) ? data : []);
     } catch {
       setAlerts([]);
+      toast.error("Could not load alerts.");
     } finally {
       setLoading(false);
     }
@@ -51,18 +61,42 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
     load();
   }, [load, orgId]);
 
-  // Auto-clear toast
+  // Keyboard: N → new alert.
   React.useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(t);
-  }, [toast]);
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const editing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (editing || editingId !== null) return;
+      if (e.key === "n" || e.key === "N") {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        setEditingId("create");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editingId]);
 
-  function showToast(msg: string) {
-    setToast(msg);
-  }
+  const editingAlert =
+    editingId && editingId !== "create"
+      ? alerts.find((a) => a.id === editingId) ?? null
+      : null;
 
-  async function createAlert(payload: SavePayload) {
+  const initialSchedule = editingAlert
+    ? dbToUi({
+        sendDays: editingAlert.sendDays,
+        sendHour: editingAlert.sendHour,
+        sendMinute: editingAlert.sendMinute,
+        intervalWeeks: editingAlert.intervalWeeks,
+      })
+    : DEFAULT_SCHEDULE;
+
+  /* -------------------------------- API -------------------------------- */
+
+  async function createAlert(payload: AlertSavePayload) {
     setSaving(true);
     try {
       const db = uiToDb(payload.schedule);
@@ -81,21 +115,24 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error || "Could not create alert",
-        );
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(err.error || "Could not create alert");
       }
       const created = (await res.json()) as AlertSummary;
       setAlerts((prev) => [created, ...prev]);
-      setView({ kind: "detail", id: created.id });
-      showToast("Alert created — first email will land on schedule.");
+      setEditingId(null);
+      toast.success("Alert created — first email will land on schedule.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create");
+      throw err;
     } finally {
       setSaving(false);
     }
   }
 
-  async function updateAlert(id: string, payload: SavePayload) {
+  async function updateAlert(id: string, payload: AlertSavePayload) {
     setSaving(true);
     try {
       const db = uiToDb(payload.schedule);
@@ -115,14 +152,18 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error || "Could not save changes",
-        );
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(err.error || "Could not save changes");
       }
       const updated = (await res.json()) as AlertSummary;
       setAlerts((prev) => prev.map((a) => (a.id === id ? updated : a)));
-      showToast("Saved.");
+      setEditingId(null);
+      toast.success("Saved.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -133,12 +174,10 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
       const res = await fetch(`/api/alerts/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Could not delete alert");
       setAlerts((prev) => prev.filter((a) => a.id !== id));
-      if (view.kind === "detail" && view.id === id) {
-        setView({ kind: "index" });
-      }
-      showToast("Alert deleted.");
+      if (editingId === id) setEditingId(null);
+      toast.success("Alert deleted.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not delete");
+      toast.error(err instanceof Error ? err.message : "Could not delete");
     }
   }
 
@@ -147,181 +186,99 @@ export default function AlertsPanelV2({ onClose, orgId }: AlertsPanelV2Props) {
       prev.map((a) => (a.id === id ? { ...a, enabled } : a)),
     );
     try {
-      await fetch(`/api/alerts/${id}`, {
+      const res = await fetch(`/api/alerts/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });
+      if (!res.ok) throw new Error("Could not update");
     } catch {
       // Revert on failure
       setAlerts((prev) =>
         prev.map((a) => (a.id === id ? { ...a, enabled: !enabled } : a)),
       );
-      showToast("Could not update — try again.");
+      toast.error("Could not update — try again.");
     }
   }
 
-  async function sendTest(id: string) {
+  async function sendTestSaved(id: string) {
     setTesting(true);
     try {
       const res = await fetch(`/api/alerts/${id}/test-send`, {
         method: "POST",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error || "Could not send test",
-        );
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(err.error || "Could not send test");
       }
-      showToast("Test email sent.");
+      toast.success("Test email sent.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not send test");
+      toast.error(err instanceof Error ? err.message : "Could not send test");
     } finally {
       setTesting(false);
     }
   }
 
-  // Send test BEFORE the alert is saved (from create flow). Posts to a
-  // temporary endpoint; falls back to "save then test" if not available.
-  async function sendTestUnsaved(payload: SavePayload) {
-    setTesting(true);
-    try {
-      const db = uiToDb(payload.schedule);
-      const res = await fetch("/api/alerts/preview-send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: payload.name,
-          recipients: payload.recipients,
-          alertType: payload.alertType,
-          customPrompt: payload.customPrompt,
-          sendDays: db.sendDays,
-          sendHour: db.sendHour,
-          sendMinute: db.sendMinute,
-          intervalWeeks: db.intervalWeeks,
-        }),
-      });
-      if (res.ok) {
-        showToast("Test email sent.");
-        return;
-      }
-      // Fallback: save then test (user pays the cost of an extra round-trip
-      // if /preview-send isn't deployed yet — won't lose work).
-      throw new Error("Preview-send endpoint not available");
-    } catch {
-      showToast(
-        "Save the alert first to send a test (preview endpoint not deployed yet).",
-      );
-    } finally {
-      setTesting(false);
-    }
-  }
+  /* -------------------------------- render ----------------------------- */
 
-  // -- render --
-
-  if (view.kind === "index") {
-    return (
-      <Frame toast={toast} onClose={onClose}>
-        <AlertsIndex
-          alerts={alerts}
-          loading={loading}
-          onCreate={() => setView({ kind: "create" })}
-          onOpen={(id) => setView({ kind: "detail", id })}
-          onDelete={deleteAlert}
-          onToggle={toggleAlert}
-        />
-      </Frame>
-    );
-  }
-
-  if (view.kind === "create") {
-    return (
-      <Frame toast={toast} onClose={onClose}>
-        <AlertCreate
-          onCancel={() => setView({ kind: "index" })}
-          onSave={createAlert}
-          onSendTest={sendTestUnsaved}
-          saving={saving}
-          testing={testing}
-        />
-      </Frame>
-    );
-  }
-
-  // detail
-  const alert = alerts.find((a) => a.id === view.id);
-  if (!alert) {
-    // Alert disappeared (deleted or 404). Fall back to index.
-    return (
-      <Frame toast={toast} onClose={onClose}>
-        <AlertsIndex
-          alerts={alerts}
-          loading={loading}
-          onCreate={() => setView({ kind: "create" })}
-          onOpen={(id) => setView({ kind: "detail", id })}
-          onDelete={deleteAlert}
-          onToggle={toggleAlert}
-        />
-      </Frame>
-    );
-  }
   return (
-    <Frame toast={toast} onClose={onClose}>
-      <AlertDetail
-        alert={alert}
-        onBack={() => setView({ kind: "index" })}
-        onSave={(p) => updateAlert(alert.id, p)}
-        onSendTest={() => sendTest(alert.id)}
-        onDelete={() => deleteAlert(alert.id)}
+    <Page className="meaning-v2">
+      <PageHeader
+        breadcrumb={["Alerts"]}
+        actions={
+          <Button size="sm" onClick={() => setEditingId("create")}>
+            <Plus className="size-3.5" />
+            Create alert
+          </Button>
+        }
+      />
+
+      <PageBody contained="default" padding="default">
+        <header className="mb-6">
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">
+            Alerts
+          </h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
+            Reports in your inbox on the schedule you choose. Press{" "}
+            <kbd className="kbd-key">N</kbd> to create a new one.
+          </p>
+        </header>
+
+        <AlertsList
+          alerts={alerts}
+          loading={loading}
+          onOpen={(id) => setEditingId(id)}
+          onToggle={toggleAlert}
+          onDelete={deleteAlert}
+        />
+      </PageBody>
+
+      <AlertEditSheet
+        open={editingId !== null}
+        alert={editingAlert}
+        initialSchedule={initialSchedule}
         saving={saving}
         testing={testing}
+        onOpenChange={(open) => {
+          if (!open) setEditingId(null);
+        }}
+        onSave={async (payload) => {
+          if (editingId === "create") {
+            await createAlert(payload);
+          } else if (editingId) {
+            await updateAlert(editingId, payload);
+          }
+        }}
+        onSendTest={
+          editingAlert ? () => sendTestSaved(editingAlert.id) : undefined
+        }
+        onDelete={
+          editingAlert ? () => deleteAlert(editingAlert.id) : undefined
+        }
       />
-    </Frame>
-  );
-}
 
-/** Sidebar-less frame — the v2 Sidebar is provided by ChatV2 around us. */
-function Frame({
-  children,
-  toast,
-}: {
-  children: React.ReactNode;
-  toast: string | null;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--v2-bg)",
-        overflow: "hidden",
-      }}
-    >
-      {children}
-      {toast && (
-        <div
-          role="status"
-          style={{
-            position: "absolute",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            padding: "10px 16px",
-            background: "var(--v2-ink)",
-            color: "var(--v2-ink-inverse)",
-            borderRadius: 999,
-            fontSize: 12.5,
-            fontFamily: "var(--v2-font-sans)",
-            boxShadow: "var(--v2-shadow-pop)",
-            zIndex: 50,
-          }}
-        >
-          {toast}
-        </div>
-      )}
-    </div>
+    </Page>
   );
 }

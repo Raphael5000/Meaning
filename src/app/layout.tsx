@@ -3,6 +3,7 @@ import { Martel, Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { JsonLd } from "@/components/JsonLd";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import "./tokens-v2.css";
 
@@ -119,7 +120,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </noscript>
         {/* End Google Tag Manager (noscript) */}
         <SessionProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            {children}
+            <Toaster />
+          </ThemeProvider>
         </SessionProvider>
         <script
           dangerouslySetInnerHTML={{
