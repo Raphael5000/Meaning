@@ -953,11 +953,11 @@ function ConnectionsDetail({
             return (
               <div
                 key={ds.id}
-                className="flex items-start justify-between gap-3 border-b border-v2-line py-3.5"
+                className="flex items-start justify-between gap-3 border-b border-border py-3.5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-[13.5px] text-v2-ink">
+                    <span className="truncate text-[13.5px] text-foreground">
                       {accountLabel}
                     </span>
                     {isErrored && (
@@ -984,7 +984,7 @@ function ConnectionsDetail({
                     )}
                   </div>
                   {ds.bigqueryDataset && (
-                    <div className="mono mt-0.5 truncate text-[11px] text-v2-ink-muted">
+                    <div className="mono mt-0.5 truncate text-[11px] text-muted-foreground">
                       {ds.bigqueryDataset}
                     </div>
                   )}
@@ -1006,7 +1006,7 @@ function ConnectionsDetail({
                 </div>
                 {isPendingConfirm ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-[11.5px] text-v2-ink-muted">
+                    <span className="text-[11.5px] text-muted-foreground">
                       Remove this account?
                     </span>
                     <Button
@@ -1092,7 +1092,7 @@ function ConnectionsDetail({
       )}
 
       {/* Danger zone: disconnect + fully reconnect */}
-      <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-v2-line pt-6">
+      <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-border pt-6">
         {hasAny && (
           <DisconnectSourceButton
             sourceLabel={source.label}
@@ -1185,7 +1185,7 @@ function ResetOAuthButton({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[12.5px] text-v2-ink-muted">
+      <span className="text-[12.5px] text-muted-foreground">
         Sign out of {sourceLabel} and re-authorize? Fixes stuck tokens.
       </span>
       <Button variant="ghost" size="sm" onClick={() => setArmed(false)}>
@@ -1297,7 +1297,7 @@ function DisconnectSourceButton({
   }
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[12.5px] text-v2-ink-muted">
+      <span className="text-[12.5px] text-muted-foreground">
         Disconnect all {sourceLabel} accounts? Historical data is preserved.
       </span>
       <Button variant="ghost" size="sm" onClick={() => setArmed(false)}>
@@ -1320,7 +1320,7 @@ function DisconnectSourceButton({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-v2-ink-subtle">
+    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
       {children}
     </div>
   );
@@ -1352,16 +1352,16 @@ function AddAccountSection({
 }: AddAccountSectionProps) {
   if (sourceType === "META") {
     return (
-      <div className="rounded-[10px] border border-v2-line bg-v2-surface px-4 py-8 text-center">
-        <div className="text-[13.5px] text-v2-ink-muted">Coming soon</div>
+      <div className="rounded-[10px] border border-border bg-card px-4 py-8 text-center">
+        <div className="text-[13.5px] text-muted-foreground">Coming soon</div>
       </div>
     );
   }
 
   if (!isAuthed) {
     return (
-      <div className="rounded-[10px] border border-v2-line bg-v2-surface px-4 py-6 text-center">
-        <p className="mb-3 text-[13px] text-v2-ink-muted">
+      <div className="rounded-[10px] border border-border bg-card px-4 py-6 text-center">
+        <p className="mb-3 text-[13px] text-muted-foreground">
           Sign in to continue adding this source.
         </p>
         <Button size="sm" asChild>
@@ -1455,7 +1455,7 @@ function AccountPicker({
 
   if (loading) {
     return (
-      <div className="rounded-[10px] border border-v2-line bg-v2-surface px-4 py-6 text-center text-[13px] text-v2-ink-muted">
+      <div className="rounded-[10px] border border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground">
         Loading accounts…
       </div>
     );
@@ -1463,12 +1463,12 @@ function AccountPicker({
 
   if (!items || items.length === 0) {
     return (
-      <div className="rounded-[10px] border border-v2-line bg-v2-surface px-4 py-6 text-center text-[13px] text-v2-ink-muted">
+      <div className="rounded-[10px] border border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground">
         {loadError ? (
           <>
-            <div className="text-v2-neg">{loadError}</div>
-            <div className="mt-2 text-v2-ink-muted">
-              Try <span className="font-medium text-v2-ink">Fully reconnect {" "}{sourceType === "MICROSOFT_ADS" ? "Microsoft Ads" : "this source"}</span>
+            <div className="text-destructive">{loadError}</div>
+            <div className="mt-2 text-muted-foreground">
+              Try <span className="font-medium text-foreground">Fully reconnect {" "}{sourceType === "MICROSOFT_ADS" ? "Microsoft Ads" : "this source"}</span>
               {" "}below — it clears stuck OAuth state.
             </div>
           </>
@@ -1480,24 +1480,24 @@ function AccountPicker({
   }
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-v2-line bg-v2-surface">
+    <div className="overflow-hidden rounded-[10px] border border-border bg-card">
       {items.map((item, i) => {
         const already = connectedSet.has(item.id);
         return (
           <div
             key={item.id}
-            className={`flex items-center justify-between px-4 py-3 ${i === items.length - 1 ? "" : "border-b border-v2-line"}`}
+            className={`flex items-center justify-between px-4 py-3 ${i === items.length - 1 ? "" : "border-b border-border"}`}
           >
             <div className="min-w-0 flex-1 pr-3">
-              <div className="truncate text-[13px] text-v2-ink">{item.label}</div>
+              <div className="truncate text-[13px] text-foreground">{item.label}</div>
               {item.sublabel && (
-                <div className="mono truncate text-[11px] text-v2-ink-muted">
+                <div className="mono truncate text-[11px] text-muted-foreground">
                   {item.sublabel}
                 </div>
               )}
             </div>
             {already ? (
-              <span className="text-[11.5px] text-v2-ink-muted">Connected</span>
+              <span className="text-[11.5px] text-muted-foreground">Connected</span>
             ) : (
               <Button
                 size="sm"
