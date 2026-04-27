@@ -12,10 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import AccountPanel from "@/components/AccountPanel";
 import AlertsPanel from "@/components/AlertsPanel";
 import ConnectionsV2 from "./connections/ConnectionsV2";
-import TeamPanel from "@/components/TeamPanel";
+import SettingsPage from "@/components/v2/settings/SettingsPage";
 import DashboardListPanel from "@/components/DashboardListPanel";
 import DashboardPanel from "@/components/DashboardPanel";
 import BugReportModal from "@/components/BugReportModal";
@@ -901,15 +900,14 @@ export default function ChatV2() {
                 orgId={activeOrgId}
               />
             )}
-            {activePanel.kind === "team" && (
-              <TeamPanel
-                onClose={() => setActivePanel({ kind: "none" })}
+            {(activePanel.kind === "team" ||
+              activePanel.kind === "account") && (
+              <SettingsPage
+                initialTab={activePanel.kind === "team" ? "team" : "account"}
                 orgId={activeOrgId}
                 orgName={activeOrg?.name ?? ""}
+                onClose={() => setActivePanel({ kind: "none" })}
               />
-            )}
-            {activePanel.kind === "account" && (
-              <AccountPanel onClose={() => setActivePanel({ kind: "none" })} />
             )}
             {activePanel.kind === "dashboardList" && (
               <DashboardListPanel
