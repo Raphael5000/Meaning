@@ -1,8 +1,22 @@
 "use client";
 
 import * as React from "react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+
 import { I } from "../icons";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Page, PageBody, PageHeader } from "../layout";
+import { cn } from "@/lib/utils";
 
 /* =============================================================================
    TYPES — mirror the shapes returned by /api/user/connections and the per-source
@@ -106,6 +120,18 @@ type View =
   | { kind: "list" }
   | { kind: "detail"; sourceType: SourceType };
 
+/**
+ * Surface-level message dispatcher used by the detail view and reconnect
+ * flows. Wraps sonner's toast() so existing onMessage(...) call sites keep
+ * working without rewiring every flow.
+ */
+type SurfaceMessage = { kind: "success" | "error"; text: string } | null;
+function dispatchMessage(msg: SurfaceMessage) {
+  if (!msg) return;
+  if (msg.kind === "success") toast.success(msg.text);
+  else toast.error(msg.text);
+}
+
 export default function ConnectionsV2({
   onClose,
   orgId,
@@ -118,9 +144,6 @@ export default function ConnectionsV2({
       ? { kind: "detail", sourceType: initialSourceType }
       : { kind: "list" }
   );
-  const [message, setMessage] = React.useState<
-    { kind: "success" | "error"; text: string } | null
-  >(null);
   const [syncingAll, setSyncingAll] = React.useState(false);
   // Map of `${sourceType}:${id}` → human-readable account name.  Populated by
   // calling the same /accessible-* endpoints the detail-view picker uses; the
@@ -206,7 +229,6 @@ export default function ConnectionsV2({
 
   async function handleSyncAll() {
     setSyncingAll(true);
-    setMessage(null);
     try {
       const res = await fetch("/api/resync-all", {
         method: "POST",
@@ -215,16 +237,13 @@ export default function ConnectionsV2({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setMessage({
-          kind: "error",
-          text: data.error || "Failed to trigger sync",
-        });
+        toast.error(data.error || "Failed to trigger sync");
         return;
       }
-      setMessage({ kind: "success", text: "Sync triggered for all sources." });
+      toast.success("Sync triggered for all sources.");
       fetchStatus(true);
     } catch {
-      setMessage({ kind: "error", text: "Something went wrong." });
+      toast.error("Something went wrong.");
     } finally {
       setSyncingAll(false);
     }
@@ -232,53 +251,28 @@ export default function ConnectionsV2({
 
   if (view.kind === "detail") {
     return (
-      <V2Shell>
-        <ConnectionsDetail
-          status={status}
-          orgId={orgId ?? null}
-          sourceType={view.sourceType}
-          nameMap={nameMap}
-          onBack={() => setView({ kind: "list" })}
-          onRefresh={() => fetchStatus(true)}
-          onMessage={setMessage}
-        />
-        <MessageToast message={message} onDismiss={() => setMessage(null)} />
-      </V2Shell>
+      <ConnectionsDetail
+        status={status}
+        orgId={orgId ?? null}
+        sourceType={view.sourceType}
+        nameMap={nameMap}
+        onBack={() => setView({ kind: "list" })}
+        onRefresh={() => fetchStatus(true)}
+        onMessage={dispatchMessage}
+      />
     );
   }
 
   return (
-    <V2Shell>
-      <ConnectionsList
-        status={status}
-        loading={loading}
-        nameMap={nameMap}
-        syncingAll={syncingAll}
-        onSyncAll={handleSyncAll}
-        onOpenDetail={(t) => setView({ kind: "detail", sourceType: t })}
-        onClose={onClose}
-      />
-      <MessageToast message={message} onDismiss={() => setMessage(null)} />
-    </V2Shell>
-  );
-}
-
-/* =============================================================================
-   SHELL — scroll container for the v2 Connections surface.  The outer
-   .meaning-v2 class already lives on the ChatV2 root; we just need a column
-   that scrolls.
-   ========================================================================== */
-
-function V2Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="flex h-full min-h-0 flex-col overflow-y-auto bg-v2-bg"
-      style={{ scrollbarGutter: "stable" }}
-    >
-      <div className="mx-auto w-full max-w-[820px] px-6 py-10 md:py-12">
-        {children}
-      </div>
-    </div>
+    <ConnectionsList
+      status={status}
+      loading={loading}
+      nameMap={nameMap}
+      syncingAll={syncingAll}
+      onSyncAll={handleSyncAll}
+      onOpenDetail={(t) => setView({ kind: "detail", sourceType: t })}
+      onClose={onClose}
+    />
   );
 }
 
@@ -319,122 +313,114 @@ function ConnectionsList({
   const ready = !loading && !!status;
 
   return (
-    <>
-      <header className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mb-3 inline-flex items-center gap-1 text-[12px] text-v2-ink-muted transition-colors hover:text-v2-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink focus-visible:ring-offset-2 focus-visible:ring-offset-v2-bg rounded"
+    <Page className="meaning-v2">
+      <PageHeader
+        breadcrumb={["Connections"]}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSyncAll}
+            disabled={!ready || syncingAll || connected.length === 0}
           >
-            <I.ChevronL size={12} /> Back to chat
-          </button>
-          <h1
-            className="text-[24px] font-medium tracking-[-0.02em] text-v2-ink"
-            style={{ marginBottom: 4 }}
-          >
+            <RefreshCw className={cn("size-3", syncingAll && "animate-spin")} />
+            {syncingAll ? "Syncing…" : "Sync all"}
+          </Button>
+        }
+      />
+
+      <PageBody contained="default" padding="default">
+        <header className="mb-6">
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">
             Connections
           </h1>
-          <p className="text-[13px] text-v2-ink-muted">
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
             {ready
               ? `${connected.length} connected · daily sync`
-              : "Loading…"}
+              : "Loading your connected sources…"}
           </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onSyncAll}
-          disabled={!ready || syncingAll || connected.length === 0}
-        >
-          <I.Refresh size={12} className={syncingAll ? "animate-spin" : ""} />
-          {syncingAll ? "Syncing…" : "Sync all"}
-        </Button>
-      </header>
+        </header>
 
-      {!ready ? (
-        <SourceTableSkeleton rowCount={SOURCES.length} />
-      ) : (
-        <>
-          {connected.length === 0 ? (
-            <ConnectionsEmpty />
-          ) : (
-            <div className="mb-7">
-              <SourceTable
-                rows={connected}
-                onOpenDetail={onOpenDetail}
-                status={status}
-              />
+        {!ready ? (
+          <SourceTableSkeleton rowCount={SOURCES.length} />
+        ) : (
+          <>
+            {connected.length === 0 ? (
+              <ConnectionsEmpty />
+            ) : (
+              <div className="mb-8">
+                <SourceTable
+                  rows={connected}
+                  onOpenDetail={onOpenDetail}
+                  status={status}
+                />
+              </div>
+            )}
+
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Add a source
             </div>
-          )}
-
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-v2-ink-subtle">
-            Add source
-          </div>
-          <SourceTable
-            rows={available}
-            onOpenDetail={onOpenDetail}
-            addSource
-            status={status}
-          />
-        </>
-      )}
-    </>
+            <SourceTable
+              rows={available}
+              onOpenDetail={onOpenDetail}
+              addSource
+              status={status}
+            />
+          </>
+        )}
+      </PageBody>
+    </Page>
   );
 }
 
-/** Neutral skeleton — same outer chrome as SourceTable so layout doesn't jump
- * when real rows swap in. Rows show the source label/icon so the user knows
- * which platforms exist; account/status/last-sync cells remain dashes until
- * the real state lands.  We intentionally do NOT show a "Not connected" pill
- * here — that's the panic the user reported. */
+/** Neutral skeleton — same chrome as SourceTable so layout doesn't jump
+ * when real rows swap in. Shows the source label/icon so the user knows
+ * which platforms exist; status/last-sync cells render placeholder bars
+ * until real data arrives. We intentionally do NOT show a "Not connected"
+ * pill here — that was the panic the user reported. */
 function SourceTableSkeleton({ rowCount }: { rowCount: number }) {
   return (
-    <div className="overflow-hidden rounded-[10px] border border-v2-line bg-v2-surface">
-      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          <col style={{ width: "28%" }} />
-          <col />
-          <col style={{ width: 128 }} />
-          <col style={{ width: 128 }} />
-          <col style={{ width: 44 }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <Th className="pl-4">Source</Th>
-            <Th>Account</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Last sync</Th>
-            <Th className="pr-4" aria-label="Open">
-              {" "}
-            </Th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[28%]">Source</TableHead>
+            <TableHead>Account</TableHead>
+            <TableHead className="w-[128px]">Status</TableHead>
+            <TableHead className="w-[128px] text-right">Last sync</TableHead>
+            <TableHead className="w-[44px]" aria-label="Open" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {SOURCES.slice(0, rowCount).map((s) => (
-            <tr key={s.type} className="border-b border-v2-line last:border-b-0">
-              <td className="py-2.5 pl-4 pr-3">
+            <TableRow key={s.type}>
+              <TableCell>
                 <div className="flex items-center gap-2.5">
-                  <img src={s.icon} alt="" className="h-5 w-5 shrink-0" aria-hidden />
-                  <span className="text-[13.5px] font-medium text-v2-ink">
+                  <img
+                    src={s.icon}
+                    alt=""
+                    className="size-5 shrink-0"
+                    aria-hidden
+                  />
+                  <span className="text-[13px] font-medium text-foreground">
                     {s.label}
                   </span>
                 </div>
-              </td>
-              <td className="px-3 py-2.5">
-                <span className="inline-block h-3 w-28 rounded bg-v2-surface-2" />
-              </td>
-              <td className="px-3 py-2.5">
-                <span className="inline-block h-4 w-20 rounded-full bg-v2-surface-2" />
-              </td>
-              <td className="px-3 py-2.5 text-right">
-                <span className="inline-block h-3 w-14 rounded bg-v2-surface-2" />
-              </td>
-              <td className="pr-4 py-2.5" />
-            </tr>
+              </TableCell>
+              <TableCell>
+                <span className="inline-block h-3 w-28 rounded bg-muted" />
+              </TableCell>
+              <TableCell>
+                <span className="inline-block h-4 w-20 rounded-full bg-muted" />
+              </TableCell>
+              <TableCell className="text-right">
+                <span className="inline-block h-3 w-14 rounded bg-muted" />
+              </TableCell>
+              <TableCell />
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -529,23 +515,6 @@ function formatTimeAgo(iso: string | null): string | null {
   return `${days}d ago`;
 }
 
-function linkBtnStyle(color: string): React.CSSProperties {
-  return {
-    background: "transparent",
-    border: "none",
-    cursor: "pointer",
-    padding: 0,
-    fontFamily: "var(--v2-font-sans)",
-    fontSize: 12,
-    fontWeight: 500,
-    color,
-    letterSpacing: "-0.005em",
-    textDecoration: "underline",
-    textUnderlineOffset: 3,
-    textDecorationColor: "color-mix(in oklab, currentColor 35%, transparent)",
-  };
-}
-
 function connectUrl(type: SourceType): string {
   switch (type) {
     case "GA4_BIGQUERY":
@@ -574,29 +543,25 @@ interface SourceTableProps {
   status: ConnectionStatus | null;
 }
 
-function SourceTable({ rows, onOpenDetail, addSource, status }: SourceTableProps) {
+function SourceTable({
+  rows,
+  onOpenDetail,
+  addSource,
+  status,
+}: SourceTableProps) {
   return (
-    <div className="overflow-hidden rounded-[10px] border border-v2-line bg-v2-surface">
-      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          <col style={{ width: "28%" }} />
-          <col />
-          <col style={{ width: 128 }} />
-          <col style={{ width: 128 }} />
-          <col style={{ width: 44 }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <Th className="pl-4">Source</Th>
-            <Th>Account</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Last sync</Th>
-            <Th className="pr-4" aria-label="Open">
-              {" "}
-            </Th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[28%]">Source</TableHead>
+            <TableHead>Account</TableHead>
+            <TableHead className="w-[128px]">Status</TableHead>
+            <TableHead className="w-[128px] text-right">Last sync</TableHead>
+            <TableHead className="w-[44px]" aria-label="Open" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((r) => (
             <Row
               key={r.type}
@@ -606,28 +571,9 @@ function SourceTable({ rows, onOpenDetail, addSource, status }: SourceTableProps
               addSource={addSource}
             />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
-  );
-}
-
-function Th({
-  children,
-  className,
-  "aria-label": ariaLabel,
-}: {
-  children?: React.ReactNode;
-  className?: string;
-  "aria-label"?: string;
-}) {
-  return (
-    <th
-      aria-label={ariaLabel}
-      className={`border-b border-v2-line bg-v2-surface-2 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-v2-ink-subtle ${className ?? ""}`}
-    >
-      {children}
-    </th>
   );
 }
 
@@ -653,16 +599,20 @@ function Row({
   // after the OAuth callback, DataSource doesn't exist yet — only the Account
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
+  const isClickable =
+    (isConnected || needsAccountPick) && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
   if (row.comingSoon) {
-    lastCell = (
-      <span className="text-[11.5px] text-v2-ink-subtle">—</span>
-    );
+    lastCell = <span className="text-[11.5px] text-muted-foreground">—</span>;
   } else if (isError) {
     lastCell = (
-      <a href={connectUrl(row.type)} style={linkBtnStyle("var(--v2-neg)")}>
+      <a
+        href={connectUrl(row.type)}
+        onClick={(e) => e.stopPropagation()}
+        className="text-[12px] font-medium text-destructive underline-offset-2 hover:underline"
+      >
         Reconnect
       </a>
     );
@@ -670,78 +620,81 @@ function Row({
     lastCell = (
       <button
         type="button"
-        onClick={() => onOpenDetail(row.type)}
-        style={linkBtnStyle("var(--v2-ink)")}
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenDetail(row.type);
+        }}
+        className="text-[12px] font-medium text-foreground underline-offset-2 hover:underline"
       >
         Pick accounts
       </button>
     );
   } else if (!isConnected) {
     lastCell = (
-      <a href={connectUrl(row.type)} style={linkBtnStyle("var(--v2-ink)")}>
+      <a
+        href={connectUrl(row.type)}
+        onClick={(e) => e.stopPropagation()}
+        className="text-[12px] font-medium text-foreground underline-offset-2 hover:underline"
+      >
         Connect
       </a>
     );
   } else if (isBackfilling) {
     lastCell = (
-      <span className="mono text-[11.5px] text-v2-ink-muted">syncing…</span>
+      <span className="font-mono text-[11.5px] text-muted-foreground">
+        syncing…
+      </span>
     );
   } else {
     lastCell = (
-      <span className="mono text-[11.5px] text-v2-ink-muted">
+      <span className="font-mono text-[11.5px] text-muted-foreground">
         {ago ?? "—"}
       </span>
     );
   }
 
   return (
-    <tr
-      className="border-b border-v2-line last:border-b-0"
-      style={{ opacity: row.comingSoon ? 0.55 : 1 }}
+    <TableRow
+      className={cn(
+        row.comingSoon && "opacity-55",
+        isClickable && "cursor-pointer",
+      )}
+      onClick={isClickable ? () => onOpenDetail(row.type) : undefined}
     >
-      <td className="py-2.5 pl-4 pr-3">
+      <TableCell>
         <div className="flex items-center gap-2.5">
-          <img
-            src={row.icon}
-            alt=""
-            className="h-5 w-5 shrink-0"
-            aria-hidden
-          />
-          <span className="text-[13.5px] font-medium text-v2-ink">
+          <img src={row.icon} alt="" className="size-5 shrink-0" aria-hidden />
+          <span className="text-[13px] font-medium text-foreground">
             {row.label}
           </span>
         </div>
-      </td>
-      <td className="px-3 py-2.5">
-        <span className="text-[12.5px] text-v2-ink-muted">
-          {row.comingSoon
-            ? "Coming soon"
-            : needsAccountPick
-              ? "Signed in · no accounts enabled"
-              : addSource && !isConnected
-                ? "—"
-                : row.accountSummary}
-        </span>
-      </td>
-      <td className="px-3 py-2.5">
+      </TableCell>
+      <TableCell className="text-[12.5px] text-muted-foreground">
+        {row.comingSoon
+          ? "Coming soon"
+          : needsAccountPick
+            ? "Signed in · no accounts enabled"
+            : addSource && !isConnected
+              ? "—"
+              : row.accountSummary}
+      </TableCell>
+      <TableCell>
         <StatusPill
           status={needsAccountPick ? "NEEDS_PICK" : row.uiStatus}
         />
-      </td>
-      <td className="px-3 py-2.5 text-right">{lastCell}</td>
-      <td className="pr-4 py-2.5 text-right" style={{ whiteSpace: "nowrap" }}>
-        {(isConnected || needsAccountPick) && !row.comingSoon ? (
-          <button
-            type="button"
-            onClick={() => onOpenDetail(row.type)}
-            aria-label={`Open ${row.label}`}
-            className="inline-flex h-6 w-6 items-center justify-center rounded text-v2-ink-muted transition-colors hover:bg-v2-surface-2 hover:text-v2-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink"
-          >
-            <I.ChevronR size={14} />
-          </button>
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        {lastCell}
+      </TableCell>
+      <TableCell className="text-right">
+        {isClickable ? (
+          <ChevronRight
+            className="size-3.5 text-muted-foreground"
+            aria-hidden
+          />
         ) : null}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -837,19 +790,20 @@ function StatusPill({
 
 function ConnectionsEmpty() {
   return (
-    <div className="rounded-[10px] border border-v2-line bg-v2-surface px-6 py-12 text-center">
-      <h2 className="mb-2 text-[20px] font-medium tracking-[-0.015em] text-v2-ink">
+    <div className="mb-8 rounded-lg border border-border bg-card px-6 py-12 text-center">
+      <h2 className="mb-2 text-[18px] font-semibold tracking-[-0.015em] text-foreground">
         Connect a data source
       </h2>
-      <p className="mx-auto mb-6 max-w-[420px] text-[13.5px] leading-[1.55] text-v2-ink-muted">
+      <p className="mx-auto mb-6 max-w-[420px] text-[13px] leading-[1.55] text-muted-foreground">
         Meaning answers from the data you connect. Start with Google Analytics —
         most teams finish in under a minute.
       </p>
-      <div className="flex justify-center gap-2">
-        <Button variant="primary" size="md" asChild>
-          <a href="/api/auth/connect-google">Connect Google Analytics</a>
-        </Button>
-      </div>
+      <Button asChild>
+        <a href="/api/auth/connect-google">
+          <Plus className="size-3.5" />
+          Connect Google Analytics
+        </a>
+      </Button>
     </div>
   );
 }
@@ -957,27 +911,30 @@ function ConnectionsDetail({
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-5 inline-flex items-center gap-1 text-[12px] text-v2-ink-muted transition-colors hover:text-v2-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink focus-visible:ring-offset-2 focus-visible:ring-offset-v2-bg rounded"
-      >
-        <I.ChevronL size={12} /> Connections
-      </button>
+    <Page className="meaning-v2">
+      <PageHeader breadcrumb={["Connections", source.label]} />
 
-      <div className="mb-8 flex items-center gap-3">
-        <img src={source.icon} alt="" className="h-6 w-6" aria-hidden />
-        <div className="flex-1 text-[20px] font-medium tracking-[-0.015em] text-v2-ink">
-          {source.label}
+      <PageBody contained="default" padding="default">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-5 inline-flex items-center gap-1 rounded text-[12px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <ChevronLeft className="size-3" /> Connections
+        </button>
+
+        <div className="mb-8 flex items-center gap-3">
+          <img src={source.icon} alt="" className="size-6" aria-hidden />
+          <div className="flex-1 text-[20px] font-semibold tracking-[-0.015em] text-foreground">
+            {source.label}
+          </div>
+          {hasAny && <StatusPill status={overallStatus} />}
+          {lastSync && overallStatus !== "BACKFILLING" && (
+            <span className="font-mono text-[11.5px] text-muted-foreground">
+              Synced {lastSync}
+            </span>
+          )}
         </div>
-        {hasAny && <StatusPill status={overallStatus} />}
-        {lastSync && overallStatus !== "BACKFILLING" && (
-          <span className="mono text-[11.5px] text-v2-ink-muted">
-            Synced {lastSync}
-          </span>
-        )}
-      </div>
 
       {/* Connected accounts (excludes soft-disconnected rows) */}
       {hasAny && (
@@ -1060,7 +1017,6 @@ function ConnectionsDetail({
                       Cancel
                     </Button>
                     <Button
-                      variant="primary"
                       size="sm"
                       onClick={() =>
                         doDisconnect(
@@ -1159,7 +1115,8 @@ function ConnectionsDetail({
           />
         )}
       </div>
-    </>
+      </PageBody>
+    </Page>
   );
 }
 
@@ -1234,7 +1191,7 @@ function ResetOAuthButton({
       <Button variant="ghost" size="sm" onClick={() => setArmed(false)}>
         Cancel
       </Button>
-      <Button variant="primary" size="sm" onClick={doReset} disabled={busy}>
+      <Button size="sm" onClick={doReset} disabled={busy}>
         {busy ? "Resetting…" : "Confirm reconnect"}
       </Button>
     </div>
@@ -1332,7 +1289,7 @@ function DisconnectSourceButton({
         size="sm"
         onClick={() => setArmed(true)}
         disabled={busy}
-        style={{ color: "var(--v2-neg)" }}
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
       >
         Disconnect {sourceLabel}
       </Button>
@@ -1347,16 +1304,12 @@ function DisconnectSourceButton({
         Cancel
       </Button>
       <Button
-        variant="primary"
+        variant="destructive"
         size="sm"
         disabled={busy}
         onClick={async () => {
           setArmed(false);
           await onConfirm();
-        }}
-        style={{
-          background: "var(--v2-neg)",
-          borderColor: "var(--v2-neg)",
         }}
       >
         {busy ? "Disconnecting…" : "Confirm disconnect"}
@@ -1411,7 +1364,7 @@ function AddAccountSection({
         <p className="mb-3 text-[13px] text-v2-ink-muted">
           Sign in to continue adding this source.
         </p>
-        <Button variant="primary" size="sm" asChild>
+        <Button size="sm" asChild>
           <a href={connectUrl(sourceType)}>Continue</a>
         </Button>
       </div>
@@ -1547,7 +1500,6 @@ function AccountPicker({
               <span className="text-[11.5px] text-v2-ink-muted">Connected</span>
             ) : (
               <Button
-                variant="primary"
                 size="sm"
                 onClick={() => enable(item)}
                 disabled={!!enabling[item.id]}
@@ -1685,49 +1637,5 @@ function enableEndpoint(
   }
 }
 
-/* =============================================================================
-   TOAST
-   ========================================================================== */
-
-function MessageToast({
-  message,
-  onDismiss,
-}: {
-  message: { kind: "success" | "error"; text: string } | null;
-  onDismiss: () => void;
-}) {
-  React.useEffect(() => {
-    if (!message) return;
-    const t = setTimeout(onDismiss, 4500);
-    return () => clearTimeout(t);
-  }, [message, onDismiss]);
-
-  if (!message) return null;
-
-  const tone =
-    message.kind === "error"
-      ? {
-          bg: "var(--v2-neg-bg)",
-          border: "var(--v2-neg)",
-          ink: "var(--v2-neg)",
-        }
-      : {
-          bg: "var(--v2-pos-bg)",
-          border: "var(--v2-pos)",
-          ink: "var(--v2-pos)",
-        };
-
-  return (
-    <div
-      className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-[12.5px] shadow-md"
-      style={{
-        background: tone.bg,
-        borderColor: "color-mix(in oklab, currentColor 30%, transparent)",
-        color: tone.ink,
-      }}
-      role="status"
-    >
-      {message.text}
-    </div>
-  );
-}
+/* Toast surface is provided globally by sonner's <Toaster /> in app/layout.tsx.
+   Errors and successes go through dispatchMessage() above. */
