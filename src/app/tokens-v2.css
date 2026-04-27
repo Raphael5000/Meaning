@@ -162,6 +162,24 @@ html.dark .meaning-v2,
   --v2-shadow-pop:  0 24px 60px -18px rgba(0,0,0,0.6), 0 0 0 1px var(--v2-line);
 }
 
+/* Heading reset — globals.css declares a top-level rule
+   `h1, h2 { font-family: Martel, serif; line-height: 1.4 !important; }`
+   for v1 marketing pages. That rule wins over `.meaning-v2`'s own
+   `font-family` (which only applies to the wrapper element, not its
+   children), so v2 headings were rendering in serif. Reset every
+   heading inside the v2 scope to inherit normally — Tailwind classes
+   then drive font, weight, and line-height. */
+.meaning-v2 h1,
+.meaning-v2 h2,
+.meaning-v2 h3,
+.meaning-v2 h4,
+.meaning-v2 h5,
+.meaning-v2 h6 {
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
 /* Utilities used across v2 */
 .meaning-v2 .kicker {
   font-family: var(--v2-font-sans);

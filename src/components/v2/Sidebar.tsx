@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { I } from "./icons";
-import { Mark, Avatar, Kbd } from "./primitives";
+import { Avatar, Kbd } from "./primitives";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,9 +94,6 @@ function CollapsedContent({
   return (
     <>
       <div className="flex flex-col items-center py-3.5">
-        <div className="mb-4">
-          <Mark size={22} />
-        </div>
         <IconBtn
           icon={<I.Edit />}
           label="New chat"
@@ -208,24 +205,7 @@ function ExpandedContent({
 }: SidebarProps) {
   const groups = groupChats(chats);
   return (
-    <div className="flex h-full flex-col min-w-[272px]">
-      {/* Header row */}
-      <div className="flex items-center justify-between px-3.5 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          <Mark size={20} />
-          <span className="text-[15px] font-semibold tracking-[-0.01em] text-v2-ink">
-            Meaning
-          </span>
-        </div>
-        <button
-          type="button"
-          aria-label="Search"
-          className="inline-flex items-center justify-center rounded-md p-1.5 text-v2-ink-muted transition-colors hover:bg-v2-surface-2 hover:text-v2-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink"
-        >
-          <I.Search size={15} />
-        </button>
-      </div>
-
+    <div className="flex h-full flex-col min-w-[272px] pt-3">
       {/* Org switcher */}
       {org && (
         <div className="px-2.5 pb-2.5">
