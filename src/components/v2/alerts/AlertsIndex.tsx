@@ -90,7 +90,6 @@ export function AlertsIndex({
     <PageShell
       kicker="Alerts"
       title="Reports in your inbox."
-      subtitle="We send you the numbers you care about on the schedule you choose. Nothing to check; it just arrives."
       actions={
         <Btn
           variant="primary"
