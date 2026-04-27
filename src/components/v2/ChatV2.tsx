@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import AlertsPanel from "@/components/AlertsPanel";
+import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
 import DashboardListPanel from "@/components/DashboardListPanel";
@@ -895,7 +895,7 @@ export default function ChatV2() {
           ) : (
           <V1PanelWrapper>
             {activePanel.kind === "alerts" && (
-              <AlertsPanel
+              <AlertsPanelV2
                 onClose={() => setActivePanel({ kind: "none" })}
                 orgId={activeOrgId}
               />
