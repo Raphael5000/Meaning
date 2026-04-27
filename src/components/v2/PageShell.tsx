@@ -5,8 +5,8 @@ import { I } from "./icons";
 import { Btn } from "./primitives";
 
 interface PageShellProps {
-  /** Optional small uppercase label above the title. */
-  kicker?: string;
+  /** Optional small label above the title. Accepts JSX (e.g. status pill + text). */
+  kicker?: React.ReactNode;
   /** Page title — rendered with --v2-h-page. */
   title?: React.ReactNode;
   /** One-line description under the title. */
