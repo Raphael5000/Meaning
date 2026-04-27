@@ -68,6 +68,23 @@
   --v2-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --v2-font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
+  /* Type scale — three locked sizes for headings.
+     Use --v2-h-hero only on full-page empty-state heroes.
+     Use --v2-h-page for every page/section title.
+     Use --v2-h-section for in-page sub-sections. */
+  --v2-h-hero:        36px;
+  --v2-h-hero-track:  -0.025em;
+  --v2-h-page:        24px;
+  --v2-h-page-track:  -0.02em;
+  --v2-h-section:     18px;
+  --v2-h-section-track: -0.015em;
+
+  /* Layout — single source of truth for the contained-page width.
+     PageShell width="contained" renders to this max-width centered. */
+  --v2-page-max:      960px;
+  --v2-page-pad-x:    32px;
+  --v2-page-pad-y:    40px;
+
   --v2-shadow-card: 0 1px 0 rgba(0,0,0,0.02), 0 0 0 1px var(--v2-line);
   --v2-shadow-pop:  0 10px 40px -12px rgba(0,0,0,0.18), 0 0 0 1px var(--v2-line);
 
@@ -337,9 +354,461 @@ html.dark .meaning-v2,
   animation: v2-bar-pulse 1.2s ease-in-out infinite;
 }
 
+/* In-flight widget — ring pulse + scan */
+@keyframes meaningPulseDot {
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--v2-brand-vivid) 60%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in oklab, var(--v2-brand-vivid) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--v2-brand-vivid) 0%, transparent); }
+}
+@keyframes meaningScan {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+/* Data table — compact, row-dense list used inside widget bodies.         */
+.meaning-v2 .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: var(--v2-ink);
+}
+.meaning-v2 .data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--v2-surface);
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--v2-ink-muted);
+  border-bottom: 1px solid var(--v2-line);
+}
+.meaning-v2 .data-table thead th.num {
+  text-align: right;
+}
+.meaning-v2 .data-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--v2-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.meaning-v2 .data-table tbody td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.meaning-v2 .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.meaning-v2 .data-table tbody tr:hover td {
+  background: var(--v2-surface-2);
+}
+
+/* Delta pill/inline — used inside scorecards and tables. */
+.meaning-v2 .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.meaning-v2 .delta.pos { color: var(--v2-pos); }
+.meaning-v2 .delta.neg { color: var(--v2-neg); }
+
+/* Widget hover affordances — drag handle + kebab appear on .widget-shell hover */
+.meaning-v2 .widget-shell .widget-drag-handle,
+.meaning-v2 .widget-shell .widget-kebab {
+  opacity: 0;
+  transition: opacity 120ms var(--v2-ease);
+}
+.meaning-v2 .widget-shell:hover .widget-drag-handle,
+.meaning-v2 .widget-shell:hover .widget-kebab,
+.meaning-v2 .widget-shell.dragging .widget-drag-handle,
+.meaning-v2 .widget-shell .widget-kebab[aria-expanded="true"] {
+  opacity: 1;
+}
+
+/* Dashboard row hover (list view rows) */
+.meaning-v2 .row-hover:hover {
+  background: var(--v2-surface-2);
+}
+
 /* Row hover */
 .meaning-v2 .row-hover { transition: background 120ms var(--v2-ease); }
 .meaning-v2 .row-hover:hover { background: var(--v2-surface-2); }
+
+/* =====================================================================
+   Buttons — single source of truth for all .v2-btn / .v2-icon-btn /
+   .v2-menu-item interactive states. Inline-styled buttons can't express
+   :hover/:active/:focus, so every interactive element uses a class that
+   reads these pseudo-classes.
+   ===================================================================== */
+
+/* Base button — shared base for primary/outline/ghost/subtle variants */
+.meaning-v2 .v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--v2-font-sans);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 120ms var(--v2-ease),
+    border-color 120ms var(--v2-ease),
+    color 120ms var(--v2-ease),
+    box-shadow 120ms var(--v2-ease),
+    transform 80ms var(--v2-ease);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.meaning-v2 .v2-btn:disabled,
+.meaning-v2 .v2-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizes */
+.meaning-v2 .v2-btn[data-size="xs"] { padding: 4px 8px; font-size: 11.5px; border-radius: 6px; }
+.meaning-v2 .v2-btn[data-size="sm"] { padding: 6px 12px; font-size: 12.5px; }
+.meaning-v2 .v2-btn[data-size="md"] { padding: 9px 16px; font-size: 13.5px; }
+.meaning-v2 .v2-btn[data-size="lg"] { padding: 11px 20px; font-size: 14px; }
+
+/* Variant: primary — ink fill, inverse text (neutral CTA per brand spec) */
+.meaning-v2 .v2-btn[data-variant="primary"] {
+  background: var(--v2-ink);
+  color: var(--v2-ink-inverse);
+  border-color: var(--v2-ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 0 transparent;
+}
+.meaning-v2 .v2-btn[data-variant="primary"]:hover:not(:disabled) {
+  /* Larger mix so the near-white ink in dark mode (or near-black in light)
+     visibly shifts toward its inverse. 88% was imperceptible; 75% reads as
+     a clear hover. Paired with a soft shadow lift for depth.             */
+  background: color-mix(in oklab, var(--v2-ink) 75%, var(--v2-ink-inverse));
+  border-color: color-mix(in oklab, var(--v2-ink) 75%, var(--v2-ink-inverse));
+  box-shadow: 0 2px 8px -2px color-mix(in oklab, var(--v2-ink) 35%, transparent);
+}
+.meaning-v2 .v2-btn[data-variant="primary"]:active:not(:disabled) {
+  transform: scale(0.98);
+  background: color-mix(in oklab, var(--v2-ink) 60%, var(--v2-ink-inverse));
+  box-shadow: 0 0 0 0 transparent;
+}
+
+/* Variant: outline — transparent bg, ink text, line-strong border */
+.meaning-v2 .v2-btn[data-variant="outline"] {
+  background: transparent;
+  color: var(--v2-ink);
+  border-color: var(--v2-line-strong);
+}
+.meaning-v2 .v2-btn[data-variant="outline"]:hover:not(:disabled) {
+  background: var(--v2-surface-2);
+  border-color: var(--v2-ink);
+}
+.meaning-v2 .v2-btn[data-variant="outline"]:active:not(:disabled) {
+  transform: scale(0.98);
+  background: var(--v2-surface-3);
+}
+
+/* Variant: ghost — no fill, no border, reveals surface on hover */
+.meaning-v2 .v2-btn[data-variant="ghost"] {
+  background: transparent;
+  color: var(--v2-ink);
+  border-color: transparent;
+}
+.meaning-v2 .v2-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--v2-surface-2);
+}
+.meaning-v2 .v2-btn[data-variant="ghost"]:active:not(:disabled) {
+  transform: scale(0.98);
+  background: var(--v2-surface-3);
+}
+
+/* Variant: subtle — surface-2 fill (secondary-secondary) */
+.meaning-v2 .v2-btn[data-variant="subtle"] {
+  background: var(--v2-surface-2);
+  color: var(--v2-ink);
+  border-color: var(--v2-line);
+}
+.meaning-v2 .v2-btn[data-variant="subtle"]:hover:not(:disabled) {
+  background: var(--v2-surface-3);
+  border-color: var(--v2-line-strong);
+}
+.meaning-v2 .v2-btn[data-variant="subtle"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Variant: brand — AI-action tint (brand-bg + brand text) used for
+   "Generate", "Apply", "Reconnect"-style CTAs where we want to signal
+   AI/semantic action without the full stark-white primary treatment.  */
+.meaning-v2 .v2-btn[data-variant="brand"] {
+  background: var(--v2-brand-bg);
+  color: var(--v2-brand);
+  border-color: transparent;
+  font-weight: 600;
+}
+.meaning-v2 .v2-btn[data-variant="brand"]:hover:not(:disabled) {
+  border-color: var(--v2-brand);
+}
+.meaning-v2 .v2-btn[data-variant="brand"]:active:not(:disabled) {
+  transform: scale(0.98);
+  background: color-mix(in oklab, var(--v2-brand-bg) 70%, var(--v2-brand));
+}
+
+/* Variant: danger — red-tinted destructive action */
+.meaning-v2 .v2-btn[data-variant="danger"] {
+  background: var(--v2-neg-bg);
+  color: var(--v2-neg);
+  border-color: transparent;
+  font-weight: 600;
+}
+.meaning-v2 .v2-btn[data-variant="danger"]:hover:not(:disabled) {
+  border-color: var(--v2-neg);
+}
+.meaning-v2 .v2-btn[data-variant="danger"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Icon-only square buttons — kebabs, close, send, etc. */
+.meaning-v2 .v2-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--v2-ink-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 120ms var(--v2-ease),
+    color 120ms var(--v2-ease),
+    border-color 120ms var(--v2-ease),
+    transform 80ms var(--v2-ease);
+}
+.meaning-v2 .v2-icon-btn:hover:not(:disabled) {
+  background: var(--v2-surface-2);
+  color: var(--v2-ink);
+}
+.meaning-v2 .v2-icon-btn:active:not(:disabled) {
+  transform: scale(0.92);
+  background: var(--v2-surface-3);
+}
+.meaning-v2 .v2-icon-btn:disabled,
+.meaning-v2 .v2-icon-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.meaning-v2 .v2-icon-btn[data-pressed="true"],
+.meaning-v2 .v2-icon-btn[aria-expanded="true"] {
+  background: var(--v2-surface-2);
+  color: var(--v2-ink);
+}
+.meaning-v2 .v2-icon-btn[data-size="xs"] { width: 20px; height: 20px; }
+.meaning-v2 .v2-icon-btn[data-size="sm"] { width: 24px; height: 24px; }
+.meaning-v2 .v2-icon-btn[data-size="md"] { width: 28px; height: 28px; }
+.meaning-v2 .v2-icon-btn[data-size="lg"] { width: 32px; height: 32px; }
+
+/* Filled icon-button variant — for primary send button etc. */
+.meaning-v2 .v2-icon-btn[data-variant="primary"] {
+  background: var(--v2-ink);
+  color: var(--v2-ink-inverse);
+}
+.meaning-v2 .v2-icon-btn[data-variant="primary"]:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--v2-ink) 88%, var(--v2-ink-inverse));
+  color: var(--v2-ink-inverse);
+}
+.meaning-v2 .v2-icon-btn[data-variant="primary"]:disabled {
+  background: var(--v2-surface-2);
+  color: var(--v2-ink-subtle);
+  opacity: 1;
+}
+
+/* Menu-item button — used inside dropdown menus (kebab menus, list kebabs) */
+.meaning-v2 .v2-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--v2-ink);
+  text-align: left;
+  font-size: 12.5px;
+  font-family: var(--v2-font-sans);
+  transition: background 120ms var(--v2-ease), color 120ms var(--v2-ease);
+}
+.meaning-v2 .v2-menu-item:hover:not(:disabled) {
+  background: var(--v2-surface-2);
+}
+.meaning-v2 .v2-menu-item:active:not(:disabled) {
+  background: var(--v2-surface-3);
+}
+.meaning-v2 .v2-menu-item[data-danger="true"] {
+  color: var(--v2-neg);
+}
+.meaning-v2 .v2-menu-item[data-danger="true"]:hover:not(:disabled) {
+  background: var(--v2-neg-bg);
+}
+
+/* Pill / chip — outlined round pill used for suggested questions, example
+   prompts, follow-ups. Replaces scattered inline-styled pills. */
+.meaning-v2 .v2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  background: transparent;
+  border: 1px solid var(--v2-line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--v2-ink);
+  font-size: 12px;
+  text-align: left;
+  max-width: 100%;
+  line-height: 1.4;
+  font-family: var(--v2-font-sans);
+  transition: background 120ms var(--v2-ease), border-color 120ms var(--v2-ease), color 120ms var(--v2-ease);
+}
+.meaning-v2 .v2-chip:hover:not(:disabled) {
+  background: var(--v2-surface-2);
+  border-color: var(--v2-ink);
+}
+.meaning-v2 .v2-chip:active:not(:disabled) {
+  background: var(--v2-surface-3);
+}
+/* Selected/active state — used as a "tab pill" for templates, filters etc. */
+.meaning-v2 .v2-chip[data-active="true"] {
+  background: var(--v2-ink);
+  color: var(--v2-ink-inverse);
+  border-color: var(--v2-ink);
+  font-weight: 600;
+}
+.meaning-v2 .v2-chip[data-active="true"]:hover:not(:disabled) {
+  background: var(--v2-ink);
+  color: var(--v2-ink-inverse);
+  border-color: var(--v2-ink);
+}
+
+/* Page shell — applied by the PageShell primitive.
+   v2-page is the outer scroll column; v2-page-inner holds the centered content. */
+.meaning-v2 .v2-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--v2-bg);
+  scrollbar-gutter: stable;
+}
+.meaning-v2 .v2-page-inner {
+  width: 100%;
+  padding: var(--v2-page-pad-y) var(--v2-page-pad-x);
+  flex: 1 0 auto;
+}
+.meaning-v2 .v2-page-inner[data-width="contained"] {
+  max-width: var(--v2-page-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+.meaning-v2 .v2-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.meaning-v2 .v2-page-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.meaning-v2 .v2-page-title {
+  margin: 0;
+  font-size: var(--v2-h-page);
+  font-weight: 600;
+  letter-spacing: var(--v2-h-page-track);
+  line-height: 1.2;
+  color: var(--v2-ink);
+}
+.meaning-v2 .v2-page-subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--v2-ink-muted);
+  line-height: 1.55;
+  max-width: 60ch;
+}
+.meaning-v2 .v2-page-back {
+  margin-bottom: 14px;
+  align-self: flex-start;
+}
+
+/* Empty-state shell — used by EmptyState primitive.
+   Centered column, optional hero size for full-page emptiness. */
+.meaning-v2 .v2-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+  padding: 80px 24px;
+  flex: 1;
+  min-height: 360px;
+}
+.meaning-v2 .v2-empty[data-size="hero"] {
+  padding: 120px 24px 80px;
+  min-height: 480px;
+}
+.meaning-v2 .v2-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--v2-ink);
+}
+.meaning-v2 .v2-empty[data-size="hero"] .v2-empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+}
+.meaning-v2 .v2-empty-title {
+  margin: 0;
+  font-size: var(--v2-h-page);
+  font-weight: 600;
+  letter-spacing: var(--v2-h-page-track);
+  line-height: 1.1;
+  color: var(--v2-ink);
+}
+.meaning-v2 .v2-empty[data-size="hero"] .v2-empty-title {
+  font-size: var(--v2-h-hero);
+  letter-spacing: var(--v2-h-hero-track);
+}
+.meaning-v2 .v2-empty-desc {
+  margin: 0;
+  max-width: 460px;
+  font-size: 14px;
+  color: var(--v2-ink-muted);
+  line-height: 1.55;
+}
+.meaning-v2 .v2-empty-actions {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 6px;
+}
 
 /* Card bases */
 .meaning-v2 .bw-card {

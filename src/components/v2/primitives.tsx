@@ -164,43 +164,28 @@ export const Avatar = ({
   </div>
 );
 
+/** Pill button — outlined chip for suggestions and secondary actions.
+ *  Uses the .v2-chip class so hover/active/focus states are CSS-driven.
+ *  Pass `active` for the filled "selected" treatment used by template /
+ *  filter / segmented-control style pickers. */
 type ChipProps = {
   onClick?: () => void;
   icon?: React.ReactNode;
   block?: boolean;
+  active?: boolean;
   children: React.ReactNode;
+  title?: string;
 };
 
-/** Pill button — outlined chip for suggestions and secondary actions */
-export const Chip = ({ onClick, icon, block, children }: ChipProps) => (
+export const Chip = ({ onClick, icon, block, active, children, title }: ChipProps) => (
   <button
     type="button"
     onClick={onClick}
+    title={title}
+    className="v2-chip"
+    data-active={active ? "true" : undefined}
     style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "7px 14px",
-      borderRadius: 999,
-      background: "transparent",
-      color: "var(--v2-ink)",
-      border: "1px solid var(--v2-line-strong)",
-      fontSize: 13,
-      cursor: "pointer",
-      transition: "all 150ms var(--v2-ease)",
       whiteSpace: block ? "normal" : "nowrap",
-      textAlign: "left",
-      maxWidth: "100%",
-      lineHeight: 1.4,
-      fontFamily: "var(--v2-font-sans)",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.background = "var(--v2-surface-2)";
-      e.currentTarget.style.borderColor = "var(--v2-ink)";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.background = "transparent";
-      e.currentTarget.style.borderColor = "var(--v2-line-strong)";
     }}
   >
     {icon}
@@ -208,8 +193,14 @@ export const Chip = ({ onClick, icon, block, children }: ChipProps) => (
   </button>
 );
 
-type BtnVariant = "primary" | "outline" | "ghost" | "subtle";
-type BtnSize = "sm" | "md" | "icon";
+type BtnVariant =
+  | "primary"
+  | "outline"
+  | "ghost"
+  | "subtle"
+  | "brand"
+  | "danger";
+type BtnSize = "xs" | "sm" | "md" | "lg";
 
 type BtnProps = {
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
@@ -219,12 +210,19 @@ type BtnProps = {
   disabled?: boolean;
   type?: "button" | "submit" | "reset";
   style?: React.CSSProperties;
+  className?: string;
   children?: React.ReactNode;
   title?: string;
   "aria-label"?: string;
+  "aria-expanded"?: boolean;
 };
 
-/** Ink-forward button — primary uses neutral ink fill, not brand green */
+/**
+ * Centralized button. Variants + sizes map to .v2-btn CSS classes so
+ * hover/active/focus/disabled states all work via pseudo-classes (inline
+ * styles can't express those). Primary is ink-forward per brand spec;
+ * brand is the AI-tint CTA (brand-bg + brand text) for "Generate" etc.
+ */
 export const Btn = ({
   onClick,
   variant = "primary",
@@ -233,63 +231,134 @@ export const Btn = ({
   disabled,
   type = "button",
   style,
+  className,
   children,
   title,
   "aria-label": ariaLabel,
-}: BtnProps) => {
-  const pad = size === "sm" ? "6px 12px" : size === "icon" ? "7px" : "9px 16px";
-  const fs = size === "sm" ? 12.5 : 13.5;
-  const base: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    padding: pad,
-    fontSize: fs,
-    fontWeight: 500,
-    letterSpacing: "-0.005em",
-    borderRadius: size === "icon" ? 6 : 8,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-    transition: "all 120ms var(--v2-ease)",
-    border: "1px solid transparent",
-    fontFamily: "var(--v2-font-sans)",
-    ...style,
-  };
-  const variants: Record<BtnVariant, React.CSSProperties> = {
-    primary: {
-      background: "var(--v2-ink)",
-      color: "var(--v2-ink-inverse)",
-      borderColor: "var(--v2-ink)",
-      fontWeight: 600,
-    },
-    outline: {
-      background: "transparent",
-      color: "var(--v2-ink)",
-      borderColor: "var(--v2-line-strong)",
-    },
-    ghost: {
-      background: "transparent",
-      color: "var(--v2-ink)",
-      borderColor: "transparent",
-    },
-    subtle: {
-      background: "var(--v2-surface-2)",
-      color: "var(--v2-ink)",
-      borderColor: "var(--v2-line)",
-    },
-  };
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={ariaLabel}
-      style={{ ...base, ...variants[variant] }}
-    >
-      {icon}
-      {children}
-    </button>
-  );
+  "aria-expanded": ariaExpanded,
+}: BtnProps) => (
+  <button
+    type={type}
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    aria-label={ariaLabel}
+    aria-expanded={ariaExpanded}
+    data-variant={variant}
+    data-size={size}
+    className={className ? `v2-btn ${className}` : "v2-btn"}
+    style={style}
+  >
+    {icon}
+    {children}
+  </button>
+);
+
+type IconBtnVariant = "ghost" | "primary";
+type IconBtnSize = "xs" | "sm" | "md" | "lg";
+
+type IconBtnProps = {
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  icon: React.ReactNode;
+  size?: IconBtnSize;
+  variant?: IconBtnVariant;
+  disabled?: boolean;
+  pressed?: boolean;
+  type?: "button" | "submit" | "reset";
+  title?: string;
+  style?: React.CSSProperties;
+  className?: string;
+  "aria-label"?: string;
+  "aria-expanded"?: boolean;
 };
+
+/**
+ * Square icon-only button (kebabs, close, send). Default variant is ghost
+ * (transparent → surface-2 on hover). The primary variant is filled ink
+ * for send/composer-style CTAs. Use `pressed` for toggles; otherwise
+ * aria-expanded also triggers the pressed visual via CSS.
+ *
+ * forwardRef so callers that need to measure/focus the button (anchored
+ * popovers, click-outside checks) can attach a ref.
+ */
+export const IconBtn = React.forwardRef<HTMLButtonElement, IconBtnProps>(
+  function IconBtn(
+    {
+      onClick,
+      icon,
+      size = "sm",
+      variant = "ghost",
+      disabled,
+      pressed,
+      type = "button",
+      title,
+      style,
+      className,
+      "aria-label": ariaLabel,
+      "aria-expanded": ariaExpanded,
+    },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        aria-label={ariaLabel ?? title}
+        aria-expanded={ariaExpanded}
+        data-size={size}
+        data-variant={variant === "primary" ? "primary" : undefined}
+        data-pressed={pressed ? "true" : undefined}
+        className={className ? `v2-icon-btn ${className}` : "v2-icon-btn"}
+        style={style}
+      >
+        {icon}
+      </button>
+    );
+  },
+);
+
+type MenuItemProps = {
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  shortcut?: React.ReactNode;
+  danger?: boolean;
+  disabled?: boolean;
+  role?: string;
+};
+
+/** Dropdown-menu item — standardises spacing + hover surface + danger tint. */
+export const MenuItem = ({
+  onClick,
+  icon,
+  children,
+  shortcut,
+  danger,
+  disabled,
+  role = "menuitem",
+}: MenuItemProps) => (
+  <button
+    type="button"
+    role={role}
+    onClick={onClick}
+    disabled={disabled}
+    data-danger={danger ? "true" : undefined}
+    className="v2-menu-item"
+  >
+    {icon && (
+      <span
+        style={{
+          display: "inline-flex",
+          color: danger ? "var(--v2-neg)" : "var(--v2-ink-muted)",
+        }}
+      >
+        {icon}
+      </span>
+    )}
+    <span style={{ flex: 1 }}>{children}</span>
+    {shortcut}
+  </button>
+);
