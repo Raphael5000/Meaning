@@ -45,7 +45,7 @@ import {
 } from "./attachments";
 import { Thinking, Stages, ChartSkeleton, ErrorBanner, type Stage } from "./InFlight";
 import { I } from "./icons";
-import { Avatar } from "./primitives";
+import { Avatar, Mark } from "./primitives";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -59,12 +59,30 @@ import { TooltipProvider } from "./ui/tooltip";
 const CHART_KEYWORDS =
   /\b(chart|graph|plot|visuali[sz]e|map|pie|bar chart|line chart|sankey|treemap|heatmap|funnel|radar|gauge)\b/i;
 
-const EXAMPLE_QUESTIONS = [
-  "How many users visited my site this week?",
-  "What are my top traffic sources?",
-  "Which pages get the most views?",
-  "Who is on my site right now?",
-];
+/** Time-of-day greeting (24h based, GMT-naive — uses the user's local clock). */
+function timeOfDayGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return "Late night";
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  if (h < 22) return "Evening";
+  return "Late night";
+}
+
+function firstName(name?: string | null): string {
+  if (!name?.trim()) return "";
+  return name.trim().split(/\s+/)[0];
+}
+
+/** Map data-source `type` → public-asset logo path used by the source bubbles. */
+const SOURCE_ICON: Record<string, { icon: string; label: string }> = {
+  GA4_BIGQUERY: { icon: "/Google Analytics.svg", label: "Google Analytics" },
+  GOOGLE_ADS: { icon: "/Google Ads.svg", label: "Google Ads" },
+  SEARCH_CONSOLE: { icon: "/Search Console.svg", label: "Search Console" },
+  LINKEDIN: { icon: "/Linkedin.svg", label: "LinkedIn" },
+  MAILCHIMP: { icon: "/Mailchimp.svg", label: "Mailchimp" },
+  MICROSOFT_ADS: { icon: "/Microsoft Ads.svg", label: "Microsoft Ads" },
+};
 
 interface OrgApi {
   id: string;
@@ -815,12 +833,14 @@ export default function ChatV2() {
       )}
 
       {/* Desktop sidebar toggle — sits on the sidebar's right border, animates
-          with the sidebar width.                                               */}
+          with the sidebar width. z-30 keeps it above main content but BELOW
+          shadcn Sheet/Dialog overlays (which use z-50) so it disappears
+          behind the alerts edit drawer instead of poking through it.       */}
       <button
         type="button"
         onClick={() => setSidebarOpen((o) => !o)}
         aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        className="absolute top-[1.55rem] z-[51] hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-v2-line-strong bg-v2-surface text-v2-ink-muted shadow-sm transition-[left,color] duration-200 ease-[var(--v2-ease)] hover:border-v2-ink hover:text-v2-ink md:flex"
+        className="absolute top-[1.55rem] z-30 hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-v2-line-strong bg-v2-surface text-v2-ink-muted shadow-sm transition-[left,color] duration-200 ease-[var(--v2-ease)] hover:border-v2-ink hover:text-v2-ink md:flex"
         style={{
           left: sidebarOpen ? "calc(272px - 10px)" : "calc(3.5rem - 10px)",
         }}
@@ -833,9 +853,13 @@ export default function ChatV2() {
         />
       </button>
 
-      {/* Sidebar wrapper */}
+      {/* Sidebar wrapper.
+            Mobile (fixed slide-in): z-50 stays above the mobile backdrop (z-40).
+            Desktop (md:static + translate-x-0 creates a stacking context): drop
+            to z-30 so shadcn Sheet/Dialog overlays (z-50) cover it cleanly
+            instead of sitting behind it.                                       */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:static md:z-30 md:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -937,12 +961,19 @@ export default function ChatV2() {
               {messages.length === 0 && !loading && !initialLoaded ? (
                 <CenterSpinner />
               ) : messages.length === 0 && !loading ? (
-                <EmptyState
+                <EmptyHero
+                  userName={firstName(session?.user?.name)}
                   activeOrgId={activeOrgId}
-                  activeOrgName={activeOrg?.name ?? ""}
                   connectedSources={connectedSources}
                   onConnect={() => setActivePanel({ kind: "connections" })}
-                  onAsk={sendMessage}
+                  composer={
+                    <Composer
+                      disabled={loading || !activeOrgId}
+                      streaming={loading}
+                      sources={activeSources}
+                      onSend={sendMessage}
+                    />
+                  }
                 />
               ) : (
                 <div>
@@ -1035,23 +1066,27 @@ export default function ChatV2() {
             {/* Below-scroll wrapper: adds 10px of right padding to match the
                 scrollbar gutter reserved on the scroll area above.  Without
                 this, the scroll area is 10px narrower than the composer and
-                centered content drifts out of alignment.                     */}
-            <div style={{ paddingRight: 10 }}>
-              {error && (
-                <div className="mx-auto w-full max-w-[780px] px-4 pb-2 md:px-6">
-                  <ErrorBanner detail={error} onRetry={undefined} />
-                </div>
-              )}
+                centered content drifts out of alignment. Hidden when the
+                chat is empty — EmptyHero owns the composer in that state so
+                it can be visually centered with the greeting + bubbles.    */}
+            {!(messages.length === 0 && !loading) && (
+              <div style={{ paddingRight: 10 }}>
+                {error && (
+                  <div className="mx-auto w-full max-w-[780px] px-4 pb-2 md:px-6">
+                    <ErrorBanner detail={error} onRetry={undefined} />
+                  </div>
+                )}
 
-              <div className="px-4 md:px-6">
-                <Composer
-                  disabled={loading || !activeOrgId}
-                  streaming={loading}
-                  sources={activeSources}
-                  onSend={sendMessage}
-                />
+                <div className="px-4 md:px-6">
+                  <Composer
+                    disabled={loading || !activeOrgId}
+                    streaming={loading}
+                    sources={activeSources}
+                    onSend={sendMessage}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
@@ -1108,20 +1143,40 @@ function CenterSpinner() {
   );
 }
 
-function EmptyState({
+/**
+ * Empty hero — Claude-style "centered everything" pattern.
+ *
+ *   <Greeting>     ← time-of-day + first name
+ *   <Composer />   ← visual center of the page
+ *   <SourceBubbles /> ← connected data sources, with logos
+ *
+ * Owns the composer when there are no messages so the layout reads as a
+ * single centered block. The bottom composer is hidden in this state.
+ *
+ * No-sources branch keeps a clear "Connect a data source" CTA — the
+ * composer would be useless without sources, so we don't render it.
+ */
+function EmptyHero({
+  userName,
   activeOrgId,
-  activeOrgName,
   connectedSources,
   onConnect,
-  onAsk,
+  composer,
 }: {
+  userName: string;
   activeOrgId: string | null;
-  activeOrgName: string;
-  connectedSources: Array<{ status: string }>;
+  connectedSources: Array<{ type: string; status: string; label: string }>;
   onConnect: () => void;
-  onAsk: (q: string) => void;
+  composer: React.ReactNode;
 }) {
-  const hasSources = connectedSources.length > 0;
+  const greeting = userName
+    ? `${timeOfDayGreeting()}, ${userName}`
+    : timeOfDayGreeting();
+  const activeSources = connectedSources.filter((s) => s.status === "ACTIVE");
+  const hasSources = activeSources.length > 0;
+
+  // No-sources branch: skip the composer + greeting flourish, push them
+  // toward the connect flow.
   if (!hasSources) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 text-center">
@@ -1144,28 +1199,70 @@ function EmptyState({
       </div>
     );
   }
+
   return (
     <div className="flex h-full flex-col items-center justify-center px-4">
-      <h2 className="mb-2 text-[22px] font-semibold tracking-[-0.01em] text-v2-ink">
-        {activeOrgName ? `Ask about ${activeOrgName}` : "Chat with your analytics"}
-      </h2>
-      <p className="mb-7 max-w-[440px] text-center text-[13.5px] text-v2-ink-muted">
-        Ask any question about your website analytics in plain English.
-      </p>
-      {activeOrgId && (
-        <div className="flex max-w-[640px] flex-wrap justify-center gap-2.5">
-          {EXAMPLE_QUESTIONS.map((q) => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => onAsk(q)}
-              className="rounded-full border border-v2-line-strong bg-transparent px-3.5 py-2 text-[12.5px] text-v2-ink transition-colors hover:bg-v2-surface-2 hover:border-v2-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink"
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="w-full max-w-[760px]">
+        <h1
+          className="mb-7 flex items-center justify-center gap-3 text-center
+                     text-[34px] font-semibold tracking-[-0.025em] text-v2-ink
+                     md:text-[40px]"
+        >
+          <Mark size={36} />
+          <span>{greeting}</span>
+        </h1>
+        {composer}
+        <SourceBubbles sources={activeSources} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Horizontal row of connected-source bubbles below the empty-state composer.
+ * Each bubble: 16px source logo + label, on a soft surface chip. Read-only
+ * — these signal "you have these connected" rather than acting as quick
+ * actions. Wraps cleanly on narrow widths.
+ */
+function SourceBubbles({
+  sources,
+}: {
+  sources: Array<{ type: string; status: string; label: string }>;
+}) {
+  // De-duplicate by type so connecting two GA4 properties only shows one
+  // "Google Analytics" bubble.
+  const seen = new Set<string>();
+  const uniques = sources.filter((s) => {
+    if (seen.has(s.type)) return false;
+    seen.add(s.type);
+    return true;
+  });
+  if (uniques.length === 0) return null;
+  return (
+    <div className="mt-5 flex flex-wrap justify-center gap-2">
+      {uniques.map((s) => {
+        const meta = SOURCE_ICON[s.type];
+        if (!meta) return null;
+        return (
+          <span
+            key={s.type}
+            className="inline-flex items-center gap-2 rounded-full
+                       border border-v2-line bg-v2-surface px-3 py-1.5
+                       text-[12px] text-v2-ink-muted"
+            title={`${meta.label} · connected`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={meta.icon}
+              alt=""
+              width={14}
+              height={14}
+              style={{ display: "block" }}
+            />
+            <span>{meta.label}</span>
+          </span>
+        );
+      })}
     </div>
   );
 }
