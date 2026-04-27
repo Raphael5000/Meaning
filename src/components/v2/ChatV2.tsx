@@ -15,8 +15,8 @@ import {
 import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
-import DashboardListPanel from "@/components/DashboardListPanel";
-import DashboardPanel from "@/components/DashboardPanel";
+import DashboardListPanel from "@/components/v2/dashboard/DashboardListPanel";
+import DashboardPanel from "@/components/v2/dashboard/DashboardPanel";
 import BugReportModal from "@/components/BugReportModal";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import {
