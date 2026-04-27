@@ -3,6 +3,31 @@
 @tailwind utilities;
 
 /* ============================================================
+   Söhne — Anthropic-hosted webfonts. Locked for the v2 app shell.
+   v1 marketing pages keep using the existing Martel/Inter stack.
+   ============================================================ */
+@font-face {
+  font-family: 'Söhne';
+  src: url('https://assets.anthropic.com/m/9418ad4dba2c2b35/original/Soehne-Buch.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Söhne';
+  src: url('https://assets.anthropic.com/m/4f8f8d97aaedb3b/original/Soehne-Kraftig.otf') format('opentype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Söhne';
+  src: url('https://assets.anthropic.com/m/49a3a4f4ce5b8b4f/original/Soehne-Halbfett.otf') format('opentype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Söhne Mono';
+  src: url('https://assets.anthropic.com/m/15ec4f3eaa3a59cd/original/SoehneMono-Buch.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+
+/* ============================================================
    Theme toggle switch — sun/moon with animated thumb
    ============================================================ */
 .theme-switch {
@@ -99,6 +124,30 @@ h1, h2 {
   --shadow-card-hover: 0 10px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(16, 163, 127, 0.06);
   --nav-bg: #fafafa;
   --shadow-button: 0 0 20px rgba(16, 163, 127, 0.15);
+
+  /* shadcn semantic tokens — aliased to v1 vars so v1 pages keep their look.
+     The `.meaning-v2` scope (in tokens-v2.css) overrides these with the
+     design's OKLCH palette for the v2 app surface. */
+  --background:           var(--bg-primary);
+  --foreground:           var(--text-primary);
+  --card:                 var(--bg-secondary);
+  --card-foreground:      var(--text-primary);
+  --popover:              var(--bg-secondary);
+  --popover-foreground:   var(--text-primary);
+  --primary:              var(--accent);
+  --primary-foreground:   #ffffff;
+  --secondary:            var(--bg-secondary);
+  --secondary-foreground: var(--text-primary);
+  --muted:                var(--bg-tertiary);
+  --muted-foreground:     var(--text-muted);
+  --accent-color:         var(--bg-hover);
+  --accent-foreground:    var(--text-primary);
+  --destructive:          var(--error);
+  --destructive-foreground: #ffffff;
+  --border:               var(--border-color);
+  --input:                var(--border-color);
+  --ring:                 var(--accent);
+  --radius:               0.5rem;
 }
 
 /* Dark mode */

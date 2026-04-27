@@ -9,44 +9,66 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        border: "var(--border-color)",
-        input: "var(--border-color)",
-        ring: "var(--accent)",
-        background: "var(--bg-primary)",
-        foreground: "var(--text-primary)",
+        // shadcn semantic tokens. Each one points at a CSS var that has
+        // two definitions:
+        //   - :root (in globals.css) — aliased to v1 vars so v1 marketing
+        //     and v1 app pages render with their existing palette.
+        //   - .meaning-v2 (in tokens-v2.css) — design's OKLCH palette.
+        //
+        // Same Tailwind class (`bg-card`, `text-foreground`, etc.) renders
+        // correctly in both scopes.
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
         soft: "var(--text-secondary)",
         "user-bubble": "var(--user-bubble)",
         primary: {
-          DEFAULT: "var(--accent)",
-          foreground: "#ffffff",
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
         },
         secondary: {
-          DEFAULT: "var(--bg-secondary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
         },
         destructive: {
-          DEFAULT: "var(--error)",
-          foreground: "#ffffff",
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
         },
         success: {
           DEFAULT: "var(--success)",
           foreground: "#ffffff",
         },
         muted: {
-          DEFAULT: "var(--bg-tertiary)",
-          foreground: "var(--text-muted)",
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
         },
+        // shadcn calls this `accent`; we use `--accent-color` for the var
+        // because v1 already binds `--accent` to the brand green (Hivory).
+        // Renaming v1's `--accent` would ripple across the codebase, so we
+        // sidestep with a fresh var here.
         accent: {
-          DEFAULT: "var(--bg-hover)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--accent-color)",
+          foreground: "var(--accent-foreground)",
         },
         popover: {
-          DEFAULT: "var(--bg-secondary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
         },
         card: {
-          DEFAULT: "var(--bg-secondary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)",
+        },
+        // Chart palette — points at --chart-1..5. Inside .meaning-v2 these
+        // use the design's reordered palette; outside they fall through to
+        // values defined as needed.
+        chart: {
+          1: "var(--chart-1)",
+          2: "var(--chart-2)",
+          3: "var(--chart-3)",
+          4: "var(--chart-4)",
+          5: "var(--chart-5)",
         },
         // v2 token aliases — consumed by components inside `.meaning-v2` scope
         "v2-bg": "var(--v2-bg)",

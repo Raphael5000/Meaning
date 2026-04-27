@@ -1,50 +1,71 @@
 /* =====================================================================
-   Meaning v2 — unified token system
-   Scoped to `.meaning-v2` so v1 styling is untouched. Inside this scope
-   Tailwind still works, but components primarily read these CSS vars.
+   Meaning v2 — design system tokens
+   Scoped to `.meaning-v2`. Inside this scope, shadcn semantic CSS vars
+   (--background, --foreground, --primary, --ring, etc.) point at the
+   design's OKLCH palette + Hivory green. Outside the scope, the same
+   names alias to v1 vars (see globals.css :root) so v1 marketing /
+   v1 app pages keep their existing look.
+
+   v1 marketing keeps its own typography, gradients, and shadows. The
+   v2 app surface gets Söhne (loaded globally in globals.css).
+
+   The legacy `--v2-*` aliases are kept for components that haven't been
+   migrated to shadcn semantic vars yet. They will be removed once every
+   v2 file uses Tailwind shadcn-keyed classes (bg-card, text-muted-fg,
+   border-border, etc.) instead of `bg-v2-surface` etc.
    ===================================================================== */
 
 .meaning-v2 {
-  /* Neutral scale — tinted toward brand green (hue 155, very low chroma).
-     Reads as paper/ink first, greenish second. Built in OKLCH for
-     perceptual evenness across the ramp.                                  */
-  --ink-0:  oklch(0.995 0.004 155);
-  --ink-1:  oklch(0.985 0.008 155);
-  --ink-2:  oklch(0.970 0.010 155);
-  --ink-3:  oklch(0.940 0.012 155);
-  --ink-4:  oklch(0.895 0.014 155);
-  --ink-5:  oklch(0.790 0.016 155);
-  --ink-6:  oklch(0.660 0.014 155);
-  --ink-7:  oklch(0.520 0.012 155);
-  --ink-8:  oklch(0.380 0.012 155);
-  --ink-9:  oklch(0.260 0.014 155);
-  --ink-10: oklch(0.180 0.012 155);
-  --ink-11: oklch(0.135 0.010 155);
-  --ink-12: oklch(0.080 0.010 155);
+  /* === shadcn semantic tokens — light theme (OKLCH-tinted, Hivory green) === */
+  --background:           oklch(0.985 0.008 155);
+  --foreground:           oklch(0.135 0.010 155);
+  --card:                 oklch(0.995 0.004 155);
+  --card-foreground:      oklch(0.135 0.010 155);
+  --popover:              oklch(0.995 0.004 155);
+  --popover-foreground:   oklch(0.135 0.010 155);
+  --primary:              #00A352;
+  --primary-foreground:   #071A10;
+  --secondary:            oklch(0.970 0.010 155);
+  --secondary-foreground: oklch(0.135 0.010 155);
+  --muted:                oklch(0.970 0.010 155);
+  --muted-foreground:     oklch(0.520 0.012 155);
+  --accent-color:         oklch(0.940 0.012 155);
+  --accent-foreground:    oklch(0.135 0.010 155);
+  --destructive:          #B42318;
+  --destructive-foreground: #FFFFFF;
+  --border:               oklch(0.940 0.012 155);
+  --input:                oklch(0.940 0.012 155);
+  --ring:                 oklch(0.520 0.012 155);
+  --radius:               0.5rem;
 
-  /* Semantic aliases — light defaults */
-  --v2-bg:           var(--ink-1);
-  --v2-surface:      var(--ink-0);
-  --v2-surface-2:    var(--ink-2);
-  --v2-surface-3:    var(--ink-3);
-  --v2-line:         var(--ink-3);
-  --v2-line-strong:  var(--ink-4);
-  --v2-ink:          var(--ink-11);
-  --v2-ink-muted:    var(--ink-7);
-  --v2-ink-subtle:   var(--ink-6);
-  --v2-ink-inverse:  var(--ink-0);
+  /* Chart categorical scale */
+  --chart-1: #00A352;
+  --chart-2: #1570EF;
+  --chart-3: #B54708;
+  --chart-4: #6941C6;
+  --chart-5: #B42318;
 
-  /* Brand — Hivory green. Derived darker values for light-mode legibility. */
-  --v2-brand:        #00A352;
+  /* === Legacy v2 aliases — bound to the new shadcn semantic vars so
+     existing inline-styled components still render correctly while we
+     migrate them. Will be deleted once nothing references --v2-*. === */
+  --v2-bg:           var(--background);
+  --v2-surface:      var(--card);
+  --v2-surface-2:    var(--muted);
+  --v2-surface-3:    var(--accent-color);
+  --v2-line:         var(--border);
+  --v2-line-strong:  oklch(0.895 0.014 155);
+  --v2-ink:          var(--foreground);
+  --v2-ink-muted:    var(--muted-foreground);
+  --v2-ink-subtle:   oklch(0.660 0.014 155);
+  --v2-ink-inverse:  var(--background);
+  --v2-brand:        var(--primary);
   --v2-brand-ink:    #00803F;
   --v2-brand-vivid:  #00EE7F;
   --v2-brand-bg:     oklch(0.960 0.050 155);
-  --v2-on-brand:     #071A10;
-
-  /* Functional palette — light mode values */
+  --v2-on-brand:     var(--primary-foreground);
   --v2-pos:          #067647;
   --v2-pos-bg:       oklch(0.960 0.050 155);
-  --v2-neg:          #B42318;
+  --v2-neg:          var(--destructive);
   --v2-neg-bg:       oklch(0.955 0.035 25);
   --v2-info:         #1570EF;
   --v2-info-bg:      oklch(0.960 0.035 245);
@@ -52,8 +73,9 @@
   --v2-warn-bg:      oklch(0.965 0.045 80);
   --v2-accent:       #C4320A;
   --v2-accent-bg:    oklch(0.960 0.045 45);
-
-  /* Chart categorical scale (light) */
+  /* Chart palette pinned to the original v2 values so widgets/charts
+     keep the user-loved colors. Distinct from --chart-1..5 above (which
+     follow the design's reordered palette for any new shadcn-charting). */
   --v2-c-1:          #00A352;
   --v2-c-2:          #1570EF;
   --v2-c-3:          #C4320A;
@@ -64,63 +86,63 @@
   /* Motion */
   --v2-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* System font stack — no webfonts, identical everywhere */
-  --v2-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --v2-font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  /* Typography — Söhne (loaded globally in globals.css) */
+  --v2-font-sans: 'Söhne', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --v2-font-mono: 'Söhne Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 
-  /* Type scale — three locked sizes for headings.
-     Use --v2-h-hero only on full-page empty-state heroes.
-     Use --v2-h-page for every page/section title.
-     Use --v2-h-section for in-page sub-sections. */
-  --v2-h-hero:        36px;
-  --v2-h-hero-track:  -0.025em;
-  --v2-h-page:        24px;
-  --v2-h-page-track:  -0.02em;
-  --v2-h-section:     18px;
-  --v2-h-section-track: -0.015em;
-
-  /* Layout — single source of truth for the contained-page width.
-     PageShell width="contained" renders to this max-width centered. */
-  --v2-page-max:      960px;
-  --v2-page-pad-x:    32px;
-  --v2-page-pad-y:    40px;
-
-  --v2-shadow-card: 0 1px 0 rgba(0,0,0,0.02), 0 0 0 1px var(--v2-line);
-  --v2-shadow-pop:  0 10px 40px -12px rgba(0,0,0,0.18), 0 0 0 1px var(--v2-line);
+  /* Shadows */
+  --v2-shadow-card: 0 1px 0 rgba(0,0,0,0.02), 0 0 0 1px var(--border);
+  --v2-shadow-pop:  0 10px 40px -12px rgba(0,0,0,0.18), 0 0 0 1px var(--border);
 
   /* Scope-wide defaults */
   font-family: var(--v2-font-sans);
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--v2-ink);
-  background: var(--v2-bg);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--foreground);
+  background: var(--background);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'cv11';
 }
 
-/* Dark overrides — triggered by the app's existing `html.dark` or a local `.dark` */
+/* Dark overrides — match the design's dark palette exactly. */
 html.dark .meaning-v2,
 .dark .meaning-v2,
 .meaning-v2.dark {
-  --v2-bg:           oklch(0.125 0.012 155);
-  --v2-surface:      oklch(0.155 0.012 155);
-  --v2-surface-2:    oklch(0.190 0.014 155);
-  --v2-surface-3:    oklch(0.235 0.014 155);
-  --v2-line:         oklch(0.255 0.014 155);
+  --background:           oklch(0.125 0.012 155);
+  --foreground:           oklch(0.965 0.008 155);
+  --card:                 oklch(0.155 0.012 155);
+  --card-foreground:      oklch(0.965 0.008 155);
+  --popover:              oklch(0.155 0.012 155);
+  --popover-foreground:   oklch(0.965 0.008 155);
+  --primary:              #00EE7F;
+  --primary-foreground:   #071A10;
+  --secondary:            oklch(0.190 0.014 155);
+  --secondary-foreground: oklch(0.965 0.008 155);
+  --muted:                oklch(0.190 0.014 155);
+  --muted-foreground:     oklch(0.640 0.012 155);
+  --accent-color:         oklch(0.235 0.014 155);
+  --accent-foreground:    oklch(0.965 0.008 155);
+  --destructive:          #F97066;
+  --destructive-foreground: #FFFFFF;
+  --border:               oklch(0.255 0.014 155);
+  --input:                oklch(0.255 0.014 155);
+  --ring:                 oklch(0.640 0.012 155);
+
+  --chart-1: #00EE7F;
+  --chart-2: #53B1FD;
+  --chart-3: #FDB022;
+  --chart-4: #B692F6;
+  --chart-5: #F97066;
+
+  /* Legacy v2 aliases — most chain through (--v2-bg → --background etc.).
+     These five need explicit dark values because either there's no
+     equivalent shadcn semantic var, or the dark hue differs. */
   --v2-line-strong:  oklch(0.320 0.014 155);
-  --v2-ink:          oklch(0.965 0.008 155);
-  --v2-ink-muted:    oklch(0.640 0.012 155);
   --v2-ink-subtle:   oklch(0.450 0.014 155);
-  --v2-ink-inverse:  oklch(0.125 0.012 155);
-
-  --v2-brand:        #00EE7F;
   --v2-brand-ink:    #5FF5A5;
-  --v2-brand-vivid:  #00EE7F;
   --v2-brand-bg:     rgba(0, 238, 127, 0.10);
-  --v2-on-brand:     #071A10;
-
   --v2-pos:          #32D583;
   --v2-pos-bg:       rgba(50, 213, 131, 0.12);
-  --v2-neg:          #F97066;
   --v2-neg-bg:       rgba(249, 112, 102, 0.12);
   --v2-info:         #53B1FD;
   --v2-info-bg:      rgba(83, 177, 253, 0.12);
