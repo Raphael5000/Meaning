@@ -86,7 +86,10 @@ export default function DashboardListPanelV2({
   }, [fetchDashboards]);
 
   async function handleCreate() {
-    if (!orgId) return;
+    if (!orgId) {
+      toast.error("Select a team first.");
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch("/api/dashboards", {
@@ -98,10 +101,15 @@ export default function DashboardListPanelV2({
         const dashboard = await res.json();
         onOpenDashboard(dashboard.id);
       } else {
-        toast.error("Could not create dashboard.");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        toast.error(data.error || `Could not create dashboard (${res.status}).`);
       }
-    } catch {
-      toast.error("Could not create dashboard.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not create dashboard.",
+      );
     } finally {
       setCreating(false);
     }

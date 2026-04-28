@@ -56,6 +56,7 @@ interface SidebarProps {
   onDeleteChat?: (chat: SidebarChat) => void;
   onSwitchOrg?: (orgId: string) => void;
   onManageWorkspace?: () => void;
+  onCreateTeam?: () => void;
   onOpenDashboards?: () => void;
   onOpenAlerts?: () => void;
   onOpenConnections?: () => void;
@@ -197,6 +198,7 @@ function ExpandedContent({
   onDeleteChat,
   onSwitchOrg,
   onManageWorkspace,
+  onCreateTeam,
   onOpenDashboards,
   onOpenAlerts,
   onOpenConnections,
@@ -230,7 +232,7 @@ function ExpandedContent({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" sideOffset={6} className="w-[252px]">
-              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+              <DropdownMenuLabel>Teams</DropdownMenuLabel>
               {(orgs ?? [org]).map((o) => (
                 <DropdownMenuItem
                   key={o.id}
@@ -248,14 +250,18 @@ function ExpandedContent({
                   )}
                 </DropdownMenuItem>
               ))}
+              {(onCreateTeam || onManageWorkspace) && <DropdownMenuSeparator />}
+              {onCreateTeam && (
+                <DropdownMenuItem onSelect={onCreateTeam}>
+                  <I.Plus />
+                  Create new team
+                </DropdownMenuItem>
+              )}
               {onManageWorkspace && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={onManageWorkspace}>
-                    <I.Users />
-                    Manage workspace
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onSelect={onManageWorkspace}>
+                  <I.Users />
+                  Manage team
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -568,7 +574,7 @@ function ChatRow({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem destructive onSelect={() => onDelete(chat)}>
-                  <I.X />
+                  <I.Trash />
                   Delete
                 </DropdownMenuItem>
               </>

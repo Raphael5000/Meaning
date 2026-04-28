@@ -12,6 +12,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
@@ -87,6 +97,9 @@ const SOURCE_ICON: Record<string, { icon: string; label: string }> = {
 interface OrgApi {
   id: string;
   name: string;
+  imageUrl?: string | null;
+  ownerId?: string;
+  role?: string;
 }
 
 /** Chart data may arrive as ECharts-native `{ title: { text, subtext } }` or as
@@ -244,6 +257,9 @@ export default function ChatV2() {
   const [renamingChatId, setRenamingChatId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [showOnboarding, setShowOnboarding] = React.useState(false);
+  const [createTeamOpen, setCreateTeamOpen] = React.useState(false);
+  const [createTeamName, setCreateTeamName] = React.useState("");
+  const [creatingTeam, setCreatingTeam] = React.useState(false);
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const lastMessageRef = React.useRef<HTMLDivElement>(null);
@@ -467,6 +483,43 @@ export default function ChatV2() {
       setMessages([]);
     }
     setDeleteTarget(null);
+  }
+
+  async function handleCreateTeam() {
+    const name = createTeamName.trim();
+    if (!name) return;
+    setCreatingTeam(true);
+    try {
+      const res = await fetch("/api/organizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Could not create team");
+      }
+      const { organization } = (await res.json()) as {
+        organization: { id: string; name: string; imageUrl: string | null };
+      };
+      const newOrg: OrgApi = {
+        id: organization.id,
+        name: organization.name,
+        imageUrl: organization.imageUrl ?? null,
+      };
+      setOrgs((prev) => [...prev, newOrg]);
+      setActiveOrgId(organization.id);
+      setActivePanel({ kind: "none" });
+      setCreateTeamOpen(false);
+      setCreateTeamName("");
+      toast.success(`Created “${organization.name}”.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create team");
+    } finally {
+      setCreatingTeam(false);
+    }
   }
 
   function handleSwitchOrg(orgId: string) {
@@ -881,6 +934,10 @@ export default function ChatV2() {
           onStartRename={handleStartRename}
           onDeleteChat={handleDeleteRequest}
           onSwitchOrg={handleSwitchOrg}
+          onCreateTeam={() => {
+            setCreateTeamName("");
+            setCreateTeamOpen(true);
+          }}
           onManageWorkspace={() => setActivePanel({ kind: "team" })}
           onOpenDashboards={() => setActivePanel({ kind: "dashboardList" })}
           onOpenAlerts={() => setActivePanel({ kind: "alerts" })}
@@ -1122,6 +1179,62 @@ export default function ChatV2() {
         open={bugReportOpen}
         onClose={() => setBugReportOpen(false)}
       />
+
+      {/* Create new team */}
+      <Dialog
+        open={createTeamOpen}
+        onOpenChange={(open) => {
+          if (!creatingTeam) setCreateTeamOpen(open);
+        }}
+      >
+        <DialogContent className="meaning-v2 sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Create new team</DialogTitle>
+            <DialogDescription>
+              A team holds its own data sources, dashboards, and members. You can
+              switch between teams from the sidebar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <label
+              htmlFor="create-team-name"
+              className="text-[12.5px] font-medium text-foreground"
+            >
+              Team name
+            </label>
+            <Input
+              id="create-team-name"
+              autoFocus
+              value={createTeamName}
+              onChange={(e) => setCreateTeamName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && createTeamName.trim() && !creatingTeam) {
+                  e.preventDefault();
+                  handleCreateTeam();
+                }
+              }}
+              placeholder="Acme Co."
+              disabled={creatingTeam}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setCreateTeamOpen(false)}
+              disabled={creatingTeam}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleCreateTeam}
+              disabled={creatingTeam || !createTeamName.trim()}
+            >
+              {creatingTeam ? "Creating…" : "Create team"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );

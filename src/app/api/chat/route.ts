@@ -576,6 +576,7 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 // getUsesBigQuery moved to src/lib/rollout.ts as shouldUseBigQuery
 
 export async function POST(request: NextRequest) {
+  try {
   const session = await auth();
   const accessToken = await getGoogleAccessToken(
     session as { accessToken?: string; userId?: string; teamAdminId?: string } | null
@@ -1112,4 +1113,9 @@ export async function POST(request: NextRequest) {
       Connection: "keep-alive",
     },
   });
+  } catch (err) {
+    console.error("[api/chat] Unhandled error before stream:", err);
+    const message = err instanceof Error ? err.message : "Chat request failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

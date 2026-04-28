@@ -315,7 +315,7 @@ export function TeamTab({ orgId, orgName }: TeamTabProps) {
         wrap={false}
         action={
           <div className="flex items-center gap-2">
-            <div className="flex h-[30px] items-center gap-1.5 rounded-md border border-border pl-2.5 pr-1">
+            <div className="flex h-[30px] items-center gap-1.5 rounded-md border border-border pl-2.5 pr-1 transition-shadow focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25">
               <Mail className="size-3 text-muted-foreground" />
               <input
                 type="email"
@@ -325,7 +325,7 @@ export function TeamTab({ orgId, orgName }: TeamTabProps) {
                   if (e.key === "Enter") sendInvite();
                 }}
                 placeholder="invite teammate@hivory.io"
-                className="w-[220px] border-0 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                className="no-focus-ring w-[220px] border-0 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
               />
               <Button
                 size="sm"

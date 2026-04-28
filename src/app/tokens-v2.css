@@ -199,16 +199,16 @@ html.dark .meaning-v2,
   font-variant-numeric: tabular-nums;
 }
 
-/* Focus ring — applies to actionable elements.  Textareas and inputs that
-   live inside a parent with `focus-within` styling (like the composer) should
-   opt-out with `.no-focus-ring` so the ring lives on the outer container
-   instead of the inner control.                                             */
+/* Focus ring — applies to actionable elements.
+   Inputs and textareas style their own focus state (see ui/input.tsx,
+   ui/textarea.tsx) so the ring tracks the design system tokens and sits
+   flush with the control. Containers that own focus-within styling
+   (composer, tag input) opt their inner controls out via `.no-focus-ring`. */
 .meaning-v2 button:focus-visible,
-.meaning-v2 a:focus-visible,
-.meaning-v2 input:not(.no-focus-ring):focus-visible,
-.meaning-v2 textarea:not(.no-focus-ring):focus-visible {
-  outline: 1.5px solid var(--v2-ink);
+.meaning-v2 a:focus-visible {
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
+  border-radius: 6px;
 }
 
 /* Chat prose */

@@ -308,7 +308,7 @@ export function standardWidgetMenu(handlers: {
     { icon: <I.Sparkle size={12.5} />, label: "Ask follow-up", shortcut: <Kbd>⌘K</Kbd>, onSelect: handlers.onAskFollowup },
     { icon: <I.Copy size={12.5} />, label: "Duplicate", onSelect: handlers.onDuplicate },
     { icon: <I.Download size={12.5} />, label: "Export CSV", onSelect: handlers.onExportCsv },
-    { icon: <I.X size={12.5} />, label: "Remove from dashboard", danger: true, onSelect: handlers.onRemove },
+    { icon: <I.Trash size={12.5} />, label: "Remove from dashboard", danger: true, onSelect: handlers.onRemove },
   ];
 }
 
