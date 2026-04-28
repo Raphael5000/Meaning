@@ -17,15 +17,15 @@ export function V2Calendar(props: CalendarProps) {
   return (
     <Calendar
       {...props}
-      className="p-3 [font-family:var(--v2-font-sans)]"
+      className="relative p-3 [font-family:var(--v2-font-sans)]"
       classNames={{
         caption_label:
           "text-[13px] font-semibold [color:var(--v2-ink)] [letter-spacing:-0.01em]",
         nav: "flex items-center gap-1",
         button_previous:
-          "absolute left-1 top-0 h-7 w-7 inline-flex items-center justify-center rounded-md [color:var(--v2-ink-muted)] hover:[background:var(--v2-surface-2)] hover:[color:var(--v2-ink)] transition-colors",
+          "absolute left-3 top-3 h-7 w-7 inline-flex items-center justify-center rounded-md [color:var(--v2-ink-muted)] hover:[background:var(--v2-surface-2)] hover:[color:var(--v2-ink)] transition-colors z-10",
         button_next:
-          "absolute right-1 top-0 h-7 w-7 inline-flex items-center justify-center rounded-md [color:var(--v2-ink-muted)] hover:[background:var(--v2-surface-2)] hover:[color:var(--v2-ink)] transition-colors",
+          "absolute right-3 top-3 h-7 w-7 inline-flex items-center justify-center rounded-md [color:var(--v2-ink-muted)] hover:[background:var(--v2-surface-2)] hover:[color:var(--v2-ink)] transition-colors z-10",
         weekday:
           "w-8 font-medium text-[10px] uppercase tracking-[0.08em] [color:var(--v2-ink-muted)]",
         day: "relative p-0 text-center text-[12.5px] focus-within:relative focus-within:z-20",

@@ -20,6 +20,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardSummary {
@@ -70,6 +80,11 @@ export default function DashboardListPanelV2({
   const [dashboards, setDashboards] = React.useState<DashboardSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [pendingDelete, setPendingDelete] = React.useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const fetchDashboards = React.useCallback(() => {
     if (!orgId) return;
@@ -115,24 +130,32 @@ export default function DashboardListPanelV2({
     }
   }
 
-  async function handleDelete(id: string, title: string) {
-    if (
-      !window.confirm(
-        `Delete "${title || "Untitled Dashboard"}"? This can’t be undone.`,
-      )
-    ) {
-      return;
-    }
+  function requestDelete(id: string, title: string) {
+    setPendingDelete({ id, title });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setDeleting(true);
     try {
       const res = await fetch(`/api/dashboards/${id}`, { method: "DELETE" });
       if (res.ok) {
         setDashboards((prev) => prev.filter((d) => d.id !== id));
         toast.success("Dashboard deleted.");
+        setPendingDelete(null);
       } else {
-        toast.error("Could not delete dashboard.");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        toast.error(data.error || `Could not delete dashboard (${res.status}).`);
       }
-    } catch {
-      toast.error("Could not delete dashboard.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not delete dashboard.",
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -187,7 +210,7 @@ export default function DashboardListPanelV2({
                     key={d.id}
                     dashboard={d}
                     onOpen={() => onOpenDashboard(d.id)}
-                    onDelete={() => handleDelete(d.id, d.title)}
+                    onDelete={() => requestDelete(d.id, d.title)}
                   />
                 ))}
               </TableBody>
@@ -195,6 +218,37 @@ export default function DashboardListPanelV2({
           </div>
         )}
       </PageBody>
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent className="meaning-v2">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete dashboard</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &ldquo;{pendingDelete?.title || "Untitled Dashboard"}
+              &rdquo;? Its widgets will be removed too. This can&rsquo;t be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

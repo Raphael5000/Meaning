@@ -265,6 +265,7 @@ export function DashChatDock({
     <aside
       role="complementary"
       aria-label="Dashboard chat"
+      className="v2-dock-in"
       style={{
         position: "absolute",
         top: 0,

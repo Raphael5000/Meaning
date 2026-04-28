@@ -384,6 +384,24 @@ html.dark .meaning-v2,
   animation: v2-attach-in 220ms var(--v2-ease);
 }
 
+/* Right-side dock slide-in — used by DashChatDock and any other
+   absolute-positioned right rail that mounts on demand. Slides in from
+   the right edge with a soft fade so the panel doesn't pop. */
+@keyframes v2-dock-in {
+  from {
+    transform: translateX(100%);
+    box-shadow: -24px 0 48px -16px rgba(0, 0, 0, 0);
+  }
+  to {
+    transform: translateX(0);
+    box-shadow: -24px 0 48px -16px rgba(0, 0, 0, 0.35);
+  }
+}
+.meaning-v2 .v2-dock-in,
+.v2-dock-in {
+  animation: v2-dock-in 280ms var(--v2-ease);
+}
+
 /* Bar pulse — chart skeleton bars */
 @keyframes v2-bar-pulse {
   0%, 100% { opacity: 0.55; transform: scaleY(0.85); }

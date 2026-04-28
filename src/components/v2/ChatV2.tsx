@@ -886,14 +886,15 @@ export default function ChatV2() {
       )}
 
       {/* Desktop sidebar toggle — sits on the sidebar's right border, animates
-          with the sidebar width. z-30 keeps it above main content but BELOW
-          shadcn Sheet/Dialog overlays (which use z-50) so it disappears
-          behind the alerts edit drawer instead of poking through it.       */}
+          with the sidebar width. z-40 keeps it above the sidebar (z-30) so
+          its left half isn't clipped, but BELOW shadcn Sheet/Dialog overlays
+          (z-50) so it disappears behind the alerts edit drawer instead of
+          poking through it.                                                  */}
       <button
         type="button"
         onClick={() => setSidebarOpen((o) => !o)}
         aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        className="absolute top-[1.55rem] z-30 hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-v2-line-strong bg-v2-surface text-v2-ink-muted shadow-sm transition-[left,color] duration-200 ease-[var(--v2-ease)] hover:border-v2-ink hover:text-v2-ink md:flex"
+        className="absolute top-[1.55rem] z-40 hidden h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-v2-line-strong bg-v2-surface text-v2-ink-muted shadow-sm transition-[left,color] duration-200 ease-[var(--v2-ease)] hover:border-v2-ink hover:text-v2-ink md:flex"
         style={{
           left: sidebarOpen ? "calc(272px - 10px)" : "calc(3.5rem - 10px)",
         }}
