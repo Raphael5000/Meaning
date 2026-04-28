@@ -452,6 +452,41 @@ function WidgetTableLegend({ items, isPercentage }: { items: Array<{ name: strin
   );
 }
 
+/** Flex-1 chart slot that measures its own width so ECharts gets exact pixels */
+function FlexChart({ option, height }: { option: Record<string, unknown>; height: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [width, setWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const measure = () => {
+      if (!ref.current) return;
+      const w = ref.current.getBoundingClientRect().width;
+      if (w > 0) setWidth((prev) => (prev !== null && Math.abs(prev - w) < 2 ? prev : w));
+    };
+    measure();
+    const observer = new ResizeObserver(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(measure, 50);
+    });
+    observer.observe(ref.current);
+    return () => { observer.disconnect(); if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
+  return (
+    <div ref={ref} className="min-w-0 flex-1" style={{ height }}>
+      {width !== null && (
+        <ChartRenderer
+          key={`${width}-${height}`}
+          option={option}
+          styleOverride={{ width, height }}
+        />
+      )}
+    </div>
+  );
+}
+
 /** Wrapper that measures its container and renders chart at exact size */
 function ResizableChart({ option }: { option: Record<string, unknown> }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -499,8 +534,8 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
     return <div ref={containerRef} className="h-full w-full" />;
   }
 
-  if (hasTableLegend) {
-    // Side-by-side: chart (60%) + table legend (40%)
+  if (hasTableLegend && pieLegend) {
+    // Pie: keep the 60/40 split — its legend rows include percentages and benefit from the width
     const chartWidth = Math.floor(size.w * 0.6);
     return (
       <div ref={containerRef} className="flex h-full w-full items-stretch">
@@ -511,7 +546,17 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
             styleOverride={{ width: chartWidth, height: size.h }}
           />
         </div>
-        <WidgetTableLegend items={legendItems} isPercentage={!!pieLegend} />
+        <WidgetTableLegend items={legendItems} isPercentage={true} />
+      </div>
+    );
+  }
+
+  if (hasTableLegend) {
+    // Line/bar: chart fills remaining width, legend takes only its content width
+    return (
+      <div ref={containerRef} className="flex h-full w-full items-stretch">
+        <FlexChart option={cleanOption} height={size.h} />
+        <WidgetTableLegend items={legendItems} isPercentage={false} />
       </div>
     );
   }
