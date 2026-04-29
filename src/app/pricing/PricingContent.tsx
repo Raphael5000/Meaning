@@ -115,13 +115,9 @@ export default function PricingPage() {
               Launch Offer
             </span>
 
-            <DisplayHeading size="xl" as="h1" className="mb-4">
-              Start free. Upgrade when you need more.
+            <DisplayHeading size="xl" as="h1" className="mb-12">
+              Pricing
             </DisplayHeading>
-            <p className="mx-auto mb-12 max-w-2xl text-lg text-[color:var(--m-text-secondary)]">
-              Connect your marketing data and ask anything in plain English.
-              No credit card required to get started.
-            </p>
           </Reveal>
 
           {/* Two-card grid */}
@@ -196,23 +192,23 @@ export default function PricingPage() {
               >
                 <span className="liquid-glass-shimmer" aria-hidden />
 
-                {/* Featured pill */}
-                <div className="absolute right-6 top-6 z-10">
-                  <span
-                    className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                      background: "var(--brand-soft)",
-                      color: "var(--brand)",
-                    }}
-                  >
-                    Most popular
-                  </span>
-                </div>
-
                 <div className="relative z-10 flex h-full flex-col">
-                  <p className="mb-1 text-sm font-medium text-[color:var(--brand)]">
-                    Pro — launch price locked in forever
-                  </p>
+                  {/* Plan name + Most popular pill on one row */}
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-[color:var(--brand)]">
+                      Pro
+                    </p>
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider"
+                      style={{
+                        background: "var(--brand-soft)",
+                        color: "var(--brand)",
+                      }}
+                    >
+                      Most popular
+                    </span>
+                  </div>
+
                   <div className="mb-1 flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-[color:var(--m-text)]">
                       $9.99
@@ -222,7 +218,8 @@ export default function PricingPage() {
                     </span>
                   </div>
                   <p className="mb-6 text-sm text-[color:var(--m-text-muted)]">
-                    Everything in Free, plus unlimited usage
+                    Launch price locked in forever — everything in Free, plus
+                    unlimited usage
                   </p>
 
                   <ul className="mb-8 flex flex-col gap-3">
