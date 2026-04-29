@@ -85,7 +85,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   pages: {
     signIn: "/login",
-    newUser: "/pricing",
+    // Intentionally NO newUser override — let the callbackUrl set by the
+    // signup page (e.g. /signup?plan=free → "/", ?plan=pro → "/onboarding")
+    // win. NextAuth's newUser config force-redirects all first-time OAuth
+    // users, which would override the plan-aware routing.
     error: "/auth-error",
   },
   cookies: {
