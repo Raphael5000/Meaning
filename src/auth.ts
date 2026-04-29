@@ -277,6 +277,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               if (membership) {
                 token.activeOrgId = membership.org.id;
                 token.orgOwnerId = membership.org.ownerId;
+              } else {
+                // Last-resort safety net: this user has NO organization at
+                // all. Should never happen post-launch (events.createUser
+                // and /api/auth/register both auto-provision one), but if
+                // it does we create one inline so chat / source gates have
+                // a valid orgId. Otherwise the user is stuck.
+                try {
+                  const u = await prisma.user.findUnique({
+                    where: { id: token.userId as string },
+                    select: { id: true, name: true, email: true },
+                  });
+                  if (u) {
+                    const firstName =
+                      ((u.name ?? u.email?.split("@")[0]) || "User").split(
+                        " "
+                      )[0] || "User";
+                    const orgName = `${firstName}'s workspace`;
+                    const newOrg = await prisma.$transaction(async (tx) => {
+                      const org = await tx.organization.create({
+                        data: { name: orgName, ownerId: u.id },
+                      });
+                      await tx.orgMembership.create({
+                        data: { orgId: org.id, userId: u.id, role: "admin" },
+                      });
+                      await tx.user.update({
+                        where: { id: u.id },
+                        data: { activeOrgId: org.id },
+                      });
+                      return org;
+                    });
+                    token.activeOrgId = newOrg.id;
+                    token.orgOwnerId = newOrg.ownerId;
+                    console.warn(
+                      `[auth] Auto-provisioned missing org for user ${u.id} in JWT callback. Investigate why events.createUser / register didn't run.`
+                    );
+                  }
+                } catch (err) {
+                  console.error(
+                    "[auth] Last-resort org auto-provisioning failed:",
+                    err
+                  );
+                }
               }
             }
           }

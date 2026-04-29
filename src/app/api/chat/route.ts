@@ -605,8 +605,11 @@ export async function POST(request: NextRequest) {
   // Tier + usage gate.
   // - If orgId is provided (new path), use the org-aware tier helper. Free tier
   //   orgs are capped at FREE_TIER_MESSAGE_LIMIT messages per UTC calendar month.
-  // - If only propertyId is provided (legacy clients), fall back to the
-  //   user-level hasActiveSubscription check (backward compat).
+  // - If no orgId is provided, the user's session somehow doesn't have an
+  //   active org. This shouldn't happen post-launch (events.createUser auto-
+  //   provisions an org on signup) — but to avoid hard-blocking free users
+  //   on edge cases, we treat them as paid for THIS request and log a warning
+  //   so we can fix the upstream signup glitch.
   let chatTier: "free" | "paid" = "paid";
   if (body.orgId) {
     chatTier = await getOrgTier(body.orgId);
@@ -623,13 +626,20 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-  } else if (subscriptionOwnerId) {
-    const active = await hasActiveSubscription(subscriptionOwnerId);
-    if (!active) {
-      return NextResponse.json(
-        { error: "Active subscription required", code: "SUBSCRIPTION_REQUIRED" },
-        { status: 403 }
-      );
+  } else {
+    console.warn(
+      `[chat] Request from user ${userId} arrived without orgId — auto-org provisioning may have failed. Treating as paid for this request.`
+    );
+    // If there's a paid subscription, that's true; if not, we still let the
+    // request through rather than block on an upstream signup glitch.
+    if (subscriptionOwnerId) {
+      const active = await hasActiveSubscription(subscriptionOwnerId);
+      if (!active) {
+        // Free tier with no orgId — we can't track usage, so allow once.
+        // This is intentionally permissive; the next session refresh should
+        // populate activeOrgId via the JWT callback's org-resolution fallback.
+        chatTier = "free";
+      }
     }
   }
 

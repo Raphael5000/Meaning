@@ -45,16 +45,14 @@ function ConnectAnalyticsContent() {
   const adsConnected = searchParams.get("ads_connected") === "true";
   const oauthError = searchParams.get("error");
 
-  // Enforce onboarding order and detect Google Account from DB.
+  // Detect Google Account from DB. Free-tier users are allowed here —
+  // gating happens at enable-export (source-count cap) and chat (message
+  // cap), not at "can you visit this page".
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/user/onboarding-status")
       .then((res) => res.json())
       .then((data) => {
-        if (data.hasSubscription === false) {
-          window.location.href = "/pricing";
-          return;
-        }
         if (data.hasGoogleAccount) {
           setHasToken(true);
         }

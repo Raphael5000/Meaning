@@ -158,13 +158,18 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Land back on the chat (which hosts the ConnectionsV2 panel) with a
+    // success flag, matching every other connect-* callback (ads, gsc,
+    // linkedin, mailchimp, ms-ads). The legacy /connect-analytics page is
+    // not the modern flow and was the source of "lands on /pricing after
+    // connecting" bugs.
     return NextResponse.redirect(
-      new URL("/connect-analytics?admin_connected=true", baseUrl)
+      new URL("/?ga_admin_connected=true", baseUrl)
     );
   } catch (err) {
     console.error("[connect-google-admin] Error:", err);
     return NextResponse.redirect(
-      new URL("/connect-analytics?error=unknown", baseUrl)
+      new URL("/?error=ga_admin_unknown", baseUrl)
     );
   }
 }
