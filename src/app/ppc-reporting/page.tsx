@@ -171,7 +171,7 @@ export default function PpcReportingPage() {
       <Reveal>
         <MarketingCta
           heading="Ready to simplify your PPC reporting?"
-          subtitle="Start your 14-day free trial. Connect Google Ads and Microsoft Ads in under a minute."
+          subtitle="Get started free. Connect Google Ads and Microsoft Ads in under a minute."
         />
       </Reveal>
 

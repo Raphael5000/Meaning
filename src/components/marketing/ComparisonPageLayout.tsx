@@ -422,7 +422,7 @@ export function ComparisonPageLayout({ data }: { data: ComparisonPageData }) {
       <Reveal>
         <MarketingCta
           heading="Ready to try Meaning?"
-          subtitle="Start your 14-day free trial. Connect your first data source in under a minute."
+          subtitle="Get started free. Connect your first data source in under a minute."
         />
       </Reveal>
 

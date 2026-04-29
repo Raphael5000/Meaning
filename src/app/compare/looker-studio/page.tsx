@@ -46,7 +46,7 @@ const data: ComparisonPageData = {
       description:
         "An AI analyst for your marketing stack. Ask any question in plain English across GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console — and get charts, dashboards, and alerts without building a thing.",
       points: [
-        "$9.99 per seat per month, 14-day free trial",
+        "Free forever for 2 sources, or $9.99 per seat / month for unlimited",
         "Chat across every connector in one conversation",
         "AI-generated dashboards from a single prompt",
         "Scheduled email alerts with AI summaries",
@@ -141,7 +141,7 @@ const data: ComparisonPageData = {
       details: [
         "All connectors included — GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console",
         "Unlimited dashboards, alerts, and chat queries",
-        "14-day free trial, cancel anytime",
+        "Free plan available, cancel Pro anytime",
         "Seat-based billing with prorated add/remove",
       ],
     },
@@ -201,7 +201,7 @@ const data: ComparisonPageData = {
   migration: {
     title: "Switching from Looker Studio",
     steps: [
-      "Sign up for Meaning and start your 14-day free trial.",
+      "Sign up for Meaning's free plan — no credit card required.",
       "Connect GA4 via your existing BigQuery export (we guide you through setup if you haven't enabled it).",
       "Connect Google Ads and any other platforms you're currently reporting on.",
       "Ask your first question — or rebuild a Looker Studio dashboard with a single prompt.",

@@ -180,7 +180,7 @@ export default function MarketingDashboardPage() {
       <Reveal>
         <MarketingCta
           heading="Ready to build your marketing dashboard?"
-          subtitle="Start your 14-day free trial. No credit card required."
+          subtitle="Get started free. No credit card required."
         />
       </Reveal>
 

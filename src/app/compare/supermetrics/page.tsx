@@ -46,7 +46,7 @@ const data: ComparisonPageData = {
       description:
         "An AI analyst with the pipeline, the dashboards, and the insights in one product. Connect your sources, ask questions in plain English, and get charts, dashboards, and alerts without opening a spreadsheet.",
       points: [
-        "Flat $9.99 per seat per month, 14-day free trial",
+        "Free forever for 2 sources, or $9.99 per seat / month for unlimited",
         "Chat, dashboards, alerts, and AI summaries included",
         "Unified BigQuery data layer across every connector",
         "Cross-platform queries in one request",
@@ -135,7 +135,7 @@ const data: ComparisonPageData = {
         "Every connector, dashboard, alert, and query included",
         "No extra fees for destinations, sources, or account connections",
         "Unified analytics UI — no other tool required",
-        "14-day free trial, cancel anytime",
+        "Free plan available, cancel Pro anytime",
       ],
     },
   },

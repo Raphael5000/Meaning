@@ -14,8 +14,8 @@ declare global {
 }
 
 const FEATURES = [
-  "All connectors — GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console",
-  "Unlimited AI queries across every source",
+  "Unlimited data source connections",
+  "Unlimited AI chat across every source",
   "Drag-and-drop dashboards with 14 chart types",
   "Scheduled email alerts with AI summaries",
   "Unlimited team members and properties",
@@ -110,7 +110,7 @@ export default function OnboardingPage() {
             {session?.user?.name ? `Welcome, ${session.user.name.split(" ")[0]}` : "Almost there"}
           </h1>
           <p className="mt-1.5 text-sm text-[rgba(255,255,255,0.45)]">
-            One last step to unlock your analytics
+            Upgrade to Pro for unlimited analytics
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          {/* Trial banner */}
+          {/* Pro banner */}
           <div
             className="-mx-6 -mt-6 mb-5 flex items-center gap-3 rounded-t-2xl px-6 py-4"
             style={{
@@ -135,13 +135,12 @@ export default function OnboardingPage() {
               style={{ background: "rgba(255,255,255,0.06)" }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[rgba(255,255,255,0.6)]">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-white">14-day free trial</p>
-              <p className="text-xs text-[rgba(255,255,255,0.4)]">No charge until your trial ends</p>
+              <p className="text-sm font-medium text-white">Meaning Pro</p>
+              <p className="text-xs text-[rgba(255,255,255,0.4)]">Cancel anytime · launch price locked in</p>
             </div>
           </div>
 
@@ -152,7 +151,7 @@ export default function OnboardingPage() {
               <span className="text-sm text-[rgba(255,255,255,0.4)]">/mo</span>
             </div>
             <p className="mt-0.5 text-xs text-[rgba(255,255,255,0.35)]">
-              after trial · launch price locked in forever
+              launch price locked in forever
             </p>
           </div>
 
@@ -194,7 +193,7 @@ export default function OnboardingPage() {
             className="w-full rounded-xl py-3 text-sm font-semibold text-black transition-all hover:brightness-90 disabled:opacity-50"
             style={{ background: "white" }}
           >
-            {loading ? "Opening checkout..." : "Start free trial"}
+            {loading ? "Opening checkout..." : "Subscribe to Pro"}
           </button>
 
           <p className="mt-3 text-center text-[11px] text-[rgba(255,255,255,0.3)]">
@@ -202,8 +201,19 @@ export default function OnboardingPage() {
           </p>
         </div>
 
+        {/* Skip-to-free escape hatch */}
+        <p className="mt-5 text-center text-[12px] text-[rgba(255,255,255,0.4)]">
+          Just want to try it?{" "}
+          <Link
+            href="/dashboard"
+            className="text-white underline-offset-4 hover:underline"
+          >
+            Continue on the free plan →
+          </Link>
+        </p>
+
         {/* Footer text */}
-        <p className="mt-5 text-center text-[11px] text-[rgba(255,255,255,0.2)]">
+        <p className="mt-3 text-center text-[11px] text-[rgba(255,255,255,0.2)]">
           Launch offer expires 19 July 2026
         </p>
       </div>

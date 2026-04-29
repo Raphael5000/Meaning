@@ -5,6 +5,11 @@ import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { runPropertyQuery, queryRealtimeData, getPropertySchema } from "@/lib/bigquery";
 import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { hasActiveSubscription } from "@/lib/subscription";
+import {
+  getOrgTier,
+  getOrgMessageUsage,
+  incrementOrgMessageCount,
+} from "@/lib/tier";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import { getAllowedPropertyIds } from "@/lib/team-access";
 import { shouldUseBigQuery, getGoogleAdsCustomerId, getLinkedInOrgId, getMailchimpListId, getGscSiteUrl, getMicrosoftAdsAccountId } from "@/lib/rollout";
@@ -586,11 +591,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Check subscription — team members use the admin's subscription
   const userId = (session as { userId?: string })?.userId;
   const teamAdminId = (session as { teamAdminId?: string })?.teamAdminId;
   const subscriptionOwnerId = teamAdminId || userId;
-  if (subscriptionOwnerId) {
+
+  const body = (await request.json()) as {
+    messages: ChatMessage[];
+    propertyId?: string;
+    orgId?: string;
+  };
+  const { messages } = body;
+
+  // Tier + usage gate.
+  // - If orgId is provided (new path), use the org-aware tier helper. Free tier
+  //   orgs are capped at FREE_TIER_MESSAGE_LIMIT messages per UTC calendar month.
+  // - If only propertyId is provided (legacy clients), fall back to the
+  //   user-level hasActiveSubscription check (backward compat).
+  let chatTier: "free" | "paid" = "paid";
+  if (body.orgId) {
+    chatTier = await getOrgTier(body.orgId);
+    if (chatTier === "free") {
+      const usage = await getOrgMessageUsage(body.orgId);
+      if (usage.used >= usage.limit) {
+        return NextResponse.json(
+          {
+            error: "Free tier message limit reached",
+            code: "FREE_TIER_LIMIT_REACHED",
+            usage,
+          },
+          { status: 402 }
+        );
+      }
+    }
+  } else if (subscriptionOwnerId) {
     const active = await hasActiveSubscription(subscriptionOwnerId);
     if (!active) {
       return NextResponse.json(
@@ -599,13 +632,6 @@ export async function POST(request: NextRequest) {
       );
     }
   }
-
-  const body = (await request.json()) as {
-    messages: ChatMessage[];
-    propertyId?: string;
-    orgId?: string;
-  };
-  const { messages } = body;
 
   // Resolve propertyId: prefer orgId (new path), fall back to propertyId (backward compat)
   let propertyId = body.propertyId ?? "";
@@ -1083,6 +1109,16 @@ export async function POST(request: NextRequest) {
         const suggestedQuestions = parseSuggestedQuestions(rawMessage);
         if (suggestedQuestions) {
           rawMessage = stripSuggestedQuestionsBlock(rawMessage);
+        }
+
+        // Increment monthly message count for free-tier orgs (only after a
+        // successful stream — failed/aborted requests don't count).
+        if (chatTier === "free" && body.orgId) {
+          try {
+            await incrementOrgMessageCount(body.orgId);
+          } catch (err) {
+            console.error("[chat] failed to increment message count:", err);
+          }
         }
 
         send({

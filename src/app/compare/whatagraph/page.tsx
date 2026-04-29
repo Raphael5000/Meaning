@@ -46,7 +46,7 @@ const data: ComparisonPageData = {
       description:
         "An AI analyst that connects to your marketing stack, answers questions in plain English, and generates dashboards, charts, and scheduled email reports — no manual template building required.",
       points: [
-        "Flat $9.99 per seat per month, 14-day free trial",
+        "Free forever for 2 sources, or $9.99 per seat / month for unlimited",
         "AI generates reports from plain-English prompts",
         "Every scheduled email includes AI summary and next steps",
         "Cross-platform queries across all connectors in one request",
@@ -122,7 +122,7 @@ const data: ComparisonPageData = {
         "Every connector, dashboard, alert, and query included",
         "No per-client or per-source fees",
         "Month-to-month, cancel anytime",
-        "14-day free trial to start",
+        "Free plan available, no credit card to start",
       ],
     },
   },

@@ -128,6 +128,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   events: {
+    // Auto-create an Organization + admin OrgMembership when a new user is
+    // first inserted via the PrismaAdapter (i.e., the Google OAuth signup
+    // path). Credentials signups go through /api/auth/register directly and
+    // create the org there — this event won't fire for that path.
+    async createUser({ user }) {
+      if (!user.id) return;
+      try {
+        const firstName =
+          (user.name ?? user.email?.split("@")[0] ?? "User").split(" ")[0] ||
+          "User";
+        const orgName = `${firstName}'s workspace`;
+
+        await prisma.$transaction(async (tx) => {
+          // Defensive: if a previous attempt half-completed, don't create a
+          // second org for the same user.
+          const existing = await tx.organization.findFirst({
+            where: { ownerId: user.id! },
+            select: { id: true },
+          });
+          if (existing) return;
+
+          const org = await tx.organization.create({
+            data: { name: orgName, ownerId: user.id! },
+          });
+          await tx.orgMembership.create({
+            data: { orgId: org.id, userId: user.id!, role: "admin" },
+          });
+          await tx.user.update({
+            where: { id: user.id! },
+            data: { activeOrgId: org.id },
+          });
+        });
+      } catch (err) {
+        console.error("[auth] createUser org auto-creation failed:", err);
+      }
+    },
     // Preserve elevated scopes on re-login. The PrismaAdapter overwrites the
     // Account record with the narrow login scope ("openid email profile"),
     // wiping the broader scope granted by /api/auth/connect-google-ads.

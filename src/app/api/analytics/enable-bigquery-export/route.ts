@@ -4,6 +4,7 @@ import { createBigQueryLink, listBigQueryLinks } from "@/lib/ga4";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { prisma } from "@/lib/prisma";
 import { backfillProperty } from "@/lib/backfill";
+import { assertCanAddSource } from "@/lib/tier";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,25 @@ export async function POST(request: NextRequest) {
       { error: "propertyId is required" },
       { status: 400 }
     );
+  }
+
+  // Free-tier source-count gate (skipped if no org — pre-launch users)
+  if (resolvedOrgId) {
+    const check = await assertCanAddSource(resolvedOrgId, {
+      type: "GA4_BIGQUERY",
+      propertyId,
+    });
+    if (!check.ok) {
+      return NextResponse.json(
+        {
+          error: check.reason,
+          code: "FREE_TIER_SOURCE_LIMIT",
+          current: check.current,
+          limit: check.limit,
+        },
+        { status: 402 }
+      );
+    }
   }
 
   try {

@@ -32,12 +32,34 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        name: name || null,
-        email,
-        passwordHash,
-      },
+    // Create user + auto-provision Organization + admin membership.
+    // (Mirrors NextAuth's events.createUser for the OAuth path.)
+    const firstName =
+      ((name as string | null) ?? (email as string).split("@")[0])
+        .split(" ")[0] || "User";
+    const orgName = `${firstName}'s workspace`;
+
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: name || null,
+          email,
+          passwordHash,
+        },
+      });
+
+      const org = await tx.organization.create({
+        data: { name: orgName, ownerId: newUser.id },
+      });
+      await tx.orgMembership.create({
+        data: { orgId: org.id, userId: newUser.id, role: "admin" },
+      });
+      await tx.user.update({
+        where: { id: newUser.id },
+        data: { activeOrgId: org.id },
+      });
+
+      return newUser;
     });
 
     return NextResponse.json(

@@ -636,10 +636,34 @@ export default function ChatV2() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(
-          (errData as { error?: string }).error || "Request failed"
-        );
+        const errData = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+          usage?: { used: number; limit: number; resetsAt: string };
+        };
+
+        if (
+          res.status === 402 &&
+          errData.code === "FREE_TIER_LIMIT_REACHED"
+        ) {
+          // Free-tier monthly chat cap hit. Show a clear upgrade message and
+          // bounce to /pricing so the user can act on it.
+          const used = errData.usage?.used ?? "?";
+          const limit = errData.usage?.limit ?? 20;
+          const resetMsg = errData.usage?.resetsAt
+            ? ` Resets ${new Date(errData.usage.resetsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.`
+            : "";
+          setError(
+            `You've used ${used} of ${limit} free messages this month.${resetMsg} Upgrade to Pro for unlimited chat — redirecting…`
+          );
+          setLoading(false);
+          setTimeout(() => {
+            window.location.href = "/pricing";
+          }, 1500);
+          return;
+        }
+
+        throw new Error(errData.error || "Request failed");
       }
 
       const reader = res.body?.getReader();

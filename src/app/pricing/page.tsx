@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PricingPage from "./PricingContent";
 
 export const metadata: Metadata = {
-  title: "Pricing — $9.99/mo, Everything Included",
+  title: "Pricing — Free forever, or $9.99/mo for unlimited",
   description:
-    "One plan at $9.99 per month with a 14-day free trial. All connectors, unlimited queries, dashboards, alerts, and team members included.",
+    "Free forever for 2 sources and 20 AI messages per month. Upgrade to Pro at $9.99/month for unlimited connectors, queries, dashboards, alerts, and team members.",
   alternates: { canonical: "/pricing" },
 };
 

@@ -32,6 +32,18 @@ interface UserProfile {
   } | null;
 }
 
+interface TierStatus {
+  tier: "free" | "paid";
+  sourceCount: number;
+  sourceLimit: number;
+  messageUsage: {
+    used: number;
+    limit: number;
+    resetsAt: string;
+    yearMonth: string;
+  } | null;
+}
+
 interface AccountTabProps {
   onClose?: () => void;
 }
@@ -49,6 +61,7 @@ export function AccountTab({ onClose: _onClose }: AccountTabProps) {
   const { theme, setTheme } = useTheme();
 
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
+  const [tierStatus, setTierStatus] = React.useState<TierStatus | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [editingName, setEditingName] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState("");
@@ -73,9 +86,22 @@ export function AccountTab({ onClose: _onClose }: AccountTabProps) {
     }
   }, []);
 
+  const fetchTierStatus = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/onboarding-status");
+      if (res.ok) {
+        const data = (await res.json()) as TierStatus;
+        setTierStatus(data);
+      }
+    } catch {
+      // non-fatal — tier panel just won't render
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    fetchTierStatus();
+  }, [fetchProfile, fetchTierStatus]);
 
   async function saveName() {
     if (!nameDraft.trim()) return;
@@ -240,8 +266,8 @@ export function AccountTab({ onClose: _onClose }: AccountTabProps) {
             </Button>
           ) : (
             <Link href="/pricing">
-              <Button size="sm" variant="outline">
-                View pricing
+              <Button size="sm">
+                Upgrade to Pro
               </Button>
             </Link>
           )
@@ -308,13 +334,57 @@ export function AccountTab({ onClose: _onClose }: AccountTabProps) {
             />
           </>
         ) : (
-          <FieldRow
-            label="Status"
-            value={
-              <span className="text-muted-foreground">No active subscription</span>
-            }
-            last
-          />
+          <>
+            <FieldRow
+              label="Plan"
+              value={
+                <Badge variant="secondary" className="gap-1.5">
+                  <span className="size-1.5 rounded-full bg-muted-foreground" />
+                  Free
+                </Badge>
+              }
+            />
+            <FieldRow
+              label="Connected sources"
+              value={
+                tierStatus ? (
+                  <span className="font-mono text-foreground">
+                    {tierStatus.sourceCount} / {tierStatus.sourceLimit}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )
+              }
+            />
+            <FieldRow
+              label="AI messages this month"
+              value={
+                tierStatus?.messageUsage ? (
+                  <span className="font-mono text-foreground">
+                    {tierStatus.messageUsage.used} / {tierStatus.messageUsage.limit}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )
+              }
+            />
+            <FieldRow
+              label="Resets"
+              value={
+                tierStatus?.messageUsage ? (
+                  <span className="text-muted-foreground">
+                    {new Date(tierStatus.messageUsage.resetsAt).toLocaleDateString(
+                      undefined,
+                      { month: "long", day: "numeric" },
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">1st of next month</span>
+                )
+              }
+              last
+            />
+          </>
         )}
       </Section>
 

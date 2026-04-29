@@ -7,7 +7,7 @@ export function CtaSection({
   heading,
   description,
   primaryText = "Get started free",
-  primaryHref = "/signup",
+  primaryHref = "/signup?plan=free",
   secondaryText = "View pricing",
   secondaryHref = "/pricing",
 }: {

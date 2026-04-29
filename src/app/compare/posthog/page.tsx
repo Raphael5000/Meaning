@@ -46,7 +46,7 @@ const data: ComparisonPageData = {
       description:
         "An AI analyst for the marketing stack. Chat across GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console — get dashboards, alerts, and insights without building a thing.",
       points: [
-        "$9.99 per seat per month, 14-day free trial",
+        "Free forever for 2 sources, or $9.99 per seat / month for unlimited",
         "Natural language chat across every marketing source",
         "AI-generated dashboards and email alerts",
         "Built on BigQuery for unlimited history and no sampling",
@@ -119,7 +119,7 @@ const data: ComparisonPageData = {
       details: [
         "Every connector, dashboard, alert, and chat query included",
         "No per-event or per-recording billing",
-        "14-day free trial, cancel anytime",
+        "Free plan available, cancel Pro anytime",
         "Seat-based billing with prorated changes",
       ],
     },

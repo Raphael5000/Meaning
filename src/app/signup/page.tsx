@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const inputClass =
   "w-full rounded-lg bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm text-white placeholder-[rgba(255,255,255,0.3)] outline-none border border-[rgba(255,255,255,0.1)] transition-colors focus:border-[rgba(255,255,255,0.3)]";
 
-export default function SignUpPage() {
+/** Decide where to send the user after authentication based on the plan
+ *  selection passed via ?plan=free|pro. Default is "pro" so existing
+ *  external links (which don't have the param) still flow into checkout. */
+function destinationForPlan(plan: string | null): string {
+  return plan === "free" ? "/dashboard" : "/onboarding";
+}
+
+function SignUpContent() {
+  const searchParams = useSearchParams();
+  const plan = searchParams.get("plan"); // "free" | "pro" | null
+  const postAuthDestination = destinationForPlan(plan);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,7 +58,7 @@ export default function SignUpPage() {
         return;
       }
 
-      window.location.href = "/onboarding";
+      window.location.href = postAuthDestination;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -90,7 +102,7 @@ export default function SignUpPage() {
 
         {/* Google OAuth */}
         <button
-          onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
+          onClick={() => signIn("google", { callbackUrl: postAuthDestination })}
           className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[rgba(255,255,255,0.1)]"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
         >
@@ -180,5 +192,19 @@ export default function SignUpPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white" style={{ borderTopColor: "transparent" }} />
+        </div>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
   );
 }

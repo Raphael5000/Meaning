@@ -110,9 +110,9 @@ export default function TeamCollaborationPage() {
             "Their access is revoked immediately and the seat is freed. Any dashboards or alerts they created stay with the team.",
         },
         {
-          question: "Is there a free trial?",
+          question: "Is there a free plan?",
           answer:
-            "Yes. Every team starts with a 14-day free trial. Cancel anytime.",
+            "Yes. Every team can stay on the free plan forever — 2 connected sources and 20 AI messages per month. Upgrade to Pro for unlimited.",
         },
       ]}
     >

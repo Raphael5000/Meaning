@@ -7,6 +7,7 @@ import {
   ensureLinkedInTables,
   syncLinkedInData,
 } from "@/lib/linkedin-transfer";
+import { assertCanAddSource } from "@/lib/tier";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,25 @@ export async function POST(req: NextRequest) {
     if (!resolvedOrgId) {
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { activeOrgId: true } });
       resolvedOrgId = user?.activeOrgId ?? undefined;
+    }
+
+    // Free-tier source-count gate (skipped if no org — pre-launch users)
+    if (resolvedOrgId) {
+      const check = await assertCanAddSource(resolvedOrgId, {
+        type: "LINKEDIN",
+        propertyId: orgId,
+      });
+      if (!check.ok) {
+        return NextResponse.json(
+          {
+            error: check.reason,
+            code: "FREE_TIER_SOURCE_LIMIT",
+            current: check.current,
+            limit: check.limit,
+          },
+          { status: 402 }
+        );
+      }
     }
 
     const dataSource = await prisma.dataSource.upsert({

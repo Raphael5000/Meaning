@@ -343,6 +343,24 @@ model Organization {
   chats       Chat[]
   emailAlerts EmailAlert[]
   dashboards  Dashboard[]
+  chatUsage   OrgChatUsage[]
+}
+
+// ──────────────────────────────────────────────
+// Free-tier usage tracking
+// ──────────────────────────────────────────────
+
+model OrgChatUsage {
+  orgId        String
+  yearMonth    String   // "YYYY-MM" in UTC, e.g. "2026-04"
+  messageCount Int      @default(0)
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, yearMonth])
+  @@index([orgId])
 }
 
 // ──────────────────────────────────────────────

@@ -1777,7 +1777,7 @@ const FAQS = [
   },
   {
     q: "How does team billing work?",
-    a: "Per seat at $9.99/month. Admins can add or remove members at any time, prorated. Every team starts with a 14-day free trial.",
+    a: "Pro is $9.99 per seat / month. Admins can add or remove members at any time, prorated. Or stay on the free plan with 2 connected sources and 20 AI messages per month.",
   },
   {
     q: "Can I self-host Meaning?",
@@ -1840,8 +1840,8 @@ export default function LandingPage(_: { onTryBeta?: () => void } = {}) {
         invert={false}
         submeta={
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/signup" className="btn-display">
-              Start free trial <ArrowRight className="h-4 w-4" />
+            <Link href="/signup?plan=free" className="btn-display">
+              Get started free <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         }

@@ -185,7 +185,7 @@ export default function AgencyReportingPage() {
       <Reveal>
         <MarketingCta
           heading="Ready to simplify client reporting?"
-          subtitle="Start your 14-day free trial. Set up your first client in under 5 minutes."
+          subtitle="Get started free. Set up your first client in under 5 minutes."
         />
       </Reveal>
 

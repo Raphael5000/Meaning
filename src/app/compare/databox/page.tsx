@@ -46,7 +46,7 @@ const data: ComparisonPageData = {
       description:
         "An AI analyst that connects to your marketing stack, answers questions in plain English, and generates dashboards, charts, and alerts automatically — no manual board-building required.",
       points: [
-        "Flat $9.99 per seat per month, 14-day free trial",
+        "Free forever for 2 sources, or $9.99 per seat / month for unlimited",
         "AI generates widgets from plain-English prompts",
         "Scheduled email alerts with AI summaries and next steps",
         "Cross-platform queries across all connectors in one request",
@@ -102,7 +102,7 @@ const data: ComparisonPageData = {
       title: "Pricing shape",
       rows: [
         { label: "Flat per-seat price", competitor: false, meaning: true },
-        { label: "Free tier", competitor: true, meaning: "14-day trial" },
+        { label: "Free tier", competitor: true, meaning: true },
         { label: "Feature gating by plan", competitor: true, meaning: false },
         { label: "Extra fees for data sources", competitor: true, meaning: false },
       ],
@@ -124,7 +124,7 @@ const data: ComparisonPageData = {
         "Every connector, dashboard, alert, and query included",
         "No feature gating — everything unlocked from day one",
         "Unlimited team members and properties",
-        "14-day free trial, cancel anytime",
+        "Free plan available, cancel Pro anytime",
       ],
     },
   },

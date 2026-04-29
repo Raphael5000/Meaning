@@ -1442,6 +1442,17 @@ function AccountPicker({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 402 && data.code === "FREE_TIER_SOURCE_LIMIT") {
+          // Hit the free-tier source cap. Surface upgrade path inline, then
+          // bounce to /pricing so the user can act on it.
+          onError(
+            `${data.error ?? "Free tier source limit reached."} Redirecting to upgrade…`
+          );
+          setTimeout(() => {
+            window.location.href = "/pricing";
+          }, 1200);
+          return;
+        }
         onError(data.message || data.error || "Failed to enable");
         return;
       }

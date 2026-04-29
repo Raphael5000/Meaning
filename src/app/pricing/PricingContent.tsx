@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { DisplayHeading } from "@/components/marketing/system/DisplayHeading";
@@ -17,12 +18,30 @@ declare global {
   }
 }
 
+const FREE_FEATURES = [
+  "2 connected data sources",
+  "20 AI chat messages per month",
+  "Drag-and-drop dashboards with 14 chart types",
+  "Scheduled email alerts with AI summaries",
+  "Multi-currency support",
+];
+
+const PRO_FEATURES = [
+  "Unlimited data source connections",
+  "Unlimited AI chat across every source",
+  "All 6 connectors — GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console",
+  "Drag-and-drop dashboards with 14 chart types",
+  "Scheduled email alerts with AI summaries",
+  "Unlimited team members and properties",
+];
+
 export default function PricingPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Load Lemon.js script for checkout overlay
+  // Load Lemon.js script for checkout overlay (used when authenticated users
+  // upgrade directly from the pricing page).
   useEffect(() => {
     if (document.getElementById("lemonsqueezy-js")) return;
     const script = document.createElement("script");
@@ -33,9 +52,14 @@ export default function PricingPage() {
     document.head.appendChild(script);
   }, []);
 
-  async function handleSubscribe() {
+  function handleFreeCta() {
+    // Logged-in users skip signup and go to dashboard.
+    window.location.href = session ? "/dashboard" : "/signup?plan=free";
+  }
+
+  async function handleProCta() {
     if (!session) {
-      window.location.href = "/signup";
+      window.location.href = "/signup?plan=pro";
       return;
     }
 
@@ -57,7 +81,6 @@ export default function PricingPage() {
         return;
       }
 
-      // Try overlay first, fall back to redirect
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Url.Open(data.checkout_url);
         setLoading(false);
@@ -81,7 +104,7 @@ export default function PricingPage() {
 
       {/* Pricing content */}
       <section className="relative z-10 flex flex-col items-center px-6 pt-32 pb-24 md:pt-40 text-center">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-5xl">
           <Reveal>
             <span className="launch-pill mb-6">
               <span className="launch-pill-star">
@@ -93,17 +116,76 @@ export default function PricingPage() {
             </span>
 
             <DisplayHeading size="xl" as="h1" className="mb-4">
-              One plan, everything included
+              Start free. Upgrade when you need more.
             </DisplayHeading>
             <p className="mx-auto mb-12 max-w-2xl text-lg text-[color:var(--m-text-secondary)]">
-              Connect GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and
-              Search Console — then ask anything in plain English. One plan, no per-connector fees.
+              Connect your marketing data and ask anything in plain English.
+              No credit card required to get started.
             </p>
           </Reveal>
 
-          {/* Pricing card */}
+          {/* Two-card grid */}
           <Reveal delay={0.08}>
-            <div className="mx-auto max-w-md">
+            <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+
+              {/* FREE card */}
+              <div
+                className="liquid-glass relative overflow-hidden rounded-2xl p-8 text-left"
+              >
+                <div className="relative z-10 flex h-full flex-col">
+                  <p className="mb-1 text-sm font-medium text-[color:var(--m-text-secondary)]">
+                    Free
+                  </p>
+                  <div className="mb-1 flex items-baseline gap-1">
+                    <span className="text-4xl font-bold text-[color:var(--m-text)]">
+                      $0
+                    </span>
+                    <span className="text-sm text-[color:var(--m-text-muted)]">
+                      /forever
+                    </span>
+                  </div>
+                  <p className="mb-6 text-sm text-[color:var(--m-text-muted)]">
+                    Get started, no credit card required
+                  </p>
+
+                  <ul className="mb-8 flex flex-col gap-3">
+                    {FREE_FEATURES.map((feature) => (
+                      <li key={feature} className="flex items-center gap-3">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="shrink-0 text-[color:var(--m-text-secondary)]"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span className="text-sm text-[color:var(--m-text-secondary)]">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-auto">
+                    <button
+                      onClick={handleFreeCta}
+                      className="w-full rounded-xl border border-[color:var(--m-hairline)] bg-transparent py-3 text-sm font-semibold text-[color:var(--m-text)] transition-colors hover:bg-[color:var(--brand-soft)]"
+                    >
+                      Get started free
+                    </button>
+                    <p className="mt-3 text-center text-xs text-[color:var(--m-text-muted)]">
+                      No credit card. Upgrade anytime.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PRO card */}
               <div
                 className="liquid-glass spotlight spotlight-white relative overflow-hidden rounded-2xl p-8 text-left"
                 onMouseMove={(e) => {
@@ -113,48 +195,23 @@ export default function PricingPage() {
                 }}
               >
                 <span className="liquid-glass-shimmer" aria-hidden />
-                <div className="relative z-10 flex flex-col">
 
-                  {/* Trial banner */}
-                  <div
-                    className="-mx-8 -mt-8 mb-6 px-8 py-4"
+                {/* Featured pill */}
+                <div className="absolute right-6 top-6 z-10">
+                  <span
+                    className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider"
                     style={{
-                      background: "linear-gradient(135deg, var(--brand-soft) 0%, rgba(99, 102, 241, 0.08) 100%)",
-                      borderBottom: "1px solid var(--m-hairline)",
+                      background: "var(--brand-soft)",
+                      color: "var(--brand)",
                     }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--brand-soft)]"
-                      >
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-[color:var(--brand)]"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[color:var(--m-text)]">
-                          Try free for 14 days
-                        </p>
-                        <p className="text-xs text-[color:var(--m-text-muted)]">
-                          No charge until your trial ends. Cancel anytime.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    Most popular
+                  </span>
+                </div>
 
+                <div className="relative z-10 flex h-full flex-col">
                   <p className="mb-1 text-sm font-medium text-[color:var(--brand)]">
-                    Launch Price — locked in forever
+                    Pro — launch price locked in forever
                   </p>
                   <div className="mb-1 flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-[color:var(--m-text)]">
@@ -165,18 +222,11 @@ export default function PricingPage() {
                     </span>
                   </div>
                   <p className="mb-6 text-sm text-[color:var(--m-text-muted)]">
-                    after 14-day free trial · this price won&apos;t increase
+                    Everything in Free, plus unlimited usage
                   </p>
 
                   <ul className="mb-8 flex flex-col gap-3">
-                    {[
-                      "All connectors — GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console",
-                      "Unlimited AI-powered queries across every source",
-                      "Drag-and-drop dashboards with 14 chart types",
-                      "Scheduled email alerts with AI summaries",
-                      "Unlimited team members and properties",
-                      "Multi-currency support with live exchange rates",
-                    ].map((feature) => (
+                    {PRO_FEATURES.map((feature) => (
                       <li key={feature} className="flex items-center gap-3">
                         <svg
                           width="16"
@@ -206,19 +256,18 @@ export default function PricingPage() {
 
                   <div className="mt-auto">
                     <button
-                      onClick={handleSubscribe}
+                      onClick={handleProCta}
                       disabled={loading}
                       className="btn-display w-full font-semibold"
                     >
                       {loading
                         ? "Opening checkout..."
                         : session
-                          ? "Start free trial"
-                          : "Get started free"}
+                          ? "Upgrade to Pro"
+                          : "Start Pro"}
                     </button>
-
                     <p className="mt-3 text-center text-xs text-[color:var(--m-text-muted)]">
-                      14-day free trial. Cancel anytime.
+                      Cancel anytime.
                     </p>
                   </div>
                 </div>
@@ -228,7 +277,15 @@ export default function PricingPage() {
           </Reveal>
 
           <p className="mt-8 text-sm text-[color:var(--m-text-muted)]">
-            Launch offer expires 19 July 2026. Subscribe before then to lock in this price forever.
+            Launch offer expires 19 July 2026. Subscribe before then to lock in
+            the Pro price forever.
+          </p>
+          <p className="mt-2 text-xs text-[color:var(--m-text-muted)]">
+            Already have an account?{" "}
+            <Link href="/login" className="underline underline-offset-2">
+              Log in
+            </Link>
+            .
           </p>
         </div>
       </section>

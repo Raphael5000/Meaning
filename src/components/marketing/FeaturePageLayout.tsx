@@ -18,7 +18,7 @@ export function FeaturePageLayout({
   children,
   faqs,
   ctaHeading = "Ready to try Meaning?",
-  ctaDescription = "Start your 14-day free trial. Cancel anytime.",
+  ctaDescription = "Free forever for 2 sources. Upgrade to Pro for unlimited.",
 }: {
   eyebrow: string;
   title: React.ReactNode;

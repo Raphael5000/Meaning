@@ -189,7 +189,7 @@ export const comparison = {
 
 export const pricing = {
   heading: "Simple pricing.",
-  subhead: "$9.99 per seat / month. 14-day free trial. Cancel anytime.",
+  subhead: "Free forever for 2 sources, or $9.99 per seat / month for unlimited. Cancel anytime.",
   cta: { label: "View pricing", href: "/pricing" },
 };
 
@@ -222,7 +222,7 @@ export const faqs = [
   {
     question: "How does team billing work?",
     answer:
-      "Billing is per seat at $9.99/month. Admins can add and remove members at any time, and seats are prorated. Every team starts with a 14-day free trial.",
+      "Pro billing is per seat at $9.99/month. Admins can add and remove members at any time, and seats are prorated. Every team can also start on the free plan with 2 connected sources and 20 AI messages per month.",
   },
   {
     question: "Can I self-host Meaning?",
