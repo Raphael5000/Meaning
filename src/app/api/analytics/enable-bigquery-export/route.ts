@@ -140,7 +140,28 @@ export async function POST(request: NextRequest) {
     const message =
       error instanceof Error ? error.message : "Failed to enable BigQuery export";
 
-    // Handle common permission errors
+    // Distinguish "insufficient OAuth scope" (we never asked for analytics.edit)
+    // from "user lacks property access" (they don't have Admin/Editor on the
+    // GA4 property). Both surface as 403 from Google but the user fix is
+    // very different.
+    const lower = message.toLowerCase();
+    if (
+      lower.includes("insufficient authentication scopes") ||
+      lower.includes("insufficient_scope") ||
+      lower.includes("insufficient auth scopes")
+    ) {
+      return NextResponse.json(
+        {
+          error: "insufficient_scope",
+          code: "INSUFFICIENT_SCOPE",
+          message:
+            "We need permission to manage your GA4 property. Click \"Fully reconnect Google Analytics\" and accept the new permissions.",
+          reconnectUrl: "/api/auth/connect-google-admin",
+        },
+        { status: 403 }
+      );
+    }
+
     if (message.includes("PERMISSION_DENIED") || message.includes("403")) {
       return NextResponse.json(
         {

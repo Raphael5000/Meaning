@@ -518,7 +518,11 @@ function formatTimeAgo(iso: string | null): string | null {
 function connectUrl(type: SourceType): string {
   switch (type) {
     case "GA4_BIGQUERY":
-      return "/api/auth/connect-google";
+      // Use the elevated-scope flow up-front (analytics.edit) — required to
+      // create the BigQuery export link via the GA Admin API. Without it,
+      // browsing properties works but Enable always fails with
+      // "request had insufficient auth scopes".
+      return "/api/auth/connect-google-admin";
     case "GOOGLE_ADS":
       return "/api/auth/connect-google-ads";
     case "SEARCH_CONSOLE":
@@ -1450,6 +1454,21 @@ function AccountPicker({
           );
           setTimeout(() => {
             window.location.href = "/pricing";
+          }, 1200);
+          return;
+        }
+        if (res.status === 403 && data.code === "INSUFFICIENT_SCOPE") {
+          // The signed-in Google account hasn't granted analytics.edit yet —
+          // they only have analytics.readonly (which is enough to list
+          // properties but not to create the BigQuery link). Send them
+          // through the elevated-scope re-consent flow.
+          onError(
+            data.message ||
+              "We need additional Google permissions. Redirecting to re-authorise…"
+          );
+          setTimeout(() => {
+            window.location.href =
+              data.reconnectUrl || "/api/auth/connect-google-admin";
           }, 1200);
           return;
         }
