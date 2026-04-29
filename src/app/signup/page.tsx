@@ -12,7 +12,7 @@ const inputClass =
  *  selection passed via ?plan=free|pro. Default is "pro" so existing
  *  external links (which don't have the param) still flow into checkout. */
 function destinationForPlan(plan: string | null): string {
-  return plan === "free" ? "/dashboard" : "/onboarding";
+  return plan === "free" ? "/" : "/onboarding";
 }
 
 function SignUpContent() {

@@ -55,7 +55,7 @@ export default function PricingPage() {
 
   function handleFreeCta() {
     // Logged-in users skip signup and go to dashboard.
-    window.location.href = session ? "/dashboard" : "/signup?plan=free";
+    window.location.href = session ? "/" : "/signup?plan=free";
   }
 
   async function handleProCta() {

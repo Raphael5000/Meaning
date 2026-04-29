@@ -9,22 +9,13 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
-  // For authenticated users, enforce onboarding order: subscription → GA → chat
+  // Authenticated users land on chat regardless of tier. Free users get
+  // gated server-side by FREE_TIER_LIMIT_REACHED / FREE_TIER_SOURCE_LIMIT
+  // when they cross caps. No redirect to /onboarding here — that's only
+  // reached via explicit upgrade CTAs.
   useEffect(() => {
     if (status !== "authenticated") return;
-    fetch("/api/user/onboarding-status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.hasSubscription) {
-          window.location.href = "/onboarding";
-          return;
-        }
-        // Users can connect sources from within the chat — no redirect needed
-        setOnboarded(true);
-      })
-      .catch(() => {
-        setOnboarded(true);
-      });
+    setOnboarded(true);
   }, [status]);
 
   // Authenticated users: show spinner while checking subscription, then Chat
