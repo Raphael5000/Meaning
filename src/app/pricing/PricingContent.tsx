@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
 import { DisplayHeading } from "@/components/marketing/system/DisplayHeading";
 import { Reveal } from "@/components/marketing/system/Reveal";
 import { DottedGrid } from "@/components/marketing/system/Backgrounds";
@@ -126,8 +127,14 @@ export default function PricingPage() {
 
               {/* FREE card */}
               <div
-                className="liquid-glass relative overflow-hidden rounded-2xl p-8 text-left"
+                className="liquid-glass spotlight spotlight-white relative overflow-hidden rounded-2xl p-8 text-left"
+                onMouseMove={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+                  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+                }}
               >
+                <span className="liquid-glass-shimmer" aria-hidden />
                 <div className="relative z-10 flex h-full flex-col">
                   <p className="mb-1 text-sm font-medium text-[color:var(--m-text-secondary)]">
                     Free
@@ -168,12 +175,14 @@ export default function PricingPage() {
                   </ul>
 
                   <div className="mt-auto">
-                    <button
+                    <Button
                       onClick={handleFreeCta}
-                      className="w-full rounded-xl border border-[color:var(--m-hairline)] bg-transparent py-3 text-sm font-semibold text-[color:var(--m-text)] transition-colors hover:bg-[color:var(--brand-soft)]"
+                      variant="outline"
+                      size="lg"
+                      className="w-full"
                     >
                       Get started free
-                    </button>
+                    </Button>
                     <p className="mt-3 text-center text-xs text-[color:var(--m-text-muted)]">
                       No credit card. Upgrade anytime.
                     </p>
@@ -252,17 +261,18 @@ export default function PricingPage() {
                   )}
 
                   <div className="mt-auto">
-                    <button
+                    <Button
                       onClick={handleProCta}
                       disabled={loading}
-                      className="btn-display w-full font-semibold"
+                      size="lg"
+                      className="w-full"
                     >
                       {loading
                         ? "Opening checkout..."
                         : session
                           ? "Upgrade to Pro"
                           : "Start Pro"}
-                    </button>
+                    </Button>
                     <p className="mt-3 text-center text-xs text-[color:var(--m-text-muted)]">
                       Cancel anytime.
                     </p>
