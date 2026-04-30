@@ -10,7 +10,7 @@ function getKey() {
 
 export interface EmbedPayload {
   orgId: string;
-  dashboardId: string;
+  dashboardId?: string;
 }
 
 /** Verify an embed JWT and return the payload. */
@@ -20,36 +20,54 @@ export async function verifyEmbedToken(token: string): Promise<EmbedPayload> {
   });
 
   const orgId = payload.orgId as string;
-  const dashboardId = payload.dashboardId as string;
+  if (!orgId) throw new Error("Invalid embed token payload");
 
-  if (!orgId || !dashboardId) {
-    throw new Error("Invalid embed token payload");
-  }
-
-  return { orgId, dashboardId };
+  return { orgId, dashboardId: payload.dashboardId as string | undefined };
 }
 
 /** Sign an embed JWT (used by the client portal). */
-export async function signEmbedToken(
-  orgId: string,
-  dashboardId: string
-): Promise<string> {
-  return new SignJWT({ orgId, dashboardId })
+export async function signEmbedToken(orgId: string): Promise<string> {
+  return new SignJWT({ orgId })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("24h")
     .setIssuedAt()
     .sign(getKey());
 }
 
-/** Load a dashboard with widgets for embedding. Strips sensitive fields. */
+/** Load all dashboards for an org. Strips sensitive fields. */
+export async function loadEmbedDashboards(orgId: string) {
+  const dashboards = await prisma.dashboard.findMany({
+    where: { orgId },
+    include: { widgets: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return dashboards.map((d) => ({
+    id: d.id,
+    title: d.title,
+    layout: d.layout,
+    dateRange: d.dateRange,
+    dateFrom: d.dateFrom,
+    dateTo: d.dateTo,
+    widgets: d.widgets.map((w) => ({
+      id: w.id,
+      widgetType: w.widgetType,
+      title: w.title,
+      displayConfig: w.displayConfig,
+      cachedData: w.cachedData,
+      cachedAt: w.cachedAt,
+    })),
+  }));
+}
+
+/** Load a single dashboard by ID (for direct embed). */
 export async function loadEmbedDashboard(orgId: string, dashboardId: string) {
   const dashboard = await prisma.dashboard.findUnique({
     where: { id: dashboardId },
     include: { widgets: true },
   });
 
-  if (!dashboard) return null;
-  if (dashboard.orgId !== orgId) return null;
+  if (!dashboard || dashboard.orgId !== orgId) return null;
 
   return {
     id: dashboard.id,

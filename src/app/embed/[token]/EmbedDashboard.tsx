@@ -28,13 +28,16 @@ interface Dashboard {
 }
 
 interface Props {
-  dashboard: Dashboard;
+  dashboards: Dashboard[];
 }
 
-export function EmbedDashboard({ dashboard }: Props) {
+export function EmbedDashboard({ dashboards }: Props) {
+  const [activeId, setActiveId] = useState(dashboards[0]?.id);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [mounted, setMounted] = useState(false);
+
+  const active = dashboards.find((d) => d.id === activeId) || dashboards[0];
 
   useEffect(() => {
     const node = containerRef.current;
@@ -54,40 +57,68 @@ export function EmbedDashboard({ dashboard }: Props) {
     return () => ro.disconnect();
   }, [mounted]);
 
-  const layout = (dashboard.layout as LayoutItem[]) || [];
+  const layout = (active.layout as LayoutItem[]) || [];
 
   return (
     <div
       ref={containerRef}
-      className="min-h-screen w-full p-4"
+      className="min-h-screen w-full"
       style={{ background: "var(--background)" }}
     >
-      {mounted && width > 0 && (
-        <ResponsiveGridLayout
-          className="layout"
-          layouts={{ lg: layout, md: layout, sm: layout }}
-          breakpoints={{ lg: 900, md: 600, sm: 0 }}
-          cols={{ lg: 12, md: 6, sm: 1 }}
-          rowHeight={80}
-          width={width}
-          isDraggable={false}
-          isResizable={false}
-          containerPadding={[0, 0]}
-          margin={[12, 12]}
+      {/* Tabs — only show if more than one dashboard */}
+      {dashboards.length > 1 && (
+        <div
+          className="sticky top-0 z-10 flex items-center gap-1 px-4 py-3 border-b"
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--background)",
+          }}
         >
-          {dashboard.widgets.map((widget) => (
-            <div key={widget.id}>
-              <DashboardWidget
-                widget={{ ...widget, prompt: "" }}
-                dashboardId={dashboard.id}
-                onDelete={() => {}}
-                onEdit={() => {}}
-                refreshing={false}
-              />
-            </div>
+          {dashboards.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => setActiveId(d.id)}
+              className="rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-colors"
+              style={{
+                background: d.id === activeId ? "var(--muted)" : "transparent",
+                color: d.id === activeId ? "var(--foreground)" : "var(--muted-foreground)",
+              }}
+            >
+              {d.title}
+            </button>
           ))}
-        </ResponsiveGridLayout>
+        </div>
       )}
+
+      {/* Grid */}
+      <div className="p-4">
+        {mounted && width > 0 && (
+          <ResponsiveGridLayout
+            className="layout"
+            layouts={{ lg: layout, md: layout, sm: layout }}
+            breakpoints={{ lg: 900, md: 600, sm: 0 }}
+            cols={{ lg: 12, md: 6, sm: 1 }}
+            rowHeight={80}
+            width={width - 32}
+            isDraggable={false}
+            isResizable={false}
+            containerPadding={[0, 0]}
+            margin={[12, 12]}
+          >
+            {active.widgets.map((widget) => (
+              <div key={widget.id}>
+                <DashboardWidget
+                  widget={{ ...widget, prompt: "" }}
+                  dashboardId={active.id}
+                  onDelete={() => {}}
+                  onEdit={() => {}}
+                  refreshing={false}
+                />
+              </div>
+            ))}
+          </ResponsiveGridLayout>
+        )}
+      </div>
     </div>
   );
 }

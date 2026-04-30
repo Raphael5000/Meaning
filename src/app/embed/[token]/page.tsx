@@ -1,4 +1,4 @@
-import { verifyEmbedToken, loadEmbedDashboard } from "@/lib/embed";
+import { verifyEmbedToken, loadEmbedDashboards } from "@/lib/embed";
 import { EmbedDashboard } from "./EmbedDashboard";
 
 interface Props {
@@ -9,18 +9,18 @@ export default async function EmbedPage({ params }: Props) {
   const { token } = await params;
 
   try {
-    const { orgId, dashboardId } = await verifyEmbedToken(token);
-    const dashboard = await loadEmbedDashboard(orgId, dashboardId);
+    const { orgId } = await verifyEmbedToken(token);
+    const dashboards = await loadEmbedDashboards(orgId);
 
-    if (!dashboard) {
+    if (dashboards.length === 0) {
       return (
         <div className="flex h-screen items-center justify-center">
-          <p className="text-[13px] text-muted-foreground">Dashboard not found.</p>
+          <p className="text-[13px] text-muted-foreground">No dashboards found.</p>
         </div>
       );
     }
 
-    return <EmbedDashboard dashboard={dashboard} />;
+    return <EmbedDashboard dashboards={dashboards} />;
   } catch {
     return (
       <div className="flex h-screen items-center justify-center">
