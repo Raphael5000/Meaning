@@ -28,10 +28,10 @@ export default function EmbedLayout({
 }) {
   return (
     <div className={`meaning-v2 ${martel.variable} ${inter.variable} ${mono.variable}`}>
-      {/* Force light mode for embeds — override root layout's dark default */}
+      {/* Sync theme with host portal via ?theme= query param; default to light */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `document.documentElement.classList.remove("dark");`,
+          __html: `(function(){var t=new URLSearchParams(window.location.search).get("theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}})();`,
         }}
       />
       {children}
