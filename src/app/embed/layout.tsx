@@ -28,10 +28,10 @@ export default function EmbedLayout({
 }) {
   return (
     <div className={`meaning-v2 ${martel.variable} ${inter.variable} ${mono.variable}`}>
-      {/* Sync theme with host portal via ?theme= query param; default to light */}
+      {/* Sync theme with host portal: read ?theme= on load, listen for postMessage updates */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){var t=new URLSearchParams(window.location.search).get("theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}})();`,
+          __html: `(function(){function set(t){if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}set(new URLSearchParams(window.location.search).get("theme")||"light");window.addEventListener("message",function(e){if(e.data&&e.data.type==="theme")set(e.data.value)})})();`,
         }}
       />
       {children}
