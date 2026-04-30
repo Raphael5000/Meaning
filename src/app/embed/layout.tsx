@@ -1,6 +1,7 @@
 import "../globals.css";
 import "../tokens-v2.css";
 import { Martel, Inter, JetBrains_Mono } from "next/font/google";
+import { EmbedThemeEnforcer } from "./EmbedThemeEnforcer";
 
 const martel = Martel({
   subsets: ["latin"],
@@ -28,12 +29,7 @@ export default function EmbedLayout({
 }) {
   return (
     <div className={`meaning-v2 ${martel.variable} ${inter.variable} ${mono.variable}`}>
-      {/* Sync theme with host portal: read ?theme= on load, listen for postMessage updates */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function(){function set(t){if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}set(new URLSearchParams(window.location.search).get("theme")||"light");window.addEventListener("message",function(e){if(e.data&&e.data.type==="theme")set(e.data.value)})})();`,
-        }}
-      />
+      <EmbedThemeEnforcer />
       {children}
     </div>
   );
