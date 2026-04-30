@@ -28,6 +28,12 @@ export default function EmbedLayout({
 }) {
   return (
     <div className={`meaning-v2 ${martel.variable} ${inter.variable} ${mono.variable}`}>
+      {/* Force light mode for embeds — override root layout's dark default */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.classList.remove("dark");`,
+        }}
+      />
       {children}
     </div>
   );
