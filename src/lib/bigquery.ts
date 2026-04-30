@@ -274,8 +274,9 @@ export async function getPropertySchema(
         });
       }
     }
-  } catch {
-    // Raw dataset may not exist yet for new properties
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[BigQuery] Raw dataset ${rawDataset} not accessible: ${msg.slice(0, 200)}`);
   }
 
   return fields;

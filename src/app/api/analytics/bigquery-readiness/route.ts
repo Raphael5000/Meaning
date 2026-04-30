@@ -29,21 +29,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Check both PENDING and BACKFILLING GA4 sources — BACKFILLING sources
+    // that have never synced may also have missing datasets.
     const pendingSources = await prisma.dataSource.findMany({
-      where: { status: "PENDING", type: "GA4_BIGQUERY" },
+      where: {
+        type: "GA4_BIGQUERY",
+        status: { in: ["PENDING", "BACKFILLING"] },
+      },
       include: { user: { select: { id: true, email: true } } },
     });
 
     if (pendingSources.length === 0) {
-      return NextResponse.json({ checked: 0, activated: 0 });
+      return NextResponse.json({ checked: 0, activated: 0, escalated: 0 });
     }
 
     const client = getBigQueryClient();
     let activated = 0;
+    let escalated = 0;
     let errors = 0;
+
+    // Escalate to ERROR if stuck for more than 48 hours
+    const ESCALATION_THRESHOLD_MS = 48 * 60 * 60 * 1000;
 
     for (const ds of pendingSources) {
       const dataset = ds.bigqueryDataset || `analytics_${ds.propertyId}`;
+      const ageMs = Date.now() - new Date(ds.createdAt).getTime();
 
       try {
         // Check if the dataset exists and has at least one events_ table
@@ -58,17 +68,47 @@ export async function GET(request: NextRequest) {
             data: {
               status: "ACTIVE",
               bigqueryDataset: dataset,
+              lastSyncError: null,
             },
           });
           activated++;
           console.log(
             `[bigquery-readiness] Activated DataSource ${ds.id} for property ${ds.propertyId} (user: ${ds.user.email})`
           );
+        } else if (ageMs > ESCALATION_THRESHOLD_MS) {
+          // Dataset exists but has no events_ tables after 48h
+          await prisma.dataSource.update({
+            where: { id: ds.id },
+            data: {
+              status: "ERROR",
+              lastSyncError: "BigQuery dataset exists but contains no event data after 48 hours. Check your GA4 BigQuery export settings.",
+            },
+          });
+          escalated++;
+          console.warn(
+            `[bigquery-readiness] Escalated DataSource ${ds.id} to ERROR — no events_ tables after ${Math.round(ageMs / 3600000)}h (user: ${ds.user.email})`
+          );
         }
       } catch (err: unknown) {
-        // Dataset doesn't exist yet or access error — skip, will retry next run
         const message = err instanceof Error ? err.message : String(err);
-        if (!message.includes("Not found")) {
+
+        if (message.includes("Not found")) {
+          // Dataset doesn't exist — escalate to ERROR if older than 48h
+          if (ageMs > ESCALATION_THRESHOLD_MS) {
+            await prisma.dataSource.update({
+              where: { id: ds.id },
+              data: {
+                status: "ERROR",
+                lastSyncError: `BigQuery dataset "${dataset}" not found after ${Math.round(ageMs / 3600000)} hours. Please verify your GA4 BigQuery export is linked to project "${client.projectId}" and re-enable the export.`,
+              },
+            });
+            escalated++;
+            console.warn(
+              `[bigquery-readiness] Escalated DataSource ${ds.id} to ERROR — dataset not found after ${Math.round(ageMs / 3600000)}h (user: ${ds.user.email})`
+            );
+          }
+          // Otherwise just wait — it can take up to 24h for GA4 to create the dataset
+        } else {
           console.error(
             `[bigquery-readiness] Error checking ${dataset}:`,
             message
@@ -81,6 +121,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       checked: pendingSources.length,
       activated,
+      escalated,
       errors,
     });
   } catch (err) {

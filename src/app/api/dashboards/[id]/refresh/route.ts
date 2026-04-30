@@ -275,7 +275,21 @@ export async function POST(
           return { widgetId: widget.id, rows };
         } catch (err) {
           console.error(`[dashboard-refresh] Widget ${widget.id} failed:`, err);
-          return { widgetId: widget.id, error: err instanceof Error ? err.message : "Query failed", rows: null };
+          const errMsg = err instanceof Error ? err.message : "Query failed";
+
+          // If the error is a missing dataset, mark the DataSource as ERROR
+          // so the UI can show a meaningful banner instead of silent "no data".
+          if (errMsg.includes("Not found") && ga4Ds) {
+            prisma.dataSource.update({
+              where: { id: ga4Ds.id },
+              data: {
+                status: "ERROR",
+                lastSyncError: `BigQuery dataset not found. Check that GA4 BigQuery export is active and linked to the correct project.`,
+              },
+            }).catch((e) => console.error("[dashboard-refresh] Failed to update DataSource status:", e));
+          }
+
+          return { widgetId: widget.id, error: errMsg, rows: null };
         }
       })
     );

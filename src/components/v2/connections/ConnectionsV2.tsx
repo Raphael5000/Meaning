@@ -169,11 +169,14 @@ export default function ConnectionsV2({
     fetchStatus();
   }, [fetchStatus]);
 
-  // Poll every 10s while any source is backfilling/pending
+  // Poll every 10s while any source is actively backfilling/pending
+  // (skip polling if all pending sources already have errors — they're stuck)
   React.useEffect(() => {
     if (!status) return;
     const syncing = status.dataSources.some(
-      (ds) => ds.status === "BACKFILLING" || ds.status === "PENDING"
+      (ds) =>
+        ds.status === "BACKFILLING" ||
+        (ds.status === "PENDING" && !ds.lastSyncError)
     );
     if (!syncing) return;
     const interval = setInterval(() => fetchStatus(true), 10000);
@@ -433,7 +436,7 @@ interface UiRow {
   type: SourceType;
   label: string;
   icon: string;
-  uiStatus: "ACTIVE" | "BACKFILLING" | "ERROR" | "DISCONNECTED";
+  uiStatus: "ACTIVE" | "BACKFILLING" | "PENDING" | "ERROR" | "DISCONNECTED";
   lastSync: string | null;
   accountSummary: string;
   comingSoon?: boolean;
@@ -471,11 +474,11 @@ function buildRows(
 
 function summariseStatus(
   sources: DataSourceInfo[]
-): "ACTIVE" | "BACKFILLING" | "ERROR" | "DISCONNECTED" {
+): "ACTIVE" | "BACKFILLING" | "PENDING" | "ERROR" | "DISCONNECTED" {
   if (sources.length === 0) return "DISCONNECTED";
   if (sources.some((s) => s.status === "ERROR")) return "ERROR";
-  if (sources.some((s) => s.status === "BACKFILLING" || s.status === "PENDING"))
-    return "BACKFILLING";
+  if (sources.some((s) => s.status === "PENDING")) return "PENDING";
+  if (sources.some((s) => s.status === "BACKFILLING")) return "BACKFILLING";
   if (sources.every((s) => s.status === "DISCONNECTED")) return "DISCONNECTED";
   return "ACTIVE";
 }
@@ -730,7 +733,7 @@ function isAuthedForSource(
 function StatusPill({
   status,
 }: {
-  status: "ACTIVE" | "BACKFILLING" | "ERROR" | "DISCONNECTED" | "NEEDS_PICK";
+  status: "ACTIVE" | "BACKFILLING" | "PENDING" | "ERROR" | "DISCONNECTED" | "NEEDS_PICK";
 }) {
   const cfg = {
     ACTIVE: {
@@ -745,6 +748,13 @@ function StatusPill({
       dot: "var(--v2-info)",
       ink: "var(--v2-info)",
       bg: "var(--v2-info-bg)",
+      pulse: true,
+    },
+    PENDING: {
+      label: "Waiting for data",
+      dot: "var(--v2-warn, #f59e0b)",
+      ink: "var(--v2-warn, #f59e0b)",
+      bg: "var(--v2-warn-bg, #fef3c7)",
       pulse: true,
     },
     ERROR: {

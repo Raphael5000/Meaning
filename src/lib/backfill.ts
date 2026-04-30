@@ -97,17 +97,65 @@ export async function backfillProperty(
   // 2. Backfill sessions
   const sessRows = await backfillSessions(client, accessToken, propertyId, startDate, endDate);
 
-  // Skip users rebuild — dbt handles this on its next scheduled run.
-  // Rebuilding here would drop/recreate the shared users table mid-flight.
+  // Merge backfill data into the main dbt tables so users see data immediately
+  // without waiting for the next scheduled dbt run.
+  await mergeBackfillIntoMain(client, propertyId);
 
-  // Flip DataSource from BACKFILLING to ACTIVE
+  // Flip DataSource to ACTIVE (from BACKFILLING or PENDING)
   await prisma.dataSource.updateMany({
-    where: { propertyId, type: "GA4_BIGQUERY", status: "BACKFILLING" },
-    data: { status: "ACTIVE" },
+    where: { propertyId, type: "GA4_BIGQUERY", status: { in: ["BACKFILLING", "PENDING"] } },
+    data: { status: "ACTIVE", lastSyncError: null },
   });
 
   console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources — status set to ACTIVE`);
   return { sessions: sessRows, trafficSources: tsRows };
+}
+
+/**
+ * Merge backfill data directly into the main sessions/traffic_sources tables
+ * so data is available immediately without waiting for a dbt run.
+ */
+async function mergeBackfillIntoMain(client: BigQuery, propertyId: string) {
+  try {
+    // Merge backfill_sessions → sessions (skip rows that already exist)
+    await client.query({
+      query: `
+        MERGE \`${DBT_DATASET}.sessions\` T
+        USING (
+          SELECT * FROM \`${DBT_DATASET}.backfill_sessions\`
+          WHERE property_id = @propertyId
+        ) S
+        ON T.session_key = S.session_key
+        WHEN NOT MATCHED THEN
+          INSERT ROW
+      `,
+      params: { propertyId },
+    });
+
+    // Merge backfill_traffic_sources → traffic_sources
+    await client.query({
+      query: `
+        MERGE \`${DBT_DATASET}.traffic_sources\` T
+        USING (
+          SELECT * FROM \`${DBT_DATASET}.backfill_traffic_sources\`
+          WHERE property_id = @propertyId
+        ) S
+        ON T.property_id = S.property_id
+          AND T.session_date = S.session_date
+          AND T.source = S.source
+          AND T.medium = S.medium
+          AND T.channel_group = S.channel_group
+        WHEN NOT MATCHED THEN
+          INSERT ROW
+      `,
+      params: { propertyId },
+    });
+
+    console.log(`[backfill] Merged backfill data into main tables for ${propertyId}`);
+  } catch (err) {
+    // Non-fatal — data will be picked up on next dbt run
+    console.error(`[backfill] Failed to merge backfill into main tables:`, err instanceof Error ? err.message : err);
+  }
 }
 
 async function ensureBackfillTables(client: BigQuery) {

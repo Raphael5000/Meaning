@@ -835,7 +835,9 @@ export default function ChatV2() {
     messages.length > 0 &&
     CHART_KEYWORDS.test(messages[messages.length - 1].content);
 
-  const activeSources = connectedSources.filter((s) => s.status === "ACTIVE");
+  const activeSources = connectedSources.filter(
+    (s) => s.status === "ACTIVE" || s.status === "BACKFILLING" || s.status === "PENDING"
+  );
 
   const accountMenu = userForSidebar ? (
     <DropdownMenu>
@@ -1310,7 +1312,9 @@ function EmptyHero({
   const greeting = userName
     ? `${timeOfDayGreeting()}, ${userName}`
     : timeOfDayGreeting();
-  const activeSources = connectedSources.filter((s) => s.status === "ACTIVE");
+  const activeSources = connectedSources.filter(
+    (s) => s.status === "ACTIVE" || s.status === "BACKFILLING" || s.status === "PENDING"
+  );
   const hasSources = activeSources.length > 0;
 
   // No-sources branch: skip the composer + greeting flourish, push them

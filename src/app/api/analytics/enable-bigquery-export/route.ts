@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { BigQuery } from "@google-cloud/bigquery";
 import { createBigQueryLink, listBigQueryLinks } from "@/lib/ga4";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +10,20 @@ import { assertCanAddSource } from "@/lib/tier";
 export const dynamic = "force-dynamic";
 
 const GCP_PROJECT_ID = "scenic-healer-486415-u3";
+
+/** Check whether the BigQuery dataset exists and is accessible. */
+async function checkDatasetExists(dataset: string): Promise<boolean> {
+  const raw = process.env.GOOGLE_BIGQUERY_CREDENTIALS;
+  if (!raw) return false;
+  try {
+    const creds = JSON.parse(raw);
+    const bq = new BigQuery({ projectId: creds.project_id, credentials: creds });
+    const [exists] = await bq.dataset(dataset).exists();
+    return exists;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * POST /api/analytics/enable-bigquery-export
@@ -78,20 +93,30 @@ export async function POST(request: NextRequest) {
   try {
     // Check if a link already exists
     const existing = await listBigQueryLinks(accessToken, propertyId);
+    let alreadyExists = false;
+    let linkInfo: { project?: string; dailyExportEnabled?: boolean; streamingExportEnabled?: boolean } = {};
+
     if (existing.length > 0) {
-      return NextResponse.json({
-        success: true,
-        alreadyExists: true,
-        link: existing[0],
-      });
+      alreadyExists = true;
+      linkInfo = existing[0];
+    } else {
+      // Create the BigQuery link
+      const link = await createBigQueryLink(accessToken, propertyId, GCP_PROJECT_ID);
+      linkInfo = {
+        project: link.project,
+        dailyExportEnabled: link.dailyExportEnabled,
+        streamingExportEnabled: link.streamingExportEnabled,
+      };
     }
 
-    // Create the BigQuery link
-    const link = await createBigQueryLink(accessToken, propertyId, GCP_PROJECT_ID);
-
-    // Create DataSource record — set to ACTIVE immediately since we'll
-    // backfill historical data from the GA4 API right now.
+    // Validate the BigQuery dataset exists and is accessible
     const bigqueryDataset = `analytics_${propertyId}`;
+    const datasetExists = await checkDatasetExists(bigqueryDataset);
+
+    // Create DataSource record — status depends on whether the BQ dataset
+    // is actually available. If not, set to PENDING so the readiness cron
+    // can escalate to ERROR if it stays missing after 48h.
+    const initialStatus = datasetExists ? "BACKFILLING" : "PENDING";
     const dataSource = await prisma.dataSource.upsert({
       where: {
         userId_propertyId_type: {
@@ -103,7 +128,8 @@ export async function POST(request: NextRequest) {
       update: {
         bigqueryDataset,
         orgId: resolvedOrgId || undefined,
-        status: "BACKFILLING",
+        status: initialStatus,
+        lastSyncError: null,
       },
       create: {
         userId,
@@ -111,7 +137,8 @@ export async function POST(request: NextRequest) {
         type: "GA4_BIGQUERY",
         propertyId,
         bigqueryDataset,
-        status: "BACKFILLING",
+        status: initialStatus,
+        lastSyncError: null,
       },
     });
 
@@ -120,21 +147,25 @@ export async function POST(request: NextRequest) {
     // the first GA4 daily export.
     backfillProperty(accessToken, propertyId, 90).catch((err) => {
       console.error(`[enable-bigquery-export] Backfill failed for ${propertyId}:`, err);
+      // Record the backfill failure on the DataSource
+      prisma.dataSource.update({
+        where: { id: dataSource.id },
+        data: { lastSyncError: `Backfill failed: ${err instanceof Error ? err.message : String(err)}` },
+      }).catch(() => {});
     });
 
     return NextResponse.json({
       success: true,
-      alreadyExists: false,
-      link: {
-        project: link.project,
-        dailyExportEnabled: link.dailyExportEnabled,
-        streamingExportEnabled: link.streamingExportEnabled,
-      },
+      alreadyExists,
+      link: linkInfo,
       dataSource: {
         id: dataSource.id,
         status: dataSource.status,
         bigqueryDataset: dataSource.bigqueryDataset,
       },
+      ...(initialStatus === "PENDING" && {
+        warning: "BigQuery dataset not found yet. Data will appear once GA4 creates the export (up to 24h). We'll keep checking automatically.",
+      }),
     });
   } catch (error: unknown) {
     const message =

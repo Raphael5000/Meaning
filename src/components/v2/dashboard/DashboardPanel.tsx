@@ -67,7 +67,7 @@ export default function DashboardPanelV2({
   const [editPrompt, setEditPrompt] = React.useState("");
   const [widgetError, setWidgetError] = React.useState<string | null>(null);
   const [erroredSources, setErroredSources] = React.useState<
-    { type: string; label: string; errorMessage?: string | null }[]
+    { type: string; label: string; errorMessage?: string | null; isPending?: boolean }[]
   >([]);
   const hasRefreshedRef = React.useRef(false);
 
@@ -153,14 +153,18 @@ export default function DashboardPanelV2({
           MAILCHIMP: "Mailchimp",
           SEARCH_CONSOLE: "Search Console",
         };
-        const errored = sources
-          .filter((s) => s.status === "ERROR")
+        const problematic = sources
+          .filter((s) => s.status === "ERROR" || s.status === "PENDING")
           .map((s) => ({
             type: s.type,
             label: labels[s.type] ?? s.type,
-            errorMessage: s.lastSyncError,
+            errorMessage:
+              s.status === "PENDING"
+                ? "Waiting for data — this can take up to 24 hours after connecting."
+                : s.lastSyncError,
+            isPending: s.status === "PENDING",
           }));
-        setErroredSources(errored);
+        setErroredSources(problematic);
       })
       .catch(() => setErroredSources([]));
   }, [orgId]);
@@ -469,7 +473,7 @@ export default function DashboardPanelV2({
                   borderRadius: 7,
                   background: "var(--v2-surface)",
                   border: "1px solid var(--v2-line)",
-                  color: "var(--v2-neg)",
+                  color: s.isPending ? "var(--v2-ink-muted)" : "var(--v2-neg)",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -486,7 +490,7 @@ export default function DashboardPanelV2({
                     color: "var(--v2-ink)",
                   }}
                 >
-                  {s.label} disconnected
+                  {s.label} {s.isPending ? "— waiting for data" : "disconnected"}
                 </div>
                 {s.errorMessage && (
                   <div
