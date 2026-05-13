@@ -60,7 +60,7 @@ async function runGA4Report(
 /**
  * Backfill a property's data from GA4 API into BigQuery backfill tables.
  * Creates the backfill tables if they don't exist, then populates
- * traffic_sources and sessions from GA4 API data.
+ * traffic_sources, sessions, and pageviews from GA4 API data.
  *
  * This runs after a BQ export link is created so the user has data immediately
  * instead of waiting 24 hours for the first GA4 daily export.
@@ -69,7 +69,7 @@ export async function backfillProperty(
   accessToken: string,
   propertyId: string,
   days = 90
-): Promise<{ sessions: number; trafficSources: number }> {
+): Promise<{ sessions: number; trafficSources: number; pageviews: number }> {
   const client = getBqClient();
   const startDate = dateStr(days);
   const endDate = dateStr(1);
@@ -80,7 +80,7 @@ export async function backfillProperty(
   await ensureBackfillTables(client);
 
   // Clear any existing backfill data for this property to prevent duplicates
-  for (const table of ["backfill_sessions", "backfill_traffic_sources"]) {
+  for (const table of ["backfill_sessions", "backfill_traffic_sources", "backfill_pageviews"]) {
     try {
       await client.query({
         query: `DELETE FROM \`${DBT_DATASET}.${table}\` WHERE property_id = @propertyId`,
@@ -97,6 +97,9 @@ export async function backfillProperty(
   // 2. Backfill sessions
   const sessRows = await backfillSessions(client, accessToken, propertyId, startDate, endDate);
 
+  // 3. Backfill pageviews
+  const pvRows = await backfillPageviews(client, accessToken, propertyId, startDate, endDate);
+
   // Merge backfill data into the main dbt tables so users see data immediately
   // without waiting for the next scheduled dbt run.
   await mergeBackfillIntoMain(client, propertyId);
@@ -107,13 +110,13 @@ export async function backfillProperty(
     data: { status: "ACTIVE", lastSyncError: null },
   });
 
-  console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources — status set to ACTIVE`);
-  return { sessions: sessRows, trafficSources: tsRows };
+  console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources, ${pvRows} pageviews — status set to ACTIVE`);
+  return { sessions: sessRows, trafficSources: tsRows, pageviews: pvRows };
 }
 
 /**
- * Merge backfill data directly into the main sessions/traffic_sources tables
- * so data is available immediately without waiting for a dbt run.
+ * Merge backfill data directly into the main sessions/traffic_sources/pageviews
+ * tables so data is available immediately without waiting for a dbt run.
  */
 async function mergeBackfillIntoMain(client: BigQuery, propertyId: string) {
   try {
@@ -151,6 +154,24 @@ async function mergeBackfillIntoMain(client: BigQuery, propertyId: string) {
       params: { propertyId },
     });
 
+    // Merge backfill_pageviews → pageviews
+    await client.query({
+      query: `
+        MERGE \`${DBT_DATASET}.pageviews\` T
+        USING (
+          SELECT * FROM \`${DBT_DATASET}.backfill_pageviews\`
+          WHERE property_id = @propertyId
+        ) S
+        ON T.property_id = S.property_id
+          AND T.event_timestamp = S.event_timestamp
+          AND T.user_pseudo_id = S.user_pseudo_id
+          AND T.page_location = S.page_location
+        WHEN NOT MATCHED THEN
+          INSERT ROW
+      `,
+      params: { propertyId },
+    });
+
     console.log(`[backfill] Merged backfill data into main tables for ${propertyId}`);
   } catch (err) {
     // Non-fatal — data will be picked up on next dbt run
@@ -164,7 +185,6 @@ async function ensureBackfillTables(client: BigQuery) {
   const tableIds = tables.map((t) => t.id);
 
   if (!tableIds.includes("backfill_sessions")) {
-    // Check if sessions table exists to copy schema
     if (tableIds.includes("sessions")) {
       await client.query({ query: `CREATE TABLE \`${DBT_DATASET}.backfill_sessions\` LIKE \`${DBT_DATASET}.sessions\`` });
     }
@@ -172,6 +192,11 @@ async function ensureBackfillTables(client: BigQuery) {
   if (!tableIds.includes("backfill_traffic_sources")) {
     if (tableIds.includes("traffic_sources")) {
       await client.query({ query: `CREATE TABLE \`${DBT_DATASET}.backfill_traffic_sources\` LIKE \`${DBT_DATASET}.traffic_sources\`` });
+    }
+  }
+  if (!tableIds.includes("backfill_pageviews")) {
+    if (tableIds.includes("pageviews")) {
+      await client.query({ query: `CREATE TABLE \`${DBT_DATASET}.backfill_pageviews\` LIKE \`${DBT_DATASET}.pageviews\`` });
     }
   }
 }
@@ -282,6 +307,71 @@ async function backfillSessions(
   for (let i = 0; i < bqRows.length; i += BATCH) {
     await client.dataset(DBT_DATASET).table("backfill_sessions").insert(bqRows.slice(i, i + BATCH));
   }
+  return bqRows.length;
+}
+
+async function backfillPageviews(
+  client: BigQuery,
+  accessToken: string,
+  propertyId: string,
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const rows = await runGA4Report(
+    accessToken,
+    propertyId,
+    ["screenPageViews", "userEngagementDuration"],
+    ["date", "pagePath", "pageTitle", "pageReferrer", "sessionSource", "sessionMedium", "sessionDefaultChannelGrouping", "deviceCategory", "operatingSystem", "browser", "country", "city"],
+    startDate,
+    endDate,
+  );
+
+  const bqRows: Record<string, unknown>[] = [];
+  let counter = 0;
+
+  for (const r of rows) {
+    const pvCount = parseInt(r.screenPageViews || "0", 10);
+    const dateFormatted = `${r.date!.slice(0, 4)}-${r.date!.slice(4, 6)}-${r.date!.slice(6, 8)}`;
+    const avgEngagement = parseFloat(r.userEngagementDuration || "0") * 1000;
+    const engagementPerPv = Math.round(avgEngagement / Math.max(pvCount, 1));
+
+    for (let i = 0; i < pvCount; i++) {
+      counter++;
+      // Spread timestamps across the day to avoid collisions
+      const hour = Math.floor((counter * 17) % 24);
+      const minute = Math.floor((counter * 7) % 60);
+      const second = Math.floor((counter * 13) % 60);
+      const ts = `${dateFormatted}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}Z`;
+
+      bqRows.push({
+        property_id: propertyId,
+        user_pseudo_id: `backfill_pv_user_${counter}`,
+        ga_session_id: counter,
+        event_date: dateFormatted,
+        event_timestamp: ts,
+        page_location: r.pagePath || "/",
+        page_title: r.pageTitle || "",
+        page_referrer: r.pageReferrer || "",
+        engagement_time_msec: engagementPerPv,
+        session_source: r.sessionSource || "(direct)",
+        session_medium: r.sessionMedium || "(none)",
+        session_default_channel_group: r.sessionDefaultChannelGrouping || "Unassigned",
+        device_category: r.deviceCategory || "desktop",
+        device_os: r.operatingSystem || "",
+        device_browser: r.browser || "",
+        geo_country: r.country || "",
+        geo_city: r.city || "",
+      });
+    }
+  }
+
+  // Insert in batches
+  const BATCH = 500;
+  for (let i = 0; i < bqRows.length; i += BATCH) {
+    await client.dataset(DBT_DATASET).table("backfill_pageviews").insert(bqRows.slice(i, i + BATCH));
+  }
+
+  console.log(`[backfill] Inserted ${bqRows.length} pageview rows for ${propertyId}`);
   return bqRows.length;
 }
 

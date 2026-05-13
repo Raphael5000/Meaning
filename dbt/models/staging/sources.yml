@@ -14,3 +14,5 @@ sources:
         description: Backfilled session rows from GA4 API (aggregated, not raw events)
       - name: backfill_traffic_sources
         description: Backfilled daily traffic source aggregates from GA4 API
+      - name: backfill_pageviews
+        description: Backfilled page view events from GA4 API
