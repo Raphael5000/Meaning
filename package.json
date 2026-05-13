@@ -2,6 +2,7 @@
   "name": "meaning",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": "22.x"
   },
