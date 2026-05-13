@@ -41,6 +41,22 @@ sources:
       - name: events
         identifier: "events_*"
 
+  - name: ga4_raw_509034130
+    description: "Raw GA4 BigQuery export — Moxii Africa"
+    database: scenic-healer-486415-u3
+    schema: analytics_509034130
+    tables:
+      - name: events
+        identifier: "events_*"
+
+  - name: ga4_raw_474490497
+    description: "Raw GA4 BigQuery export — WorkWeek"
+    database: scenic-healer-486415-u3
+    schema: analytics_474490497
+    tables:
+      - name: events
+        identifier: "events_*"
+
   - name: backfill
     description: Historical backfill data from GA4 API
     database: scenic-healer-486415-u3
