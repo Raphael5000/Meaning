@@ -12,20 +12,16 @@
 }}
 
 {#
-  List of GA4 property sources. Each entry is (source_name, property_id).
-  To add a new property: add a source in sources.yml and add an entry here.
+  Auto-discover all analytics_* datasets in BigQuery.
+  New properties are picked up automatically — no manual edits needed.
 #}
-{% set properties = [
-  ('ga4_raw_404628120', '404628120'),
-  ('ga4_raw_379503029', '379503029'),
-  ('ga4_raw_403387022', '403387022'),
-  ('ga4_raw_271992166', '271992166'),
-  ('ga4_raw_484056386', '484056386'),
-  ('ga4_raw_509034130', '509034130'),
-  ('ga4_raw_474490497', '474490497'),
-] %}
+{% set properties = discover_ga4_properties() %}
 
-{% for (src, pid) in properties %}
+{% if properties | length == 0 %}
+  {{ exceptions.raise_compiler_error("No GA4 property datasets found in BigQuery. Expected datasets matching analytics_*") }}
+{% endif %}
+
+{% for (schema_name, pid) in properties %}
 {% if not loop.first %}UNION ALL{% endif %}
 
 SELECT
@@ -94,7 +90,7 @@ SELECT
     AS outbound,
   (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'form_destination')
     AS form_destination
-FROM {{ source(src, 'events') }}
+FROM `scenic-healer-486415-u3`.`{{ schema_name }}`.`events_*`
 WHERE _TABLE_SUFFIX NOT LIKE '%intraday%'
 {% if is_incremental() %}
   AND _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY))
