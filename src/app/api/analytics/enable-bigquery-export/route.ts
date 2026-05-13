@@ -145,14 +145,20 @@ export async function POST(request: NextRequest) {
     // Backfill 90 days of historical data from GA4 API in the background.
     // This gives the user data immediately instead of waiting 24hrs for
     // the first GA4 daily export.
-    backfillProperty(accessToken, propertyId, 90).catch((err) => {
-      console.error(`[enable-bigquery-export] Backfill failed for ${propertyId}:`, err);
-      // Record the backfill failure on the DataSource
-      prisma.dataSource.update({
-        where: { id: dataSource.id },
-        data: { lastSyncError: `Backfill failed: ${err instanceof Error ? err.message : String(err)}` },
-      }).catch(() => {});
-    });
+    backfillProperty(accessToken, propertyId, 90)
+      .then(() => {
+        return prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { status: "ACTIVE", lastSyncedAt: new Date(), lastSyncError: null },
+        });
+      })
+      .catch((err) => {
+        console.error(`[enable-bigquery-export] Backfill failed for ${propertyId}:`, err);
+        prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { lastSyncError: `Backfill failed: ${err instanceof Error ? err.message : String(err)}` },
+        }).catch(() => {});
+      });
 
     return NextResponse.json({
       success: true,

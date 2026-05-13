@@ -433,6 +433,7 @@ export default function ChatV2() {
 
   function handleNewChat() {
     setActivePanel({ kind: "none" });
+    setConnectionsVersion((v) => v + 1);
     setCurrentChatId(null);
     setMessages([]);
     setError(null);
