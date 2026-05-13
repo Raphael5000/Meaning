@@ -18,8 +18,10 @@
 {% set properties = discover_ga4_properties() %}
 
 {% if properties | length == 0 %}
-  {{ exceptions.raise_compiler_error("No GA4 property datasets found in BigQuery. Expected datasets matching analytics_*") }}
-{% endif %}
+  {# During parse phase (execute=false) the macro returns []. Emit a no-op query so
+     dbt can still build the DAG. At execution time the macro will find real datasets. #}
+  SELECT CAST(NULL AS DATE) AS event_date WHERE FALSE
+{% else %}
 
 {% for (schema_name, pid) in properties %}
 {% if not loop.first %}UNION ALL{% endif %}
@@ -97,3 +99,4 @@ WHERE _TABLE_SUFFIX NOT LIKE '%intraday%'
 {% endif %}
 
 {% endfor %}
+{% endif %}
