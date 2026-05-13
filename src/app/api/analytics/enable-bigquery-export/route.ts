@@ -154,9 +154,14 @@ export async function POST(request: NextRequest) {
       })
       .catch((err) => {
         console.error(`[enable-bigquery-export] Backfill failed for ${propertyId}:`, err);
+        // Still mark ACTIVE — the BQ link exists and daily exports will flow.
+        // Record the error so we know backfill didn't populate initial data.
         prisma.dataSource.update({
           where: { id: dataSource.id },
-          data: { lastSyncError: `Backfill failed: ${err instanceof Error ? err.message : String(err)}` },
+          data: {
+            status: "ACTIVE",
+            lastSyncError: `Backfill failed: ${err instanceof Error ? err.message : String(err)}`,
+          },
         }).catch(() => {});
       });
 

@@ -317,11 +317,13 @@ async function backfillPageviews(
   startDate: string,
   endDate: string
 ): Promise<number> {
+  // GA4 API limits to 9 dimensions per request, so we use the most
+  // important ones for page-level analysis.
   const rows = await runGA4Report(
     accessToken,
     propertyId,
     ["screenPageViews", "userEngagementDuration"],
-    ["date", "pagePath", "pageTitle", "pageReferrer", "sessionSource", "sessionMedium", "sessionDefaultChannelGrouping", "deviceCategory", "operatingSystem", "browser", "country", "city"],
+    ["date", "pagePath", "pageTitle", "sessionSource", "sessionMedium", "sessionDefaultChannelGrouping", "deviceCategory", "country", "city"],
     startDate,
     endDate,
   );
@@ -351,14 +353,14 @@ async function backfillPageviews(
         event_timestamp: ts,
         page_location: r.pagePath || "/",
         page_title: r.pageTitle || "",
-        page_referrer: r.pageReferrer || "",
+        page_referrer: "",
         engagement_time_msec: engagementPerPv,
         session_source: r.sessionSource || "(direct)",
         session_medium: r.sessionMedium || "(none)",
         session_default_channel_group: r.sessionDefaultChannelGrouping || "Unassigned",
         device_category: r.deviceCategory || "desktop",
-        device_os: r.operatingSystem || "",
-        device_browser: r.browser || "",
+        device_os: "",
+        device_browser: "",
         geo_country: r.country || "",
         geo_city: r.city || "",
       });
