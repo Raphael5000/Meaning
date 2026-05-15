@@ -12,11 +12,17 @@
   {% if execute %}
     {% set query %}
       SELECT
-        schema_name,
-        REGEXP_EXTRACT(schema_name, r'^analytics_(\d+)$') AS property_id
-      FROM `scenic-healer-486415-u3`.`region-eu`.INFORMATION_SCHEMA.SCHEMATA
-      WHERE REGEXP_CONTAINS(schema_name, r'^analytics_\d+$')
-      ORDER BY schema_name
+        s.schema_name,
+        REGEXP_EXTRACT(s.schema_name, r'^analytics_(\d+)$') AS property_id
+      FROM `scenic-healer-486415-u3`.`region-eu`.INFORMATION_SCHEMA.SCHEMATA s
+      WHERE REGEXP_CONTAINS(s.schema_name, r'^analytics_\d+$')
+        AND EXISTS (
+          SELECT 1
+          FROM `scenic-healer-486415-u3`.`region-eu`.INFORMATION_SCHEMA.TABLES t
+          WHERE t.table_schema = s.schema_name
+            AND t.table_name LIKE 'events_%'
+        )
+      ORDER BY s.schema_name
     {% endset %}
 
     {% set results = run_query(query) %}
