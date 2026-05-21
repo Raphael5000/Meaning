@@ -173,7 +173,8 @@ export async function POST(
             capturedCustomPrompt,
             capturedUsesBigQuery,
             capturedDataSources,
-            capturedDisplayCurrency
+            capturedDisplayCurrency,
+            alert.orgId
           );
           console.log(`[test-send] Content generated (${contentHtml.length} chars), sending email to ${recipients.join(", ")}...`);
           if (!contentHtml.trim()) {

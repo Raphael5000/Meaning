@@ -163,7 +163,8 @@ async function handleSend(request: NextRequest) {
               alert.customPrompt,
               true,
               dataSources,
-              displayCurrency
+              displayCurrency,
+              alert.orgId
             );
           } catch (genErr) {
             console.error(
