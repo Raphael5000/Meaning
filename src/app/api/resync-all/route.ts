@@ -5,6 +5,7 @@ import { syncGscData } from "@/lib/gsc-transfer";
 import { syncLinkedInData } from "@/lib/linkedin-transfer";
 import { syncMailchimpData } from "@/lib/mailchimp-transfer";
 import { syncMicrosoftAdsData } from "@/lib/microsoft-ads-transfer";
+import { syncAhrefsData } from "@/lib/ahrefs-transfer";
 import { syncWithRetry, getSyncDateRange } from "@/lib/sync-utils";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,8 @@ export async function POST(req: NextRequest) {
           return syncMailchimpData(ds.userId, ds.propertyId);
         case "MICROSOFT_ADS":
           return syncMicrosoftAdsData(ds.userId, ds.propertyId, ds.adsCustomerId || ds.propertyId, start, end);
+        case "AHREFS":
+          return syncAhrefsData(ds.userId, ds.propertyId);
         default:
           return Promise.resolve();
       }

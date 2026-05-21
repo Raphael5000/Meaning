@@ -43,7 +43,8 @@ interface SidebarProps {
   chats: SidebarChat[];
   user?: SidebarUser | null;
   alertsBadge?: number;
-  activeRoute?: "chat" | "dashboards" | "alerts" | "connections";
+  connectionErrors?: number;
+  activeRoute?: "chat" | "dashboards" | "alerts" | "goals" | "connections";
   renamingChatId?: string | null;
   renameValue?: string;
   onRenameChange?: (value: string) => void;
@@ -59,6 +60,7 @@ interface SidebarProps {
   onCreateTeam?: () => void;
   onOpenDashboards?: () => void;
   onOpenAlerts?: () => void;
+  onOpenGoals?: () => void;
   onOpenConnections?: () => void;
   onOpenAccount?: () => void;
   accountMenu?: React.ReactNode;
@@ -85,10 +87,12 @@ export function Sidebar(props: SidebarProps) {
 
 function CollapsedContent({
   activeRoute = "chat",
+  connectionErrors,
   user,
   onNewChat,
   onOpenDashboards,
   onOpenAlerts,
+  onOpenGoals,
   onOpenConnections,
   onOpenAccount,
 }: SidebarProps) {
@@ -114,10 +118,17 @@ function CollapsedContent({
           active={activeRoute === "alerts"}
         />
         <IconBtn
+          icon={<I.Target />}
+          label="Goals"
+          onClick={onOpenGoals}
+          active={activeRoute === "goals"}
+        />
+        <IconBtn
           icon={<I.Plug />}
           label="Connections"
           onClick={onOpenConnections}
           active={activeRoute === "connections"}
+          errorDot={!!connectionErrors}
         />
       </div>
       <div className="flex-1" />
@@ -147,11 +158,13 @@ function IconBtn({
   label,
   active,
   onClick,
+  errorDot,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   onClick?: () => void;
+  errorDot?: boolean;
 }) {
   return (
     <Tooltip delayDuration={200}>
@@ -161,13 +174,16 @@ function IconBtn({
           aria-label={label}
           onClick={onClick}
           className={cn(
-            "my-0.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink",
+            "relative my-0.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-ink",
             active
               ? "bg-v2-surface-2 text-v2-ink"
               : "text-v2-ink-muted hover:bg-v2-surface-2 hover:text-v2-ink"
           )}
         >
           {icon}
+          {errorDot && (
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+          )}
         </button>
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
@@ -185,6 +201,7 @@ function ExpandedContent({
   chats,
   user,
   alertsBadge,
+  connectionErrors,
   activeRoute = "chat",
   renamingChatId,
   renameValue,
@@ -201,6 +218,7 @@ function ExpandedContent({
   onCreateTeam,
   onOpenDashboards,
   onOpenAlerts,
+  onOpenGoals,
   onOpenConnections,
   onOpenAccount,
   accountMenu,
@@ -291,10 +309,17 @@ function ExpandedContent({
           onClick={onOpenAlerts}
         />
         <NavLink
+          icon={<I.Target size={14} />}
+          label="Goals"
+          active={activeRoute === "goals"}
+          onClick={onOpenGoals}
+        />
+        <NavLink
           icon={<I.Plug size={14} />}
           label="Connections"
           active={activeRoute === "connections"}
           onClick={onOpenConnections}
+          errorDot={!!connectionErrors}
         />
       </nav>
 
@@ -386,6 +411,7 @@ function NavLink({
   badge,
   active,
   onClick,
+  errorDot,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -393,6 +419,7 @@ function NavLink({
   badge?: string;
   active?: boolean;
   onClick?: () => void;
+  errorDot?: boolean;
 }) {
   return (
     <button
@@ -408,7 +435,12 @@ function NavLink({
       {active && (
         <span className="absolute left-0.5 top-1.5 bottom-1.5 w-0.5 rounded-sm bg-v2-ink" />
       )}
-      <span className="inline-flex text-v2-ink-muted">{icon}</span>
+      <span className="relative inline-flex text-v2-ink-muted">
+        {icon}
+        {errorDot && (
+          <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
+        )}
+      </span>
       <span className="flex-1">{label}</span>
       {badge && (
         <span className="rounded-full border border-v2-line bg-v2-surface-2 px-1.5 py-px text-[10px] text-v2-ink-muted">

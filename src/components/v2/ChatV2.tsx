@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
+import GoalsPanel from "@/components/v2/goals/GoalsPanel";
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
 import DashboardListPanel from "@/components/v2/dashboard/DashboardListPanel";
@@ -156,6 +157,7 @@ type ActivePanel =
   | { kind: "none" }
   | { kind: "connections"; initialSourceType?: ConnectionsSourceType }
   | { kind: "alerts" }
+  | { kind: "goals" }
   | { kind: "team" }
   | { kind: "account" }
   | { kind: "dashboardList" }
@@ -820,14 +822,16 @@ export default function ChatV2() {
       }
     : null;
 
-  const activeRoute: "chat" | "dashboards" | "alerts" | "connections" =
+  const activeRoute: "chat" | "dashboards" | "alerts" | "goals" | "connections" =
     activePanel.kind === "connections"
       ? "connections"
       : activePanel.kind === "alerts"
         ? "alerts"
-        : activePanel.kind === "dashboard" || activePanel.kind === "dashboardList"
-          ? "dashboards"
-          : "chat";
+        : activePanel.kind === "goals"
+          ? "goals"
+          : activePanel.kind === "dashboard" || activePanel.kind === "dashboardList"
+            ? "dashboards"
+            : "chat";
 
   /* ----- Render ----- */
 
@@ -839,6 +843,7 @@ export default function ChatV2() {
   const activeSources = connectedSources.filter(
     (s) => s.status === "ACTIVE" || s.status === "BACKFILLING" || s.status === "PENDING"
   );
+  const erroredSources = connectedSources.filter((s) => s.status === "ERROR");
 
   const accountMenu = userForSidebar ? (
     <DropdownMenu>
@@ -950,6 +955,7 @@ export default function ChatV2() {
           orgs={sidebarOrgsList}
           chats={sidebarChats}
           user={userForSidebar}
+          connectionErrors={erroredSources.length}
           activeRoute={activeRoute}
           renamingChatId={renamingChatId}
           renameValue={renameValue}
@@ -969,6 +975,7 @@ export default function ChatV2() {
           onManageWorkspace={() => setActivePanel({ kind: "team" })}
           onOpenDashboards={() => setActivePanel({ kind: "dashboardList" })}
           onOpenAlerts={() => setActivePanel({ kind: "alerts" })}
+          onOpenGoals={() => setActivePanel({ kind: "goals" })}
           onOpenConnections={() => setActivePanel({ kind: "connections" })}
           accountMenu={accountMenu}
         />
@@ -990,6 +997,28 @@ export default function ChatV2() {
           <div className="w-[30px]" />
         </header>
 
+        {/* Connection error banner */}
+        {erroredSources.length > 0 && activePanel.kind !== "connections" && (
+          <div className="flex items-center gap-3 border-b border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+            <I.Alert size={14} className="shrink-0" />
+            <span className="flex-1">
+              {erroredSources.length === 1
+                ? `${erroredSources[0].label} connection has an error`
+                : `${erroredSources.length} connections have errors`}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const firstErrorType = erroredSources[0]?.type as ConnectionsSourceType | undefined;
+                setActivePanel({ kind: "connections", initialSourceType: firstErrorType });
+              }}
+              className="shrink-0 rounded-md bg-red-600 px-3 py-1 text-[12px] font-medium text-white transition-colors hover:bg-red-700"
+            >
+              Fix this
+            </button>
+          </div>
+        )}
+
         {hasActivePanel ? (
           activePanel.kind === "connections" ? (
             <ConnectionsV2
@@ -1005,6 +1034,12 @@ export default function ChatV2() {
           <V1PanelWrapper>
             {activePanel.kind === "alerts" && (
               <AlertsPanelV2
+                onClose={() => setActivePanel({ kind: "none" })}
+                orgId={activeOrgId}
+              />
+            )}
+            {activePanel.kind === "goals" && (
+              <GoalsPanel
                 onClose={() => setActivePanel({ kind: "none" })}
                 orgId={activeOrgId}
               />

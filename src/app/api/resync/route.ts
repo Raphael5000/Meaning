@@ -6,6 +6,7 @@ import { syncGscData } from "@/lib/gsc-transfer";
 import { syncLinkedInData } from "@/lib/linkedin-transfer";
 import { syncMailchimpData } from "@/lib/mailchimp-transfer";
 import { syncMicrosoftAdsData } from "@/lib/microsoft-ads-transfer";
+import { syncAhrefsData } from "@/lib/ahrefs-transfer";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,9 @@ export async function POST(req: NextRequest) {
           break;
         case "MICROSOFT_ADS":
           await syncMicrosoftAdsData(ds.userId, ds.propertyId, ds.adsCustomerId || ds.propertyId, start, end);
+          break;
+        case "AHREFS":
+          await syncAhrefsData(ds.userId, ds.propertyId);
           break;
         default:
           console.log(`[resync] Unsupported type: ${ds.type}`);

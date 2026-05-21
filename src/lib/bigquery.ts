@@ -134,6 +134,18 @@ const MSADS_TABLES = new Map([
   ["msads_account_info", "account_info"],
 ]);
 
+/** Ahrefs tables — prefixed with ahrefs_ to avoid collision with site_info (GSC).
+ *  These live in ahrefs_{orgId} dataset. The ahrefs_ prefix is stripped when routing. */
+const AHREFS_TABLES = new Map([
+  ["ahrefs_site_metrics", "site_metrics"],
+  ["ahrefs_domain_rating", "domain_rating"],
+  ["ahrefs_backlinks_stats", "backlinks_stats"],
+  ["ahrefs_organic_keywords", "organic_keywords"],
+  ["ahrefs_top_pages", "top_pages"],
+  ["ahrefs_referring_domains", "referring_domains"],
+  ["ahrefs_site_info", "site_info"],
+]);
+
 /**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
@@ -158,7 +170,8 @@ export async function runPropertyQuery(
   linkedInOrgId?: string | null,
   mailchimpListId?: string | null,
   gscSiteUrl?: string | null,
-  msAdsAccountId?: string | null
+  msAdsAccountId?: string | null,
+  ahrefsOrgId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
@@ -166,6 +179,7 @@ export async function runPropertyQuery(
   const mailchimpDataset = mailchimpListId ? `mailchimp_${mailchimpListId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
   const gscDataset = gscSiteUrl ? `gsc_${gscSiteUrl.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}` : null;
   const msAdsDataset = msAdsAccountId ? `msads_${msAdsAccountId.replace(/-/g, "")}` : null;
+  const ahrefsDataset = ahrefsOrgId ? `ahrefs_${ahrefsOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
@@ -186,6 +200,9 @@ export async function runPropertyQuery(
       }
       if (GSC_TABLES.has(tableName) && gscDataset) {
         return `${gscDataset}.${tableName}`;
+      }
+      if (AHREFS_TABLES.has(tableName) && ahrefsDataset) {
+        return `${ahrefsDataset}.${AHREFS_TABLES.get(tableName)}`;
       }
       if (DBT_SHARED_TABLES.has(tableName)) {
         // Shared reference tables — no property_id filter

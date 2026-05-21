@@ -290,6 +290,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_ahrefs_query",
+    description:
+      "Run a custom SQL query against Ahrefs SEO data. Use this to answer questions about domain authority, organic keyword rankings, backlink profiles, top pages by traffic, and referring domains. Use {dataset}.tableName for table references. Table names are prefixed with ahrefs_ to distinguish from other connectors. Ahrefs tables: ahrefs_site_metrics (snapshot_date, org_keywords, org_keywords_1_3, org_traffic, org_cost — in USD cents, paid_keywords, paid_traffic, paid_cost — in USD cents, paid_pages), ahrefs_domain_rating (snapshot_date, domain_rating — 0-100 score, ahrefs_rank), ahrefs_backlinks_stats (snapshot_date, live_backlinks, all_time_backlinks, live_refdomains, all_time_refdomains), ahrefs_organic_keywords (snapshot_date, keyword, best_position, volume, sum_traffic, cpc — in USD cents, keyword_difficulty — 0-100, best_position_url, best_position_kind, is_branded, is_informational, is_commercial, is_transactional), ahrefs_top_pages (snapshot_date, url, keywords, sum_traffic, value — in USD cents, top_keyword, top_keyword_best_position, ur — URL Rating 0-100), ahrefs_referring_domains (snapshot_date, domain, domain_rating, dofollow_links, links_to_target, traffic_domain, first_seen, last_seen, is_spam), ahrefs_site_info (target_domain, country, last_synced_at).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT keyword, best_position, volume, sum_traffic FROM `{dataset}.ahrefs_organic_keywords` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM `{dataset}.ahrefs_organic_keywords`) ORDER BY sum_traffic DESC LIMIT 20",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "get_realtime_data",
     description:
       "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",

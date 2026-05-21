@@ -42,6 +42,7 @@ interface ConnectionStatus {
   hasLinkedInAccount: boolean;
   hasMailchimpAccount: boolean;
   hasMicrosoftAdsAccount: boolean;
+  hasAhrefsAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -84,6 +85,7 @@ type SourceType =
   | "LINKEDIN"
   | "MAILCHIMP"
   | "MICROSOFT_ADS"
+  | "AHREFS"
   | "META";
 
 interface SourceDef {
@@ -100,6 +102,7 @@ const SOURCES: SourceDef[] = [
   { type: "LINKEDIN", label: "LinkedIn", icon: "/Linkedin.svg" },
   { type: "MAILCHIMP", label: "Mailchimp", icon: "/Mailchimp.svg" },
   { type: "MICROSOFT_ADS", label: "Microsoft Ads", icon: "/Microsoft Ads.svg" },
+  { type: "AHREFS", label: "Ahrefs", icon: "/Ahrefs.svg" },
   { type: "META", label: "Meta", icon: "/Meta.svg", comingSoon: true },
 ];
 
@@ -197,6 +200,7 @@ export default function ConnectionsV2({
     if (status.hasLinkedInAccount) authedTypes.push("LINKEDIN");
     if (status.hasMailchimpAccount) authedTypes.push("MAILCHIMP");
     if (status.hasMicrosoftAdsAccount) authedTypes.push("MICROSOFT_ADS");
+    if (status.hasAhrefsAccount) authedTypes.push("AHREFS");
     const toFetch = new Set<SourceType>([
       ...authedTypes,
       ...Array.from(typesWithDataSources).map((t) => t as SourceType),
@@ -536,6 +540,8 @@ function connectUrl(type: SourceType): string {
       return "/api/auth/connect-mailchimp";
     case "MICROSOFT_ADS":
       return "/api/auth/connect-microsoft-ads";
+    case "AHREFS":
+      return "#"; // API key flow handled inline, no redirect
     default:
       return "#";
   }
@@ -723,6 +729,8 @@ function isAuthedForSource(
       return status.hasMailchimpAccount;
     case "MICROSOFT_ADS":
       return status.hasMicrosoftAdsAccount;
+    case "AHREFS":
+      return status.hasAhrefsAccount;
     default:
       return false;
   }
@@ -889,6 +897,8 @@ function ConnectionsDetail({
         return !!status?.hasMailchimpAccount;
       case "MICROSOFT_ADS":
         return !!status?.hasMicrosoftAdsAccount;
+      case "AHREFS":
+        return !!status?.hasAhrefsAccount;
       default:
         return false;
     }
@@ -1278,6 +1288,8 @@ function oauthProviderFor(type: SourceType): string | null {
       return "linkedin";
     case "MAILCHIMP":
       return "mailchimp";
+    case "AHREFS":
+      return "ahrefs";
     default:
       return null;
   }
@@ -1369,6 +1381,18 @@ function AddAccountSection({
       <div className="rounded-[10px] border border-border bg-card px-4 py-8 text-center">
         <div className="text-[13.5px] text-muted-foreground">Coming soon</div>
       </div>
+    );
+  }
+
+  // Ahrefs: combined API key + domain form (no OAuth)
+  if (sourceType === "AHREFS") {
+    return (
+      <AhrefsConnectForm
+        isAuthed={isAuthed}
+        orgId={orgId}
+        onEnabled={onEnabled}
+        onError={onError}
+      />
     );
   }
 
@@ -1554,6 +1578,156 @@ function AccountPicker({
   );
 }
 
+function AhrefsConnectForm({
+  isAuthed,
+  orgId,
+  onEnabled,
+  onError,
+}: {
+  isAuthed: boolean;
+  orgId: string | null;
+  onEnabled: () => void;
+  onError: (text: string) => void;
+}) {
+  const [apiKey, setApiKey] = React.useState("");
+  const [domain, setDomain] = React.useState("");
+  const [country, setCountry] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [keyConnected, setKeyConnected] = React.useState(isAuthed);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // Step 1: Connect API key if not already connected
+      if (!keyConnected) {
+        if (!apiKey.trim()) {
+          onError("API key is required");
+          setBusy(false);
+          return;
+        }
+        const keyRes = await fetch("/api/auth/connect-ahrefs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: apiKey.trim() }),
+        });
+        const keyData = await keyRes.json();
+        if (!keyRes.ok) {
+          onError(keyData.error || "Invalid API key");
+          setBusy(false);
+          return;
+        }
+        setKeyConnected(true);
+      }
+
+      // Step 2: Add domain
+      if (!domain.trim()) {
+        onError("Domain is required");
+        setBusy(false);
+        return;
+      }
+      const res = await fetch("/api/ahrefs/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: domain.trim(),
+          country: country.trim() || undefined,
+          orgId: orgId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onError(data.error || "Failed to add domain");
+        return;
+      }
+      onEnabled();
+    } catch {
+      onError("Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[10px] border border-border bg-card px-4 py-5"
+    >
+      <div className="space-y-4">
+        {!keyConnected && (
+          <div>
+            <p className="mb-3 text-[13px] text-muted-foreground">
+              Paste your Ahrefs API key. You can generate one at{" "}
+              <a
+                href="https://app.ahrefs.com/user/api"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline underline-offset-2"
+              >
+                app.ahrefs.com/user/api
+              </a>
+            </p>
+            <label className="mb-1 block text-[12px] font-medium text-foreground">
+              API Key
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste your Ahrefs API key"
+              className={inputClass}
+              required={!keyConnected}
+            />
+          </div>
+        )}
+        {keyConnected && (
+          <p className="text-[13px] text-muted-foreground">
+            Ahrefs account connected. Enter the domain to track.
+          </p>
+        )}
+        <div>
+          <label className="mb-1 block text-[12px] font-medium text-foreground">
+            Domain
+          </label>
+          <input
+            type="text"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder="e.g. example.com"
+            className={inputClass}
+            required
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[12px] font-medium text-foreground">
+            Country <span className="text-muted-foreground">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="e.g. US, GB, DE (leave blank for global)"
+            maxLength={2}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div className="mt-4">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={busy || (!keyConnected && !apiKey.trim()) || !domain.trim()}
+        >
+          {busy ? "Connecting…" : keyConnected ? "Add domain" : "Connect & add domain"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 async function fetchAccessibleAccounts(
   sourceType: SourceType
 ): Promise<PickerItem[]> {
@@ -1630,6 +1804,9 @@ async function fetchAccessibleAccounts(
         sublabel: `${a.accountNumber} · customer ${a.customerId}`,
       }));
     }
+    case "AHREFS":
+      // Ahrefs uses API key auth, not an account picker — return empty
+      return [];
     default:
       return [];
   }
@@ -1671,6 +1848,11 @@ function enableEndpoint(
       return {
         url: "/api/microsoft-ads/enable-export",
         body: { accountId: id, orgId: orgVal },
+      };
+    case "AHREFS":
+      return {
+        url: "/api/ahrefs/enable-export",
+        body: { domain: id, orgId: orgVal },
       };
     default:
       return null;

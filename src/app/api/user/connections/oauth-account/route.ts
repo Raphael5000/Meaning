@@ -9,6 +9,7 @@ const ALLOWED_PROVIDERS = [
   "microsoft-ads",
   "linkedin",
   "mailchimp",
+  "ahrefs",
 ] as const;
 type AllowedProvider = (typeof ALLOWED_PROVIDERS)[number];
 
@@ -17,6 +18,7 @@ const PROVIDER_DATASOURCE_TYPES: Record<AllowedProvider, string[]> = {
   "microsoft-ads": ["MICROSOFT_ADS"],
   linkedin: ["LINKEDIN"],
   mailchimp: ["MAILCHIMP"],
+  ahrefs: ["AHREFS"],
 };
 
 /**
