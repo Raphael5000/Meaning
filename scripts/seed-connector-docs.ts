@@ -1,5 +1,5 @@
 /**
- * Seeds 7 Connector documentation articles into the database.
+ * Seeds 8 Connector documentation articles into the database.
  *
  * Usage: npx tsx scripts/seed-connector-docs.ts
  */
@@ -49,10 +49,11 @@ Connectors link your marketing platforms to Meaning. Once connected, data syncs 
 | **LinkedIn** | Company page analytics, post performance, followers |
 | **Mailchimp** | Email campaign performance, audience growth |
 | **Google Search Console** | Search queries, rankings, indexing |
+| **Ahrefs** | Domain rating, keywords, backlinks, site audit |
 
 ## How Connections Work
 
-1. **Authenticate via OAuth** — secure, we never see your password.
+1. **Authenticate via OAuth or API key** — secure, we never see your password.
 2. **Select the account or property** you want to connect.
 3. **Data syncs automatically** — you can start querying immediately.
 
@@ -438,6 +439,94 @@ Connectors link your marketing platforms to Meaning. Once connected, data syncs 
 - BigQuery uses \`INTERVAL N DAY\` (singular) — not DAYS or MONTHS.
 `,
   },
+
+  /* ================================================================ */
+  /*  8. Ahrefs                                                        */
+  /* ================================================================ */
+  {
+    slug: "connect-ahrefs",
+    title: "Ahrefs",
+    description:
+      "Connect Ahrefs to track domain authority, organic keywords, backlinks, and site audit health.",
+    section: "docs",
+    category: "connectors",
+    type: "guide",
+    readTime: "3 min read",
+    featured: false,
+    keywords: [
+      "ahrefs",
+      "seo",
+      "domain rating",
+      "backlinks",
+      "keywords",
+      "site audit",
+    ],
+    content: `---
+---
+
+## Connecting Ahrefs
+
+1. Open **Connections** from the account menu.
+2. Click **Connect** next to Ahrefs.
+3. Paste your Ahrefs API key (generate one at [app.ahrefs.com/user/api](https://app.ahrefs.com/user/api)).
+4. Select your project from the list, or enter a domain manually.
+5. Click **Enable** — data syncs immediately.
+
+## Getting Your API Key
+
+1. Go to [app.ahrefs.com/user/api](https://app.ahrefs.com/user/api).
+2. Click **Generate API Key** (requires an Ahrefs subscription with API access).
+3. Copy the key and paste it into the Ahrefs connection form in Meaning.
+
+Your API key is stored securely and only used to fetch your SEO data.
+
+## Available Data
+
+| Table | Key Columns |
+|---|---|
+| Site Metrics | Organic keywords, top-3 keywords, organic traffic, organic cost, paid keywords, paid traffic |
+| Domain Rating | Domain Rating (0-100), Ahrefs Rank |
+| Backlinks Stats | Live backlinks, all-time backlinks, live referring domains, all-time referring domains |
+| Organic Keywords | Keyword, position, search volume, traffic, CPC, keyword difficulty, URL, intent flags |
+| Top Pages | URL, keyword count, traffic, traffic value, top keyword, URL Rating |
+| Referring Domains | Domain, DR, dofollow links, links to target, traffic, first/last seen, spam flag |
+| Site Audit Health | Health score (0-100), total URLs, URLs with errors, warnings, notices |
+| Site Audit Issues | Issue name, severity (Error/Warning/Notice), category, affected URLs, change vs previous crawl |
+
+## Key Metrics
+
+- **Domain Rating (DR)** — 0-100 score measuring the strength of a domain's backlink profile.
+- **Keyword Difficulty (KD)** — 0-100 score estimating how hard it is to rank in the top 10.
+- **CPC** — Stored in USD cents (divide by 100 for dollars).
+- **Health Score** — Percentage of internal URLs without errors.
+- **Traffic** — Estimated monthly organic visits.
+
+## Example Questions
+
+- "What's our domain rating?"
+- "Top 10 organic keywords by traffic"
+- "Show me our backlink growth over time"
+- "What SEO errors does our site have?"
+- "Which referring domains have the highest DR?"
+- "What's our site audit health score?"
+- "Show me keyword difficulty distribution"
+
+## Ahrefs vs Search Console
+
+- **Ahrefs** provides estimated metrics from its own crawler and index — useful for competitor analysis, keyword research, and backlink monitoring.
+- **Search Console** provides actual click and impression data from Google Search — the ground truth for your own site's search performance.
+- Use both together: Search Console for real performance, Ahrefs for competitive intelligence and site health.
+
+## Notes
+
+- API keys don't expire — no need to reconnect.
+- Data syncs daily at 06:00 UTC with a retry at 12:00 UTC.
+- Organic keywords are limited to the top 500 by traffic per sync.
+- Top pages limited to top 100 by traffic.
+- Referring domains limited to top 200 by traffic.
+- Site Audit data requires an active Site Audit project in Ahrefs for the connected domain.
+`,
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -478,7 +567,7 @@ async function main() {
 
 main()
   .then(() => {
-    console.log("\nAll 7 Connector docs seeded successfully.");
+    console.log("\nAll 8 Connector docs seeded successfully.");
     process.exit(0);
   })
   .catch((err) => {
