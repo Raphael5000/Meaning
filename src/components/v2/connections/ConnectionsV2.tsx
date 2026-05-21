@@ -613,7 +613,7 @@ function Row({
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
   const isClickable =
-    (isConnected || needsAccountPick) && !row.comingSoon;
+    (isConnected || needsAccountPick || row.type === "AHREFS") && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
@@ -643,7 +643,18 @@ function Row({
       </button>
     );
   } else if (!isConnected) {
-    lastCell = (
+    lastCell = row.type === "AHREFS" ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenDetail(row.type);
+        }}
+        className="text-[12px] font-medium text-foreground underline-offset-2 hover:underline"
+      >
+        Connect
+      </button>
+    ) : (
       <a
         href={connectUrl(row.type)}
         onClick={(e) => e.stopPropagation()}
