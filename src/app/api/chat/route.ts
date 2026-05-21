@@ -155,9 +155,21 @@ Example flow for "top 20 pages":
   | /home | 352 | 380 | -7% → |
   ...
 
+FORMAT D — STAT GRID [[stat-grid]]{JSON}[[/stat-grid]]
+Use for multi-metric overviews where no single number is the hero (e.g. "give me an overview", "what data do you have", "show me my SEO metrics"). Renders as a row of metric cards.
+Shape: {"stats":[{"label":"Domain Rating","value":"7","suffix":"/100"},{"label":"Organic Traffic","value":"78","delta":"+12%"},{"label":"Backlinks","value":"135"},{"label":"Referring Domains","value":"94"}]}
+Rules: 2-4 stats. Keep labels short. delta is optional (sign drives color). suffix is optional (e.g. "/100", "%").
+
+FORMAT E — CALLOUT [[callout]]{JSON}[[/callout]]
+Use for important warnings, tips, or success messages that should stand out. NOT for regular analysis — only for actionable alerts.
+Shape: {"type":"warning","title":"High Bounce Rate","text":"Your landing page bounce rate is 78%. This means most paid traffic leaves without engaging."}
+Types: "info" (blue), "warning" (amber), "success" (green). title is optional.
+
 When to skip ALL formats and use plain markdown:
 - Definitional questions ("what is bounce rate?")
 - Connection status ("is GA4 connected?")
+
+PREFER RICH FORMATS. For any response with metrics, use [[insight]] for single numbers, [[stat-grid]] for multi-metric overviews, or [[callout]] for warnings/tips. Plain markdown bullet lists of numbers are NEVER the right choice when a visual block exists.
 
 CHARTS inside insight cards should be compact (no title, no axis labels, smooth line). Use a full [[chart]]...[[/chart]] block ONLY when the user explicitly asks for a chart/map/sankey and there's no single headline number.
 

@@ -780,42 +780,203 @@ export function Suggested({
 export { Markdown } from "./Messages";
 
 /* =============================================================
-   ASSISTANT CONTENT — splits on [[rec]]...[[/rec]] blocks so the
-   green Rec callout renders properly.  Handles mid-stream state
-   where the closing `[[/rec]]` tag hasn't arrived yet.
+   STAT GRID — row of metric cards for multi-metric overviews.
+   Model emits: [[stat-grid]]{json}[[/stat-grid]]
+   JSON shape: { stats: [{ label, value, delta?, suffix? }] }
+   ============================================================= */
+
+interface StatItem {
+  label: string;
+  value: string;
+  delta?: string;
+  suffix?: string;
+}
+
+interface StatGridPayload {
+  stats: StatItem[];
+}
+
+export function StatGrid({ payload }: { payload: StatGridPayload }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${Math.min(payload.stats.length, 4)}, 1fr)`,
+        gap: 10,
+        marginBottom: 12,
+      }}
+    >
+      {payload.stats.map((s, i) => {
+        const dir = deltaDirection(s.delta);
+        const deltaClass = dir === "neg" ? "neg" : dir === "pos" ? "pos" : "";
+        return (
+          <div
+            key={i}
+            className="bw-card v2-attach-in"
+            style={{ padding: "14px 16px" }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--v2-ink-muted)",
+                marginBottom: 4,
+              }}
+            >
+              {s.label}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span
+                style={{
+                  fontSize: 26,
+                  fontWeight: 600,
+                  lineHeight: 1.1,
+                  letterSpacing: "-0.02em",
+                  color: "var(--v2-ink)",
+                }}
+              >
+                {s.value}
+              </span>
+              {s.suffix && (
+                <span style={{ fontSize: 13, color: "var(--v2-ink-muted)" }}>
+                  {s.suffix}
+                </span>
+              )}
+            </div>
+            {s.delta && (
+              <span
+                className={`delta ${deltaClass}`}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 2,
+                  marginTop: 4,
+                }}
+              >
+                {dir === "neg" ? <I.Down size={10} /> : dir === "pos" ? <I.Up size={10} /> : null}
+                {s.delta}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* =============================================================
+   CALLOUT — highlighted info/warning/success box.
+   Model emits: [[callout]]{json}[[/callout]]
+   JSON shape: { type: "info"|"warning"|"success", title?, text }
+   ============================================================= */
+
+interface CalloutPayload {
+  type?: "info" | "warning" | "success";
+  title?: string;
+  text: string;
+}
+
+const CALLOUT_STYLES: Record<string, { bg: string; border: string; icon: string }> = {
+  info: { bg: "color-mix(in oklab, #3b82f6 8%, transparent)", border: "#3b82f6", icon: "ℹ" },
+  warning: { bg: "color-mix(in oklab, #f59e0b 10%, transparent)", border: "#f59e0b", icon: "⚠" },
+  success: { bg: "color-mix(in oklab, #10b981 8%, transparent)", border: "#10b981", icon: "✓" },
+};
+
+export function CalloutBlock({ payload }: { payload: CalloutPayload }) {
+  const style = CALLOUT_STYLES[payload.type || "info"] || CALLOUT_STYLES.info;
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: "14px 16px",
+        background: style.bg,
+        borderLeft: `3px solid ${style.border}`,
+        borderRadius: 8,
+      }}
+    >
+      {payload.title && (
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--v2-ink)",
+            marginBottom: 4,
+          }}
+        >
+          {payload.title}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: 1.55,
+          color: "var(--v2-ink)",
+        }}
+      >
+        {payload.text}
+      </div>
+    </div>
+  );
+}
+
+/* =============================================================
+   ASSISTANT CONTENT — splits on [[rec]]...[[/rec]], [[insight]],
+   [[stat-grid]], and [[callout]] blocks. Handles mid-stream state
+   where the closing tag hasn't arrived yet.
    ============================================================= */
 
 const REC_OPEN = "[[rec]]";
 const REC_CLOSE = "[[/rec]]";
 const INSIGHT_OPEN = "[[insight]]";
 const INSIGHT_CLOSE = "[[/insight]]";
+const STATGRID_OPEN = "[[stat-grid]]";
+const STATGRID_CLOSE = "[[/stat-grid]]";
+const CALLOUT_OPEN = "[[callout]]";
+const CALLOUT_CLOSE = "[[/callout]]";
 
 type Segment =
   | { kind: "md"; text: string }
   | { kind: "rec"; text: string; open?: boolean }
-  | { kind: "insight"; raw: string; payload?: InsightPayload; open?: boolean };
+  | { kind: "insight"; raw: string; payload?: InsightPayload; open?: boolean }
+  | { kind: "stat-grid"; raw: string; payload?: StatGridPayload; open?: boolean }
+  | { kind: "callout"; raw: string; payload?: CalloutPayload; open?: boolean };
 
-function tryParseInsight(raw: string): InsightPayload | undefined {
+function tryParseJSON<T>(raw: string): T | undefined {
   try {
-    const parsed = JSON.parse(raw.trim()) as InsightPayload;
+    const parsed = JSON.parse(raw.trim());
     if (!parsed || typeof parsed !== "object") return undefined;
-    if (!parsed.primary || typeof parsed.primary.value !== "string") return undefined;
-    return parsed;
+    return parsed as T;
   } catch {
     return undefined;
   }
 }
 
-/** Find the next opening marker. Returns the earliest one, or -1. */
-function nextMarker(text: string, cursor: number): { idx: number; kind: "rec" | "insight" } | null {
+function tryParseInsight(raw: string): InsightPayload | undefined {
+  const parsed = tryParseJSON<InsightPayload>(raw);
+  if (!parsed?.primary || typeof parsed.primary.value !== "string") return undefined;
+  return parsed;
+}
+
+type MarkerKind = "rec" | "insight" | "stat-grid" | "callout";
+
+/** Find the next opening marker. Returns the earliest one, or null. */
+function nextMarker(text: string, cursor: number): { idx: number; kind: MarkerKind } | null {
+  const candidates: { idx: number; kind: MarkerKind }[] = [];
   const recIdx = text.indexOf(REC_OPEN, cursor);
+  if (recIdx !== -1) candidates.push({ idx: recIdx, kind: "rec" });
   const insightIdx = text.indexOf(INSIGHT_OPEN, cursor);
-  if (recIdx === -1 && insightIdx === -1) return null;
-  if (recIdx === -1) return { idx: insightIdx, kind: "insight" };
-  if (insightIdx === -1) return { idx: recIdx, kind: "rec" };
-  return recIdx < insightIdx
-    ? { idx: recIdx, kind: "rec" }
-    : { idx: insightIdx, kind: "insight" };
+  if (insightIdx !== -1) candidates.push({ idx: insightIdx, kind: "insight" });
+  const statIdx = text.indexOf(STATGRID_OPEN, cursor);
+  if (statIdx !== -1) candidates.push({ idx: statIdx, kind: "stat-grid" });
+  const calloutIdx = text.indexOf(CALLOUT_OPEN, cursor);
+  if (calloutIdx !== -1) candidates.push({ idx: calloutIdx, kind: "callout" });
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.idx - b.idx);
+  return candidates[0];
 }
 
 function splitIntoSegments(text: string): Segment[] {
@@ -844,20 +1005,32 @@ function splitIntoSegments(text: string): Segment[] {
       segments.push({ kind: "rec", text: text.slice(contentStart, closeIdx) });
       cursor = closeIdx + REC_CLOSE.length;
     } else {
-      const contentStart = marker.idx + INSIGHT_OPEN.length;
-      const closeIdx = text.indexOf(INSIGHT_CLOSE, contentStart);
+      const config: Record<MarkerKind, { open: string; close: string }> = {
+        rec: { open: REC_OPEN, close: REC_CLOSE },
+        insight: { open: INSIGHT_OPEN, close: INSIGHT_CLOSE },
+        "stat-grid": { open: STATGRID_OPEN, close: STATGRID_CLOSE },
+        callout: { open: CALLOUT_OPEN, close: CALLOUT_CLOSE },
+      };
+      const { open, close } = config[marker.kind];
+      const contentStart = marker.idx + open.length;
+      const closeIdx = text.indexOf(close, contentStart);
       if (closeIdx === -1) {
-        /* Still streaming — insight JSON hasn't finished arriving yet */
         segments.push({
-          kind: "insight",
+          kind: marker.kind,
           raw: text.slice(contentStart),
           open: true,
-        });
+        } as Segment);
         return segments;
       }
       const raw = text.slice(contentStart, closeIdx);
-      segments.push({ kind: "insight", raw, payload: tryParseInsight(raw) });
-      cursor = closeIdx + INSIGHT_CLOSE.length;
+      if (marker.kind === "insight") {
+        segments.push({ kind: "insight", raw, payload: tryParseInsight(raw) });
+      } else if (marker.kind === "stat-grid") {
+        segments.push({ kind: "stat-grid", raw, payload: tryParseJSON<StatGridPayload>(raw) });
+      } else if (marker.kind === "callout") {
+        segments.push({ kind: "callout", raw, payload: tryParseJSON<CalloutPayload>(raw) });
+      }
+      cursor = closeIdx + close.length;
     }
   }
   return segments;
@@ -919,12 +1092,17 @@ export function AssistantContent({
         }
         if (seg.kind === "insight") {
           if (seg.open || !seg.payload) {
-            /* Still streaming or JSON didn't parse — show a skeleton so the
-               user knows something rich is on the way.  When the JSON
-               finally parses, the skeleton is replaced by the real card. */
             return <InsightSkeleton key={i} />;
           }
           return <InsightCard key={i} insight={seg.payload} />;
+        }
+        if (seg.kind === "stat-grid") {
+          if (seg.open || !seg.payload) return <InsightSkeleton key={i} />;
+          return <StatGrid key={i} payload={seg.payload} />;
+        }
+        if (seg.kind === "callout") {
+          if (seg.open || !seg.payload) return null;
+          return <CalloutBlock key={i} payload={seg.payload} />;
         }
         const body = seg.text;
         if (!body.trim() && !showCaret) return null;
