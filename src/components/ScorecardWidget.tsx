@@ -2,21 +2,30 @@
 
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
+interface KpiTarget {
+  name: string;
+  targetValue: number;
+  targetDirection: string;
+  cachedValue: number | null;
+  displayFormat: string;
+}
+
 interface ScorecardWidgetProps {
   config: { label?: string; value?: string; change?: string; format?: string };
   data: unknown;
+  kpiTargets?: KpiTarget[];
+  widgetTitle?: string;
 }
 
-export default function ScorecardWidget({ config, data }: ScorecardWidgetProps) {
-  // Extract value: prefer config.value (from AI scorecard block), fall back to first number in cached data
-  let value: string | number = config.value ?? "—";
+export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle }: ScorecardWidgetProps) {
+  // Extract value: prefer live cached data over stale AI-generated config.value
+  let value: string | number = "—";
 
-  if (value === "—" && Array.isArray(data) && data.length > 0) {
+  if (Array.isArray(data) && data.length > 0) {
     const row = data[0] as Record<string, unknown>;
     const keys = Object.keys(row);
     for (const key of keys) {
       let v = row[key];
-      // Unwrap BigQuery value objects
       if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
         v = (v as Record<string, unknown>).value;
       }
@@ -27,51 +36,128 @@ export default function ScorecardWidget({ config, data }: ScorecardWidgetProps) 
     }
   }
 
+  if (value === "—" && config.value) {
+    value = config.value;
+  }
+
+  // Smart formatting: no decimals for whole numbers, 2 decimals for fractional
   const formatted = typeof value === "number"
-    ? value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    ? Number.isInteger(value)
+      ? value.toLocaleString()
+      : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : value;
 
-  // Parse change string like "+12.3%", "-5%", "+1,234"
   const change = config.change;
   const isPositive = change?.startsWith("+");
   const isNegative = change?.startsWith("-");
   const changeText = change?.replace(/^[+-]/, "");
 
+  // Match KPI target to this scorecard using word overlap + synonyms
+  const matchedKpi = kpiTargets?.find((kpi) => {
+    const stopWords = new Set(["the", "a", "an", "of", "for", "and", "or", "in", "to", "per", "total", "avg", "average", "daily", "weekly", "monthly"]);
+    const synonyms: Record<string, string[]> = {
+      visits: ["sessions"], sessions: ["visits"],
+      users: ["visitors"], visitors: ["users"],
+      revenue: ["sales", "income"], sales: ["revenue"], income: ["revenue"],
+    };
+    const tokenize = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter((w) => !stopWords.has(w) && w.length > 1);
+    const expand = (tokens: string[]) => {
+      const out = [...tokens];
+      for (const t of tokens) { if (synonyms[t]) out.push(...synonyms[t]); }
+      return [...new Set(out)];
+    };
+
+    const kpiTokens = expand(tokenize(kpi.name));
+    const widgetTokens = expand([...new Set([...tokenize(config.label || ""), ...tokenize(widgetTitle || "")])]);
+
+    if (widgetTokens.length === 0 || kpiTokens.length === 0) return false;
+
+    const kpiName = kpi.name.toLowerCase();
+    const label = (config.label || widgetTitle || "").toLowerCase();
+    if (kpiName.includes(label) || label.includes(kpiName)) return true;
+
+    const overlap = kpiTokens.filter((t) => widgetTokens.some((w) => w.includes(t) || t.includes(w)));
+    return overlap.length >= 1;
+  });
+
+  // Resolve KPI progress
+  const numericValue = typeof value === "number"
+    ? value
+    : parseFloat(String(value).replace(/[^0-9.\-]/g, ""));
+  const hasKpi = matchedKpi && !isNaN(numericValue);
+  const onTrack = hasKpi
+    ? matchedKpi.targetDirection === "below"
+      ? numericValue <= matchedKpi.targetValue
+      : numericValue >= matchedKpi.targetValue
+    : false;
+  const pct = hasKpi && matchedKpi.targetValue !== 0
+    ? Math.min(100, (numericValue / matchedKpi.targetValue) * 100)
+    : 0;
+
   return (
-    <div className="flex h-full flex-col items-start justify-center gap-2 px-2">
+    <div className="flex h-full flex-col items-start justify-center gap-1.5 px-2">
       {config.label && (
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {config.label}
         </p>
       )}
-      <p className="text-4xl font-bold tracking-tight text-foreground">
-        {formatted}
-      </p>
-      {change && (
-        <div className="flex items-center gap-1.5">
-          {isPositive ? (
-            <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5">
-              <TrendingUp className="h-3 w-3 text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-500">
-                {changeText}
-              </span>
-            </div>
-          ) : isNegative ? (
-            <div className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5">
-              <TrendingDown className="h-3 w-3 text-red-500" />
-              <span className="text-xs font-semibold text-red-500">
-                {changeText}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-              <Minus className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground">
-                {changeText}
-              </span>
-            </div>
-          )}
-          <span className="text-[10px] text-muted-foreground">vs previous period</span>
+      <div className="flex items-baseline gap-2">
+        <p className="text-4xl font-bold tracking-tight text-foreground">
+          {formatted}
+        </p>
+        {hasKpi && (
+          <span className="text-sm text-muted-foreground">
+            / {matchedKpi.targetValue.toLocaleString()}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {change && (
+          <div className="flex items-center gap-1.5">
+            {isPositive ? (
+              <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5">
+                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-500">
+                  {changeText}
+                </span>
+              </div>
+            ) : isNegative ? (
+              <div className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5">
+                <TrendingDown className="h-3 w-3 text-red-500" />
+                <span className="text-xs font-semibold text-red-500">
+                  {changeText}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                <Minus className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {changeText}
+                </span>
+              </div>
+            )}
+            <span className="text-[10px] text-muted-foreground">vs previous period</span>
+          </div>
+        )}
+        {hasKpi && (
+          <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${
+            onTrack ? "bg-emerald-500/10" : "bg-red-500/10"
+          }`}>
+            <span className={`text-xs font-semibold ${onTrack ? "text-emerald-500" : "text-red-500"}`}>
+              {onTrack ? "On track" : "Off track"}
+            </span>
+          </div>
+        )}
+      </div>
+      {hasKpi && (
+        <div className="w-full mt-0.5">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
+            <div
+              className={`h-full rounded-full ${onTrack ? "bg-emerald-500/70" : "bg-red-500/70"}`}
+              style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+            />
+          </div>
         </div>
       )}
     </div>

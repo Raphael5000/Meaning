@@ -1,0 +1,223 @@
+import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { executeKpi } from "@/lib/kpi-executor";
+import { getOrgDataSources } from "@/lib/org-access";
+
+export const dynamic = "force-dynamic";
+
+const VALID_DIRECTIONS = new Set(["above", "below"]);
+const VALID_PERIODS = new Set(["daily", "weekly", "monthly"]);
+const VALID_FORMATS = new Set(["number", "percentage", "currency"]);
+
+/** GET /api/kpis – list all KPIs for the user's active org */
+export async function GET() {
+  const session = await auth();
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  try {
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { activeOrgId: true },
+    });
+    const orgId = me?.activeOrgId;
+    if (!orgId) {
+      return NextResponse.json([]);
+    }
+
+    const kpis = await prisma.kpi.findMany({
+      where: { orgId },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    return NextResponse.json(kpis);
+  } catch (err) {
+    console.error("[api/kpis] GET error:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch KPIs" },
+      { status: 500 }
+    );
+  }
+}
+
+/** POST /api/kpis – create a new KPI with AI-generated SQL */
+export async function POST(request: NextRequest) {
+  const session = await auth();
+  const userId = (session as { userId?: string })?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const body = (await request.json()) as {
+    name: string;
+    metricDescription: string;
+    targetValue: number;
+    targetDirection?: string;
+    timePeriod?: string;
+    displayFormat?: string;
+  };
+
+  if (!body.name?.trim()) {
+    return NextResponse.json({ error: "Name is required" }, { status: 400 });
+  }
+  if (!body.metricDescription?.trim()) {
+    return NextResponse.json(
+      { error: "Metric description is required" },
+      { status: 400 }
+    );
+  }
+  if (typeof body.targetValue !== "number" || isNaN(body.targetValue)) {
+    return NextResponse.json(
+      { error: "Target value must be a number" },
+      { status: 400 }
+    );
+  }
+
+  const targetDirection = body.targetDirection || "above";
+  if (!VALID_DIRECTIONS.has(targetDirection)) {
+    return NextResponse.json(
+      { error: "targetDirection must be 'above' or 'below'" },
+      { status: 400 }
+    );
+  }
+
+  const timePeriod = body.timePeriod || "monthly";
+  if (!VALID_PERIODS.has(timePeriod)) {
+    return NextResponse.json(
+      { error: "timePeriod must be 'daily', 'weekly', or 'monthly'" },
+      { status: 400 }
+    );
+  }
+
+  const displayFormat = body.displayFormat || "number";
+  if (!VALID_FORMATS.has(displayFormat)) {
+    return NextResponse.json(
+      { error: "displayFormat must be 'number', 'percentage', or 'currency'" },
+      { status: 400 }
+    );
+  }
+
+  // Resolve orgId
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { activeOrgId: true },
+  });
+  const orgId = me?.activeOrgId;
+  if (!orgId) {
+    return NextResponse.json(
+      { error: "No active organization" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    // Generate SQL from the natural language description using Claude
+    const anthropic = new Anthropic();
+    const sqlResponse = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      system: `You are a BigQuery SQL expert. Generate a single BigQuery SQL query that returns exactly ONE numeric value for the given metric description.
+
+Available tables (use {dataset}.tableName format):
+- {dataset}.sessions: session_date, user_pseudo_id, ga_session_id, session_duration_seconds, pageviews, is_bounce, is_engaged, landing_page, session_source, session_medium, session_default_channel_group, device_category, geo_country
+- {dataset}.pageviews: event_date, page_location, page_title, user_pseudo_id, ga_session_id
+- {dataset}.users: user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, bounce_rate
+- {dataset}.conversions: event_date, event_name, user_pseudo_id
+- {dataset}.traffic_sources: session_date, source, medium, channel_group, sessions, users, pageviews, bounce_rate
+
+Use @startDate and @endDate as date parameters — the system will fill these based on the time period.
+Return ONLY the SQL query, no explanation, no markdown fences.`,
+      messages: [
+        {
+          role: "user",
+          content: `Generate a BigQuery SQL query that returns a single numeric value for: "${body.metricDescription}"
+
+The query should return one row with one column named "value".
+Time period: ${timePeriod}
+Format: ${displayFormat}`,
+        },
+      ],
+    });
+
+    const textBlock = sqlResponse.content.find((b) => b.type === "text");
+    const metricQuery = textBlock
+      ? textBlock.text
+          .trim()
+          .replace(/^```sql\s*/i, "")
+          .replace(/```\s*$/, "")
+          .trim()
+      : "";
+
+    if (!metricQuery) {
+      return NextResponse.json(
+        { error: "Failed to generate SQL query" },
+        { status: 500 }
+      );
+    }
+
+    // Get max sortOrder for this org
+    const maxSort = await prisma.kpi.aggregate({
+      where: { orgId },
+      _max: { sortOrder: true },
+    });
+
+    const kpi = await prisma.kpi.create({
+      data: {
+        orgId,
+        name: body.name.trim(),
+        metricQuery,
+        targetValue: body.targetValue,
+        targetDirection,
+        timePeriod,
+        displayFormat,
+        sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+      },
+    });
+
+    // Auto-execute the KPI query to populate cachedValue immediately
+    const orgDataSources = await getOrgDataSources(orgId);
+    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
+    const ga4Ds = orgDataSources.find(
+      (ds) => ds.type === "GA4_BIGQUERY" && connectedStatuses.includes(ds.status)
+    );
+    if (ga4Ds) {
+      executeKpi(kpi, {
+        propertyId: ga4Ds.propertyId,
+        adsCustomerId:
+          orgDataSources.find(
+            (ds) => ds.type === "GOOGLE_ADS" && connectedStatuses.includes(ds.status)
+          )?.adsCustomerId ?? null,
+        linkedInOrgId:
+          orgDataSources.find(
+            (ds) => ds.type === "LINKEDIN" && connectedStatuses.includes(ds.status)
+          )?.propertyId ?? null,
+        mailchimpListId:
+          orgDataSources.find(
+            (ds) => ds.type === "MAILCHIMP" && connectedStatuses.includes(ds.status)
+          )?.propertyId ?? null,
+        gscSiteUrl:
+          orgDataSources.find(
+            (ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status)
+          )?.propertyId ?? null,
+        msAdsAccountId:
+          orgDataSources.find(
+            (ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status)
+          )?.propertyId ?? null,
+      }).catch((err) => {
+        console.error(`[api/kpis] Auto-execute failed for KPI ${kpi.id}:`, err);
+      });
+    }
+
+    return NextResponse.json(kpi, { status: 201 });
+  } catch (err) {
+    console.error("[api/kpis] POST error:", err);
+    return NextResponse.json(
+      { error: "Failed to create KPI" },
+      { status: 500 }
+    );
+  }
+}

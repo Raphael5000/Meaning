@@ -28,9 +28,10 @@ interface DashboardGridProps {
   onDeleteWidget: (widgetId: string) => void;
   onEditWidget: (widgetId: string, prompt: string) => void;
   refreshing?: boolean;
+  kpiTargets?: { name: string; targetValue: number; targetDirection: string; cachedValue: number | null; displayFormat: string }[];
 }
 
-export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, refreshing }: DashboardGridProps) {
+export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, refreshing, kpiTargets }: DashboardGridProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -114,6 +115,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
                   onDelete={() => onDeleteWidget(widget.id)}
                   onEdit={(prompt) => onEditWidget(widget.id, prompt)}
                   refreshing={refreshing}
+                  kpiTargets={kpiTargets}
                 />
               </div>
             );

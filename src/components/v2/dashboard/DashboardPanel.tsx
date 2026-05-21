@@ -69,7 +69,21 @@ export default function DashboardPanelV2({
   const [erroredSources, setErroredSources] = React.useState<
     { type: string; label: string; errorMessage?: string | null; isPending?: boolean }[]
   >([]);
+  const [kpiTargets, setKpiTargets] = React.useState<
+    { name: string; targetValue: number; targetDirection: string; cachedValue: number | null; displayFormat: string }[]
+  >([]);
   const hasRefreshedRef = React.useRef(false);
+
+  // Fetch KPI targets for overlay on charts/scorecards
+  React.useEffect(() => {
+    if (!orgId) return;
+    fetch("/api/kpis")
+      .then((r) => r.json())
+      .then((data: { name: string; targetValue: number; targetDirection: string; cachedValue: number | null; displayFormat: string }[]) => {
+        if (Array.isArray(data)) setKpiTargets(data);
+      })
+      .catch(() => {});
+  }, [orgId]);
 
   const fetchDashboard = React.useCallback(() => {
     setLoading(true);
@@ -585,6 +599,7 @@ export default function DashboardPanelV2({
             onDeleteWidget={handleDeleteWidget}
             onEditWidget={handleEditWidgetOpen}
             refreshing={refreshing}
+            kpiTargets={kpiTargets}
           />
         )}
       </div>

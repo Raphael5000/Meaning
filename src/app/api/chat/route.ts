@@ -218,7 +218,7 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false, displayCurrency = "USD"): string {
+function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false, includeAhrefs = false, displayCurrency = "USD"): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
@@ -244,6 +244,15 @@ function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, in
   - search_performance: Daily search metrics — query_date, query (search term), page (URL), country (3-letter ISO code e.g. USA, GBR), device (DESKTOP, MOBILE, TABLET), clicks, impressions, ctr (0-1 decimal), position (average ranking, lower is better)
   - url_inspection: Per-URL crawl/index status — inspected_date, url, index_verdict (PASS=indexed, FAIL=not indexed, NEUTRAL=unclear), coverage_state (e.g. "Submitted and indexed", "Crawled - currently not indexed"), robotstxt_state (ALLOWED/DISALLOWED), indexing_state, page_fetch_state (SUCCESSFUL, SOFT_404, BLOCKED_ROBOTS_TXT, NOT_FOUND, SERVER_ERROR), last_crawl_time, crawled_as (DESKTOP/MOBILE), google_canonical, user_canonical, mobile_verdict, rich_results_verdict
   - site_info: Site metadata (single row) — site_url, permission_level, last_synced_at` : "";
+
+  const ahrefsTablesPrompt = includeAhrefs ? `
+  - ahrefs_site_metrics: Ahrefs domain overview snapshot — snapshot_date, org_keywords, org_keywords_1_3, org_traffic, org_cost (USD cents), paid_keywords, paid_traffic, paid_cost (USD cents), paid_pages
+  - ahrefs_domain_rating: Domain authority snapshot — snapshot_date, domain_rating (0-100), ahrefs_rank
+  - ahrefs_backlinks_stats: Backlink profile snapshot — snapshot_date, live_backlinks, all_time_backlinks, live_refdomains, all_time_refdomains
+  - ahrefs_organic_keywords: Top ranked keywords — snapshot_date, keyword, best_position, volume, sum_traffic, cpc (USD cents), keyword_difficulty (0-100), best_position_url, best_position_kind, is_branded, is_informational, is_commercial, is_transactional
+  - ahrefs_top_pages: Pages by organic traffic — snapshot_date, url, keywords, sum_traffic, value (USD cents), top_keyword, top_keyword_best_position, ur (URL Rating 0-100)
+  - ahrefs_referring_domains: Backlink sources — snapshot_date, domain, domain_rating, dofollow_links, links_to_target, traffic_domain, first_seen, last_seen, is_spam
+  - ahrefs_site_info: Target domain metadata — target_domain, country, last_synced_at` : "";
 
   const msAdsTablesPrompt = includeMsAds ? `
   - msads_campaign_performance: Daily Bing campaign metrics — stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost (currency units), conversions, conversions_value, revenue
@@ -338,6 +347,22 @@ LINKEDIN QUERIES:
 - Always use {dataset}.tableName format — the system routes LinkedIn tables to the correct dataset automatically.
 - Engagement rate = SUM(engagements) / SUM(impressions) from post_performance.` : "";
 
+  const ahrefsQueryGuidance = includeAhrefs ? `
+
+AHREFS QUERIES:
+- Use the run_ahrefs_query tool for all SEO/backlink/domain authority questions.
+- Table names are prefixed with ahrefs_ to distinguish from other connectors: ahrefs_site_metrics, ahrefs_domain_rating, ahrefs_backlinks_stats, ahrefs_organic_keywords, ahrefs_top_pages, ahrefs_referring_domains, ahrefs_site_info.
+- Ahrefs data is point-in-time snapshots. Use the latest snapshot: WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.ahrefs_organic_keywords\`).
+- Monetary values (org_cost, paid_cost, cpc, value) are in USD cents — divide by 100 for display.
+- keyword_difficulty is 0-100 (higher = harder to rank).
+- domain_rating is 0-100 (higher = stronger backlink profile).
+- ur (URL Rating) is 0-100 (higher = stronger page backlink profile).
+- is_branded/is_informational/is_commercial/is_transactional are boolean intent classifiers.
+- For "what keywords do we rank for": SELECT keyword, best_position, volume, sum_traffic FROM \`{dataset}.ahrefs_organic_keywords\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.ahrefs_organic_keywords\`) ORDER BY sum_traffic DESC LIMIT 20.
+- For "domain rating": SELECT domain_rating, ahrefs_rank FROM \`{dataset}.ahrefs_domain_rating\` ORDER BY snapshot_date DESC LIMIT 1.
+- For "how many backlinks": SELECT live_backlinks, live_refdomains FROM \`{dataset}.ahrefs_backlinks_stats\` ORDER BY snapshot_date DESC LIMIT 1.
+- Always use {dataset}.tableName format — the system routes Ahrefs tables to the correct dataset automatically.` : "";
+
   const adsQueryGuidance = includeAds ? `
 
 GOOGLE ADS QUERIES:
@@ -378,13 +403,14 @@ You have access to these tools:
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}${ahrefsTablesPrompt}
 - run_mailchimp_query: Query Mailchimp email marketing data (campaign performance, audience growth, open/click rates, bounces, revenue). Use {dataset}.tableName for all table references.
 - run_linkedin_query: Query LinkedIn company page analytics (post performance, follower growth, demographics, page engagement). Use {dataset}.tableName for all table references.
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
 - run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaign performance, keywords, search queries, spend). Use {dataset}.tableName for all table references.
-- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${currencyConversionGuidance}
+- run_ahrefs_query: Query Ahrefs SEO data (domain rating, organic keywords, backlinks, top pages, referring domains). Use {dataset}.tableName for all table references.
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${ahrefsQueryGuidance}${currencyConversionGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: Sankey queries require CTEs and window functions, so you MUST use the run_ads_query tool (not query_analytics) with raw SQL. The run_ads_query tool works for ANY raw SQL query, not just Ads. Use {dataset}.pageviews for table references. Each pageviews row has ga_session_id, event_timestamp, page_location, session_source, session_medium, and session_default_channel_group. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, prefix each layer with a unique label so every node is unique. The result columns MUST be named from_page (or from_node), to_page (or to_node), and transitions.
 
@@ -650,6 +676,7 @@ export async function POST(request: NextRequest) {
   let mailchimpListIdFromOrg: string | null = null;
   let gscSiteUrlFromOrg: string | null = null;
   let msAdsAccountIdFromOrg: string | null = null;
+  let ahrefsDomainFromOrg: string | null = null;
   let displayCurrency = "USD";
 
   if (body.orgId) {
@@ -688,6 +715,11 @@ export async function POST(request: NextRequest) {
     if (msAdsDsList.length > 0) {
       msAdsAccountIdFromOrg = msAdsDsList[0].propertyId;
     }
+    const ahrefsDsList = orgDataSources.filter((ds) => ds.type === "AHREFS" && connectedStatuses.includes(ds.status));
+    if (ahrefsDsList.length > 0) {
+      // For Ahrefs, the dataset key is the orgId (ahrefs_{orgId}), not the domain
+      ahrefsDomainFromOrg = body.orgId!;
+    }
   }
 
   if (!propertyId && !body.orgId) {
@@ -723,14 +755,55 @@ export async function POST(request: NextRequest) {
   const mailchimpListId = body.orgId ? mailchimpListIdFromOrg : (usesBigQuery && userId ? await getMailchimpListId(userId, propertyId) : null);
   const gscSiteUrl = body.orgId ? gscSiteUrlFromOrg : (usesBigQuery && userId ? await getGscSiteUrl(userId, propertyId) : null);
   const msAdsAccountId = body.orgId ? msAdsAccountIdFromOrg : (usesBigQuery && userId ? await getMicrosoftAdsAccountId(userId, propertyId) : null);
+  const ahrefsDomain = body.orgId ? ahrefsDomainFromOrg : null;
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
   const hasMailchimp = !!mailchimpListId;
   const hasGsc = !!gscSiteUrl;
   const hasMsAds = !!msAdsAccountId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} currency=${displayCurrency} reason=${rollout.reason}`);
-  const systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, displayCurrency) : GA4_SYSTEM_PROMPT;
+  const hasAhrefs = !!ahrefsDomain;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} currency=${displayCurrency} reason=${rollout.reason}`);
+  let systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, hasAhrefs, displayCurrency) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
+
+  // Inject organization KPIs with pre-computed values into system prompt
+  if (body.orgId) {
+    const orgKpis = await prisma.kpi.findMany({
+      where: { orgId: body.orgId },
+      orderBy: { sortOrder: "asc" },
+    });
+    if (orgKpis.length > 0) {
+      // Refresh stale KPIs before injecting
+      const { isKpiStale, refreshOrgKpis } = await import("@/lib/kpi-executor");
+      const hasStale = orgKpis.some((k) => isKpiStale(k));
+      let freshKpis = orgKpis;
+      if (hasStale) {
+        try {
+          await refreshOrgKpis(body.orgId);
+          freshKpis = await prisma.kpi.findMany({
+            where: { orgId: body.orgId },
+            orderBy: { sortOrder: "asc" },
+          });
+        } catch (e) {
+          console.error("[chat] KPI refresh failed, using cached values:", e);
+        }
+      }
+
+      const kpiLines = freshKpis.map((k) => {
+        const fmt = k.displayFormat === "percentage" ? "percentage" : k.displayFormat === "currency" ? "currency" : "number";
+        if (k.cachedValue !== null && k.cachedValue !== undefined) {
+          const progress = k.targetValue !== 0 ? ((k.cachedValue / k.targetValue) * 100).toFixed(1) : "N/A";
+          const onTrack = k.targetDirection === "below"
+            ? k.cachedValue <= k.targetValue
+            : k.cachedValue >= k.targetValue;
+          const status = onTrack ? "ON-TRACK" : "OFF-TRACK";
+          return `- ${k.name}: Actual = ${k.cachedValue.toLocaleString()} | Target = ${k.targetValue.toLocaleString()} | ${progress}% — ${status} (${k.timePeriod}, format: ${fmt})`;
+        }
+        return `- ${k.name}: Target ${k.targetDirection} ${k.targetValue} per ${k.timePeriod} (format: ${fmt}). No cached value — query: ${k.metricQuery}`;
+      });
+      systemPrompt += `\n\nORGANIZATION KPIs (current values):\n${kpiLines.join("\n")}\n\nWhen answering questions about KPIs, use the pre-computed values above. You do NOT need to run queries for basic KPI status questions.\nWhen drawing charts for KPI metrics, add a markLine at the target value.\nFor deeper analysis beyond the summary above, use BigQuery tools as needed.`;
+    }
+  }
 
   // Helper: describe a tool call for the progress stream
   function describeToolCall(name: string, input: Record<string, unknown>): string {
@@ -750,6 +823,8 @@ export async function POST(request: NextRequest) {
         return (input.description as string) || "Querying Search Console data";
       case "run_microsoft_ads_query":
         return (input.description as string) || "Querying Microsoft Ads data";
+      case "run_ahrefs_query":
+        return (input.description as string) || "Querying Ahrefs SEO data";
       case "run_report":
         return `Querying GA4 report`;
       case "run_realtime_report":
@@ -865,42 +940,49 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "run_linkedin_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] LinkedIn query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "run_mailchimp_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Mailchimp query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "run_gsc_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] GSC query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "run_microsoft_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Microsoft Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    break;
+                  }
+                  case "run_ahrefs_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] Ahrefs query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
                     break;
                   }
                   case "get_realtime_data": {

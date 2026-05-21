@@ -344,6 +344,7 @@ model Organization {
   emailAlerts EmailAlert[]
   dashboards  Dashboard[]
   chatUsage   OrgChatUsage[]
+  kpis        Kpi[]
 }
 
 // ──────────────────────────────────────────────
@@ -421,6 +422,32 @@ model OrgMembership {
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, userId])
+}
+
+// ──────────────────────────────────────────────
+// KPIs / Goals
+// ──────────────────────────────────────────────
+
+model Kpi {
+  id              String   @id @default(cuid())
+  orgId           String
+  name            String
+  metricQuery     String
+  dataSourceType  String   @default("GA4_BIGQUERY")
+  targetValue     Float
+  targetDirection String   @default("above")
+  timePeriod      String   @default("monthly")
+  displayFormat   String   @default("number")
+  sortOrder       Int      @default(0)
+  cachedValue     Float?
+  cachedData      Json?
+  cachedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
 }
 
 model OrgInvite {

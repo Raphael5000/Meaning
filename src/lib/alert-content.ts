@@ -3,6 +3,7 @@ import { runReport, runRealtimeReport, getMetadata } from "@/lib/ga4";
 import { runPropertyQuery, queryRealtimeData, getPropertySchema } from "@/lib/bigquery";
 import { GA4_TOOLS, BIGQUERY_TOOLS } from "@/lib/tools";
 import { ALERT_TYPES, buildCustomPrompt } from "@/lib/alert-prompts";
+import { prisma } from "@/lib/prisma";
 
 let _anthropic: Anthropic | null = null;
 function getAnthropic(): Anthropic {
@@ -427,7 +428,8 @@ export async function generateAlertContent(
   customPrompt?: string | null,
   usesBigQuery: boolean = false,
   dataSources?: AlertDataSources | null,
-  displayCurrency: string = "USD"
+  displayCurrency: string = "USD",
+  orgId?: string | null
 ): Promise<string> {
   let promptText: string;
 
@@ -456,10 +458,49 @@ export async function generateAlertContent(
   const hasGsc = !!ds.gscSiteUrl;
   const hasMsAds = !!ds.msAdsAccountId;
 
-  const systemPrompt = usesBigQuery
+  let systemPrompt = usesBigQuery
     ? getBigQueryAlertSystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, displayCurrency)
     : GA4_ALERT_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
+
+  // Inject organization KPIs with pre-computed values into system prompt for email alerts
+  if (orgId) {
+    const orgKpis = await prisma.kpi.findMany({
+      where: { orgId },
+      orderBy: { sortOrder: "asc" },
+    });
+    if (orgKpis.length > 0) {
+      // Refresh stale KPIs
+      const { isKpiStale, refreshOrgKpis } = await import("@/lib/kpi-executor");
+      const hasStale = orgKpis.some((k) => isKpiStale(k));
+      let freshKpis = orgKpis;
+      if (hasStale) {
+        try {
+          await refreshOrgKpis(orgId);
+          freshKpis = await prisma.kpi.findMany({
+            where: { orgId },
+            orderBy: { sortOrder: "asc" },
+          });
+        } catch (e) {
+          console.error("[alert-content] KPI refresh failed, using cached values:", e);
+        }
+      }
+
+      const kpiLines = freshKpis.map((k) => {
+        const fmt = k.displayFormat === "percentage" ? "percentage" : k.displayFormat === "currency" ? "currency" : "number";
+        if (k.cachedValue !== null && k.cachedValue !== undefined) {
+          const progress = k.targetValue !== 0 ? ((k.cachedValue / k.targetValue) * 100).toFixed(1) : "N/A";
+          const onTrack = k.targetDirection === "below"
+            ? k.cachedValue <= k.targetValue
+            : k.cachedValue >= k.targetValue;
+          const status = onTrack ? "ON-TRACK" : "OFF-TRACK";
+          return `- ${k.name}: Actual = ${k.cachedValue.toLocaleString()} | Target = ${k.targetValue.toLocaleString()} | ${progress}% — ${status} (${k.timePeriod}, format: ${fmt})`;
+        }
+        return `- ${k.name}: Target ${k.targetDirection} ${k.targetValue} per ${k.timePeriod} (format: ${fmt}). No cached value available.`;
+      });
+      systemPrompt += `\n\nORGANIZATION KPIs (current values):\n${kpiLines.join("\n")}\n\nInclude a "KPI Progress" section in the report. Use the pre-computed values above — do NOT run queries for these. Present as a table with green checkmark for on-track, red X for off-track. Show: KPI Name | Actual | Target | Progress % | Status.`;
+    }
+  }
 
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },

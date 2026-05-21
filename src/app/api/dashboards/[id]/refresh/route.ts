@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { runPropertyQuery } from "@/lib/bigquery";
 import { getOrgDataSources } from "@/lib/org-access";
+import { refreshOrgKpis } from "@/lib/kpi-executor";
 
 export const dynamic = "force-dynamic";
 
@@ -292,6 +293,11 @@ export async function POST(
           return { widgetId: widget.id, error: errMsg, rows: null };
         }
       })
+    );
+
+    // Also refresh KPIs so dashboard KPI overlays stay in sync
+    refreshOrgKpis(dashboard.orgId).catch((e) =>
+      console.error("[dashboard-refresh] KPI refresh failed:", e)
     );
 
     return NextResponse.json({ results });

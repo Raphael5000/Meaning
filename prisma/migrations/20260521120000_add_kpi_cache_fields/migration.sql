@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Kpi" ADD COLUMN "cachedValue" DOUBLE PRECISION;
+ALTER TABLE "Kpi" ADD COLUMN "cachedData" JSONB;
+ALTER TABLE "Kpi" ADD COLUMN "cachedAt" TIMESTAMP(3);

@@ -17,19 +17,28 @@ interface Widget {
   cachedAt: string | null;
 }
 
+interface KpiTarget {
+  name: string;
+  targetValue: number;
+  targetDirection: string;
+  cachedValue: number | null;
+  displayFormat: string;
+}
+
 interface DashboardWidgetProps {
   widget: Widget;
   dashboardId: string;
   onDelete: () => void;
   onEdit: (prompt: string) => void;
   refreshing?: boolean;
+  kpiTargets?: KpiTarget[];
 }
 
 /**
  * Rebuild chart option with fresh data from cachedData rows.
  * Produces clean, properly configured ECharts options.
  */
-function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown): Record<string, unknown> {
+function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown, kpiTargets?: KpiTarget[]): Record<string, unknown> {
   if (!Array.isArray(cachedData) || cachedData.length === 0) return displayConfig;
 
   // Unwrap BigQuery value objects: {value: "2025-12-23"} → "2025-12-23"
@@ -215,6 +224,66 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       if (chartType === "bar") {
         series[i].barMaxWidth = 36;
         series[i].itemStyle = { borderRadius: [3, 3, 0, 0] };
+      }
+    }
+
+    // Inject KPI target markLines on matching series
+    if (kpiTargets && kpiTargets.length > 0) {
+      const stopWords = new Set(["the", "a", "an", "of", "for", "and", "or", "in", "to", "per", "total", "avg", "average", "daily", "weekly", "monthly"]);
+      const synonyms: Record<string, string[]> = {
+        visits: ["sessions"], sessions: ["visits"],
+        users: ["visitors"], visitors: ["users"],
+        revenue: ["sales", "income"], sales: ["revenue"], income: ["revenue"],
+      };
+      const tokenize = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter((w) => !stopWords.has(w) && w.length > 1);
+      const expandWithSynonyms = (tokens: string[]) => {
+        const expanded = [...tokens];
+        for (const t of tokens) {
+          if (synonyms[t]) expanded.push(...synonyms[t]);
+        }
+        return [...new Set(expanded)];
+      };
+
+      // Detect chart granularity from x-axis categories
+      const cats = categories || [];
+      const isChartDaily = cats.length >= 2 && cats.some((c: string) => /^[A-Z][a-z]{2} \d{1,2}$/.test(c));
+
+      for (let i = 0; i < series.length && i < metricKeys.length; i++) {
+        const seriesName = (series[i].name as string || metricKeys[i]).toLowerCase();
+        const metricKey = metricKeys[i].toLowerCase();
+        const widgetTokens = expandWithSynonyms([...new Set([...tokenize(seriesName), ...tokenize(metricKey)])]);
+        const match = kpiTargets.find((kpi) => {
+          const kpiName = kpi.name.toLowerCase();
+          if (kpiName.includes(metricKey) || metricKey.includes(kpiName)
+            || kpiName.includes(seriesName) || seriesName.includes(kpiName)) return true;
+          const kpiTokens = expandWithSynonyms(tokenize(kpi.name));
+          const overlap = kpiTokens.filter((t) => widgetTokens.some((w) => w.includes(t) || t.includes(w)));
+          return overlap.length >= 1;
+        });
+        if (match) {
+          // Normalize target to chart granularity
+          // e.g. monthly target of 1,000 on a daily chart → ~33/day
+          let targetLine = match.targetValue;
+          let targetLabel = `Target: ${match.targetValue.toLocaleString()}`;
+          if (isChartDaily && match.displayFormat !== "percentage") {
+            const dailyTarget = match.targetValue / 30;
+            targetLine = Math.round(dailyTarget);
+            targetLabel = `Daily target: ${targetLine.toLocaleString()} (${match.targetValue.toLocaleString()}/mo)`;
+          }
+
+          series[i].markLine = {
+            silent: true,
+            symbol: "none",
+            lineStyle: { type: "dashed", color: "#ef4444", width: 1.5 },
+            label: {
+              formatter: targetLabel,
+              fontSize: 10,
+              color: "#ef4444",
+            },
+            data: [{ yAxis: targetLine }],
+          };
+        }
       }
     }
 
@@ -572,7 +641,7 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   );
 }
 
-export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing }: DashboardWidgetProps) {
+export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing, kpiTargets }: DashboardWidgetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(widget.title || widget.prompt);
@@ -714,13 +783,15 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
           </div>
         ) : widget.widgetType === "chart" && widget.displayConfig ? (
           <div className="h-full w-full p-2">
-            <ResizableChart option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData)} />
+            <ResizableChart option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData, kpiTargets)} />
           </div>
         ) : widget.widgetType === "scorecard" ? (
           <div className="h-full p-3">
             <ScorecardWidget
               config={widget.displayConfig as { label?: string; value?: string; change?: string; format?: string }}
               data={widget.cachedData}
+              kpiTargets={kpiTargets}
+              widgetTitle={widget.title || widget.prompt}
             />
           </div>
         ) : widget.widgetType === "table" ? (

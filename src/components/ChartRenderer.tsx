@@ -26,6 +26,7 @@ import {
   VisualMapComponent,
   ToolboxComponent,
   GeoComponent,
+  MarkLineComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { useTheme } from "./ThemeProvider";
@@ -51,6 +52,7 @@ echarts.use([
   VisualMapComponent,
   ToolboxComponent,
   GeoComponent,
+  MarkLineComponent,
   CanvasRenderer,
 ]);
 
