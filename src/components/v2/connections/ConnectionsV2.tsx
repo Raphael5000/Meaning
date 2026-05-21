@@ -1590,47 +1590,68 @@ function AhrefsConnectForm({
   onError: (text: string) => void;
 }) {
   const [apiKey, setApiKey] = React.useState("");
-  const [domain, setDomain] = React.useState("");
-  const [country, setCountry] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [keyConnected, setKeyConnected] = React.useState(isAuthed);
+  const [projects, setProjects] = React.useState<{ domain: string; title: string }[] | null>(null);
+  const [loadingProjects, setLoadingProjects] = React.useState(false);
+  const [showManual, setShowManual] = React.useState(false);
+  const [manualDomain, setManualDomain] = React.useState("");
+  const [country, setCountry] = React.useState("");
+  const [enabling, setEnabling] = React.useState<Record<string, boolean>>({});
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Fetch projects once key is connected
+  const fetchProjects = React.useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const res = await fetch("/api/ahrefs/projects");
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects ?? []);
+      } else {
+        setProjects([]);
+      }
+    } catch {
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (keyConnected) fetchProjects();
+  }, [keyConnected, fetchProjects]);
+
+  async function handleKeySubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!apiKey.trim()) return;
     setBusy(true);
     try {
-      // Step 1: Connect API key if not already connected
-      if (!keyConnected) {
-        if (!apiKey.trim()) {
-          onError("API key is required");
-          setBusy(false);
-          return;
-        }
-        const keyRes = await fetch("/api/auth/connect-ahrefs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: apiKey.trim() }),
-        });
-        const keyData = await keyRes.json();
-        if (!keyRes.ok) {
-          onError(keyData.error || "Invalid API key");
-          setBusy(false);
-          return;
-        }
-        setKeyConnected(true);
-      }
-
-      // Step 2: Add domain
-      if (!domain.trim()) {
-        onError("Domain is required");
-        setBusy(false);
+      const res = await fetch("/api/auth/connect-ahrefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onError(data.error || "Invalid API key");
         return;
       }
+      setKeyConnected(true);
+    } catch {
+      onError("Failed to validate API key");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function enableDomain(domain: string) {
+    setEnabling((p) => ({ ...p, [domain]: true }));
+    try {
       const res = await fetch("/api/ahrefs/enable-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain: domain.trim(),
+          domain,
           country: country.trim() || undefined,
           orgId: orgId || undefined,
         }),
@@ -1644,87 +1665,145 @@ function AhrefsConnectForm({
     } catch {
       onError("Something went wrong");
     } finally {
-      setBusy(false);
+      setEnabling((p) => ({ ...p, [domain]: false }));
     }
   }
 
   const inputClass =
     "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 
+  // Step 1: API key input
+  if (!keyConnected) {
+    return (
+      <form
+        onSubmit={handleKeySubmit}
+        className="rounded-[10px] border border-border bg-card px-4 py-5"
+      >
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          Paste your Ahrefs API key. You can generate one at{" "}
+          <a
+            href="https://app.ahrefs.com/user/api"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground underline underline-offset-2"
+          >
+            app.ahrefs.com/user/api
+          </a>
+        </p>
+        <label className="mb-1 block text-[12px] font-medium text-foreground">
+          API Key
+        </label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="Paste your Ahrefs API key"
+          className={inputClass}
+          required
+        />
+        <div className="mt-4">
+          <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
+            {busy ? "Validating…" : "Connect"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  // Step 2: Project picker + manual domain option
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-[10px] border border-border bg-card px-4 py-5"
-    >
-      <div className="space-y-4">
-        {!keyConnected && (
-          <div>
-            <p className="mb-3 text-[13px] text-muted-foreground">
-              Paste your Ahrefs API key. You can generate one at{" "}
-              <a
-                href="https://app.ahrefs.com/user/api"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground underline underline-offset-2"
+    <div className="rounded-[10px] border border-border bg-card px-4 py-5">
+      {loadingProjects ? (
+        <div className="py-6 text-center text-[13px] text-muted-foreground">
+          Loading your Ahrefs projects…
+        </div>
+      ) : projects && projects.length > 0 ? (
+        <>
+          <p className="mb-3 text-[13px] text-muted-foreground">
+            Select a project to track, or enter a domain manually.
+          </p>
+          <div className="space-y-1.5">
+            {projects.map((p) => (
+              <div
+                key={p.domain}
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-muted/30"
               >
-                app.ahrefs.com/user/api
-              </a>
-            </p>
-            <label className="mb-1 block text-[12px] font-medium text-foreground">
-              API Key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Paste your Ahrefs API key"
-              className={inputClass}
-              required={!keyConnected}
-            />
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-foreground truncate">
+                    {p.title}
+                  </div>
+                  {p.title !== p.domain && (
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {p.domain}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!!enabling[p.domain]}
+                  onClick={() => enableDomain(p.domain)}
+                >
+                  {enabling[p.domain] ? "Adding…" : "Enable"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          No projects found in your Ahrefs account. Enter a domain manually.
+        </p>
+      )}
+
+      {/* Manual domain entry */}
+      <div className="mt-4 border-t border-border pt-4">
+        {!showManual && projects && projects.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowManual(true)}
+            className="text-[12px] font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            Or enter a domain manually
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-foreground">
+                Domain
+              </label>
+              <input
+                type="text"
+                value={manualDomain}
+                onChange={(e) => setManualDomain(e.target.value)}
+                placeholder="e.g. example.com"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-foreground">
+                Country <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="e.g. US, GB, DE (leave blank for global)"
+                maxLength={2}
+                className={inputClass}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={!manualDomain.trim() || !!enabling[manualDomain]}
+              onClick={() => enableDomain(manualDomain.trim())}
+            >
+              {enabling[manualDomain] ? "Adding…" : "Add domain"}
+            </Button>
           </div>
         )}
-        {keyConnected && (
-          <p className="text-[13px] text-muted-foreground">
-            Ahrefs account connected. Enter the domain to track.
-          </p>
-        )}
-        <div>
-          <label className="mb-1 block text-[12px] font-medium text-foreground">
-            Domain
-          </label>
-          <input
-            type="text"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            placeholder="e.g. example.com"
-            className={inputClass}
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-[12px] font-medium text-foreground">
-            Country <span className="text-muted-foreground">(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            placeholder="e.g. US, GB, DE (leave blank for global)"
-            maxLength={2}
-            className={inputClass}
-          />
-        </div>
       </div>
-      <div className="mt-4">
-        <Button
-          type="submit"
-          size="sm"
-          disabled={busy || (!keyConnected && !apiKey.trim()) || !domain.trim()}
-        >
-          {busy ? "Connecting…" : keyConnected ? "Add domain" : "Connect & add domain"}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 }
 
