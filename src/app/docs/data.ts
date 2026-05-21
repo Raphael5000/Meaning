@@ -36,7 +36,7 @@ export const docsCategories: Category[] = [
   {
     slug: "connectors",
     label: "Connectors",
-    description: "Connect GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, and Search Console.",
+    description: "Connect GA4, Google Ads, Microsoft Ads, LinkedIn, Mailchimp, Search Console, and Ahrefs.",
     icon: "M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5",
   },
   {

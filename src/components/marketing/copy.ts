@@ -5,7 +5,7 @@ export const hero = {
   eyebrow: "Now in beta",
   title: "Never build another dashboard.",
   subtitle:
-    "Meaning is the AI analyst for your marketing stack. Ask questions in plain English across GA4, Google Ads, LinkedIn, Mailchimp and more — get charts, dashboards, and alerts in seconds.",
+    "Meaning is the AI analyst for your marketing stack. Ask questions in plain English across GA4, Google Ads, LinkedIn, Mailchimp, Ahrefs and more — get charts, dashboards, and alerts in seconds.",
   primaryCta: { label: "Get started", href: "/signup" },
   secondaryCta: { label: "See it in action", href: "#chat" },
 };
@@ -99,6 +99,12 @@ export const connectors = {
       name: "Search Console",
       description: "Queries, impressions, CTR, and average position.",
       src: "/Search Console.svg",
+      status: "live" as const,
+    },
+    {
+      name: "Ahrefs",
+      description: "Domain rating, organic keywords, backlinks, site audit health, and top pages.",
+      src: "/Ahrefs.svg",
       status: "live" as const,
     },
     {

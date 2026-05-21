@@ -75,6 +75,16 @@ const CONNECTOR_DETAIL: {
       "CTR opportunities below target",
     ],
   },
+  {
+    name: "Ahrefs",
+    summary: "Full SEO toolkit — domain authority, keyword rankings, backlink profiles, and site audit health scores.",
+    unlocks: [
+      "Domain Rating and Ahrefs Rank tracking",
+      "Top 500 organic keywords with positions and difficulty",
+      "Backlink profile and referring domain analysis",
+      "Site Audit health score, errors, warnings, and issues",
+    ],
+  },
 ];
 
 export default function ConnectorsPage() {
