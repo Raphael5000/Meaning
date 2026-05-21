@@ -41,13 +41,18 @@ export async function GET() {
     }
 
     const data = (await res.json()) as {
-      projects?: Array<{ target: string; title?: string }>;
+      projects?: Array<{ url?: string; project_name?: string }>;
     };
 
-    const projects = (data.projects ?? []).map((p) => ({
-      domain: p.target,
-      title: p.title || p.target,
-    }));
+    const projects = (data.projects ?? [])
+      .filter((p) => p.url)
+      .map((p) => {
+        const domain = p.url!.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+        return {
+          domain,
+          title: p.project_name || domain,
+        };
+      });
 
     return NextResponse.json({ projects });
   } catch (err) {
