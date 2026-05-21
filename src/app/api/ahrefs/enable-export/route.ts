@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getAhrefsApiKey } from "@/lib/ahrefs-token";
+import { syncAhrefsData } from "@/lib/ahrefs-transfer";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/ahrefs/enable-export
  *
- * Creates a DataSource for an Ahrefs domain after the user has connected
- * their Ahrefs account via OAuth.
+ * Creates a DataSource for an Ahrefs domain and immediately triggers
+ * a backfill sync. Status goes BACKFILLING → ACTIVE (or ERROR).
  *
  * Body: { domain: string, country?: string, orgId?: string }
  */
@@ -21,11 +22,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Verify user has a valid Ahrefs token
   const token = await getAhrefsApiKey(userId);
   if (!token) {
     return NextResponse.json(
-      { error: "No Ahrefs account connected. Please connect via OAuth first." },
+      { error: "No Ahrefs account connected. Please add your API key first." },
       { status: 400 }
     );
   }
@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Domain is required" }, { status: 400 });
   }
 
-  // Clean the domain
   const cleanDomain = domain
     .trim()
     .replace(/^https?:\/\//, "")
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
     .toLowerCase();
 
   try {
-    // Resolve the orgId
     let resolvedOrgId = orgId;
     if (!resolvedOrgId) {
       const membership = await prisma.orgMembership.findFirst({
@@ -61,35 +59,54 @@ export async function POST(req: NextRequest) {
       resolvedOrgId = membership?.orgId ?? undefined;
     }
 
-    // Check if this domain already has a DataSource
+    // Upsert DataSource with BACKFILLING status
     const existingDs = await prisma.dataSource.findFirst({
       where: { userId, type: "AHREFS", propertyId: cleanDomain },
     });
 
+    let dataSource;
     if (existingDs) {
-      await prisma.dataSource.update({
+      dataSource = await prisma.dataSource.update({
         where: { id: existingDs.id },
         data: {
-          status: "PENDING",
+          status: "BACKFILLING",
           lastSyncError: null,
           bigqueryDataset: country ? JSON.stringify({ country }) : null,
           ...(resolvedOrgId && { orgId: resolvedOrgId }),
         },
       });
     } else {
-      await prisma.dataSource.create({
+      dataSource = await prisma.dataSource.create({
         data: {
           userId,
           type: "AHREFS",
           propertyId: cleanDomain,
-          status: "PENDING",
+          status: "BACKFILLING",
           bigqueryDataset: country ? JSON.stringify({ country }) : null,
           ...(resolvedOrgId && { orgId: resolvedOrgId }),
         },
       });
     }
 
-    return NextResponse.json({ success: true, domain: cleanDomain });
+    // Fire-and-forget: sync Ahrefs data immediately
+    syncAhrefsData(userId, cleanDomain)
+      .then(async (result) => {
+        console.log(`[ahrefs/enable-export] Sync complete for ${cleanDomain}:`, result);
+        await prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { status: "ACTIVE", lastSyncedAt: new Date() },
+        });
+      })
+      .catch(async (err) => {
+        console.error(`[ahrefs/enable-export] Sync failed for ${cleanDomain}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        await prisma.dataSource.update({
+          where: { id: dataSource.id },
+          data: { status: "ERROR", lastSyncError: msg.slice(0, 500) },
+        }).catch(() => {});
+      });
+
+    return NextResponse.json({ success: true, domain: cleanDomain, syncing: true });
   } catch (err) {
     console.error("[ahrefs/enable-export] Error:", err);
     return NextResponse.json(
