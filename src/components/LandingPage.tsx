@@ -293,6 +293,14 @@ const CONNECTORS: Connector[] = [
     status: "live",
   },
   {
+    name: "Ahrefs",
+    src: "/Ahrefs.svg",
+    description:
+      "Domain rating, organic keywords, backlinks, site audit health, and top pages.",
+    dataTypes: ["DR", "KEYWORDS", "BACKLINKS", "AUDIT"],
+    status: "live",
+  },
+  {
     name: "Meta Ads",
     src: "/Meta.svg",
     description:
