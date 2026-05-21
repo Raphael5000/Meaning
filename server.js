@@ -51,6 +51,7 @@ function startCronJobs() {
   setTimeout(() => callLocal("/api/mailchimp/sync"), 90 * 1000);
   setTimeout(() => callLocal("/api/microsoft-ads/sync"), 120 * 1000);
   setTimeout(() => callLocal("/api/gsc/sync"), 150 * 1000);
+  setTimeout(() => callLocal("/api/ahrefs/sync"), 180 * 1000);
 
   // Exchange rates: sync on startup + daily (must run before data syncs)
   setTimeout(() => callLocal("/api/exchange-rates/sync"), 10 * 1000);
@@ -64,6 +65,7 @@ function startCronJobs() {
       callLocal("/api/linkedin/sync");
       callLocal("/api/mailchimp/sync");
       callLocal("/api/microsoft-ads/sync");
+      callLocal("/api/ahrefs/sync");
     }
   }, 60 * 60 * 1000);
 
@@ -83,6 +85,7 @@ function startCronJobs() {
       callLocal("/api/linkedin/sync");
       callLocal("/api/mailchimp/sync");
       callLocal("/api/microsoft-ads/sync");
+      callLocal("/api/ahrefs/sync");
     }
   }, 60 * 60 * 1000);
 
