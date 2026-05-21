@@ -567,27 +567,18 @@ export async function POST(
     // Filter out layout entries for deleted widgets
     const layout = rawLayout.filter((item) => existingIds.has(item.i));
     // Smart default sizes based on widget and chart type
+    // Fixed sizes per widget type — must match DashboardGrid.getFixedSize
     function getWidgetSize(widgetType: string, displayConfig: unknown): { w: number; h: number } {
-      if (widgetType === "scorecard") return { w: 3, h: 2 };
-      if (widgetType === "table") return { w: 6, h: 4 };
+      if (widgetType === "scorecard") return { w: 4, h: 2 };
+      if (widgetType === "table") return { w: 12, h: 4 };
       if (widgetType === "chart" && displayConfig) {
         const config = displayConfig as Record<string, unknown>;
         const series = config.series;
         const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
         const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
-        switch (chartType) {
-          case "pie": return { w: 6, h: 4 };
-          case "gauge": return { w: 4, h: 4 };
-          case "radar": return { w: 6, h: 4 };
-          case "funnel": return { w: 6, h: 4 };
-          case "bar": return seriesArr.length > 1 ? { w: 6, h: 4 } : { w: 6, h: 4 };
-          case "line": return { w: 6, h: 4 };
-          case "scatter": return { w: 6, h: 4 };
-          case "sankey": return { w: 12, h: 6 };
-          case "treemap": return { w: 6, h: 4 };
-          case "map": return { w: 12, h: 5 };
-          default: return { w: 6, h: 4 };
-        }
+        if (chartType === "sankey" || chartType === "map") return { w: 12, h: 5 };
+        if (chartType === "pie") return { w: 6, h: 4 };
+        return { w: 6, h: 4 };
       }
       return { w: 6, h: 4 };
     }

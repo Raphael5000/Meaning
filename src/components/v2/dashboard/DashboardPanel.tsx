@@ -265,7 +265,7 @@ export default function DashboardPanelV2({
       chartType === "scorecard" || isScorecard
         ? { w: 4, h: 2 }
         : chartType === "sankey" || isSankey
-          ? { w: 12, h: 6 }
+          ? { w: 12, h: 5 }
           : chartType === "table" || isTable
             ? { w: 12, h: 4 }
             : { w: 6, h: 4 };
