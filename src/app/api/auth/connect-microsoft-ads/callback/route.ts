@@ -100,7 +100,8 @@ export async function GET(req: NextRequest) {
       },
       update: {
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? undefined,
+        // Only overwrite refresh_token if Azure returned a new one
+        ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
         expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
         token_type: tokens.token_type,
         scope: tokens.scope,
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
         provider: "microsoft-ads",
         providerAccountId,
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? undefined,
+        refresh_token: tokens.refresh_token ?? "",
         expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
         token_type: tokens.token_type,
         scope: tokens.scope,

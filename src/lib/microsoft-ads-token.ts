@@ -80,16 +80,22 @@ export async function getValidMicrosoftAdsTokenForUser(
       refresh_token?: string;
     };
 
-    // Persist the refreshed token to the Account table
+    // Persist the refreshed token — only overwrite refresh_token if a new one was returned
+    const updateData: Record<string, unknown> = {
+      access_token: tokens.access_token,
+      expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
+    };
+    if (tokens.refresh_token) {
+      updateData.refresh_token = tokens.refresh_token;
+      console.log(`[microsoft-ads-token] Azure returned new refresh_token for user ${userId}`);
+    }
+
     await prisma.account.update({
       where: { id: account.id },
-      data: {
-        access_token: tokens.access_token,
-        expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
-        ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
-      },
+      data: updateData,
     });
 
+    console.log(`[microsoft-ads-token] Token refreshed for user ${userId}, expires in ${tokens.expires_in}s`);
     return tokens.access_token;
   } catch (err) {
     console.error("[microsoft-ads-token] DB lookup / refresh failed:", err);
