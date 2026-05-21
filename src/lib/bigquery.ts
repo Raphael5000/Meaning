@@ -136,6 +136,15 @@ const MSADS_TABLES = new Map([
 
 /** Ahrefs tables — prefixed with ahrefs_ to avoid collision with site_info (GSC).
  *  These live in ahrefs_{orgId} dataset. The ahrefs_ prefix is stripped when routing. */
+const ATTIO_TABLES = new Map([
+  ["attio_people", "people"],
+  ["attio_companies", "companies"],
+  ["attio_deals", "deals"],
+  ["attio_tasks", "tasks"],
+  ["attio_notes", "notes"],
+  ["attio_workspace_summary", "workspace_summary"],
+]);
+
 const AHREFS_TABLES = new Map([
   ["ahrefs_site_metrics", "site_metrics"],
   ["ahrefs_domain_rating", "domain_rating"],
@@ -173,7 +182,8 @@ export async function runPropertyQuery(
   mailchimpListId?: string | null,
   gscSiteUrl?: string | null,
   msAdsAccountId?: string | null,
-  ahrefsOrgId?: string | null
+  ahrefsOrgId?: string | null,
+  attioOrgId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
@@ -182,6 +192,7 @@ export async function runPropertyQuery(
   const gscDataset = gscSiteUrl ? `gsc_${gscSiteUrl.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}` : null;
   const msAdsDataset = msAdsAccountId ? `msads_${msAdsAccountId.replace(/-/g, "")}` : null;
   const ahrefsDataset = ahrefsOrgId ? `ahrefs_${ahrefsOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
+  const attioDataset = attioOrgId ? `attio_${attioOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
@@ -205,6 +216,9 @@ export async function runPropertyQuery(
       }
       if (AHREFS_TABLES.has(tableName) && ahrefsDataset) {
         return `${ahrefsDataset}.${AHREFS_TABLES.get(tableName)}`;
+      }
+      if (ATTIO_TABLES.has(tableName) && attioDataset) {
+        return `${attioDataset}.${ATTIO_TABLES.get(tableName)}`;
       }
       if (DBT_SHARED_TABLES.has(tableName)) {
         // Shared reference tables — no property_id filter

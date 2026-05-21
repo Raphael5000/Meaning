@@ -10,6 +10,7 @@ const ALLOWED_PROVIDERS = [
   "linkedin",
   "mailchimp",
   "ahrefs",
+  "attio",
 ] as const;
 type AllowedProvider = (typeof ALLOWED_PROVIDERS)[number];
 
@@ -19,6 +20,7 @@ const PROVIDER_DATASOURCE_TYPES: Record<AllowedProvider, string[]> = {
   linkedin: ["LINKEDIN"],
   mailchimp: ["MAILCHIMP"],
   ahrefs: ["AHREFS"],
+  attio: ["ATTIO"],
 };
 
 /**

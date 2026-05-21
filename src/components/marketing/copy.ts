@@ -108,6 +108,12 @@ export const connectors = {
       status: "live" as const,
     },
     {
+      name: "Attio",
+      description: "CRM pipeline, contacts, companies, deals, and tasks.",
+      src: "/Attio.svg",
+      status: "live" as const,
+    },
+    {
       name: "Meta Ads",
       description: "Campaign performance across Facebook and Instagram.",
       src: "/Meta.svg",

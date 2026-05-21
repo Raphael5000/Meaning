@@ -8,6 +8,7 @@ const connectors: { name: string; src?: string; comingSoon?: boolean }[] = [
   { name: "Mailchimp", src: "/Mailchimp.svg" },
   { name: "Search Console", src: "/Search Console.svg" },
   { name: "Ahrefs", src: "/Ahrefs.svg" },
+  { name: "Attio", src: "/Attio.svg" },
   { name: "Meta", src: "/Meta.svg", comingSoon: true },
 ];
 

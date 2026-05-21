@@ -310,6 +310,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_attio_query",
+    description:
+      "Run a custom SQL query against Attio CRM data. Use this to answer questions about contacts, companies, deals, pipeline, tasks, and CRM activity. Use {dataset}.tableName for table references. Table names are prefixed with attio_ to distinguish from other connectors. Attio tables: attio_people (snapshot_date, record_id, name, email, phone, company, created_at, web_url), attio_companies (snapshot_date, record_id, name, domain, description, created_at, web_url), attio_deals (snapshot_date, record_id, name, stage, value — deal amount, currency, owner, created_at, web_url), attio_tasks (snapshot_date, task_id, content, is_completed, deadline_at, completed_at, assignee, created_at), attio_notes (snapshot_date, note_id, title, content_plaintext, parent_object, parent_record_id, created_at), attio_workspace_summary (snapshot_date, total_people, total_companies, total_deals, total_tasks, open_tasks, total_notes, pipeline_value, pipeline_currency, last_synced_at).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT total_people, total_deals, pipeline_value FROM `{dataset}.attio_workspace_summary` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM `{dataset}.attio_workspace_summary`)",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "get_realtime_data",
     description:
       "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",

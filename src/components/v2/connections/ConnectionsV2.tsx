@@ -43,6 +43,7 @@ interface ConnectionStatus {
   hasMailchimpAccount: boolean;
   hasMicrosoftAdsAccount: boolean;
   hasAhrefsAccount: boolean;
+  hasAttioAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -86,6 +87,7 @@ type SourceType =
   | "MAILCHIMP"
   | "MICROSOFT_ADS"
   | "AHREFS"
+  | "ATTIO"
   | "META";
 
 interface SourceDef {
@@ -103,6 +105,7 @@ const SOURCES: SourceDef[] = [
   { type: "MAILCHIMP", label: "Mailchimp", icon: "/Mailchimp.svg" },
   { type: "MICROSOFT_ADS", label: "Microsoft Ads", icon: "/Microsoft Ads.svg" },
   { type: "AHREFS", label: "Ahrefs", icon: "/Ahrefs.svg" },
+  { type: "ATTIO", label: "Attio", icon: "/Attio.svg" },
   { type: "META", label: "Meta", icon: "/Meta.svg", comingSoon: true },
 ];
 
@@ -201,6 +204,7 @@ export default function ConnectionsV2({
     if (status.hasMailchimpAccount) authedTypes.push("MAILCHIMP");
     if (status.hasMicrosoftAdsAccount) authedTypes.push("MICROSOFT_ADS");
     if (status.hasAhrefsAccount) authedTypes.push("AHREFS");
+    if (status.hasAttioAccount) authedTypes.push("ATTIO");
     const toFetch = new Set<SourceType>([
       ...authedTypes,
       ...Array.from(typesWithDataSources).map((t) => t as SourceType),
@@ -541,6 +545,7 @@ function connectUrl(type: SourceType): string {
     case "MICROSOFT_ADS":
       return "/api/auth/connect-microsoft-ads";
     case "AHREFS":
+    case "ATTIO":
       return "#"; // API key flow handled inline, no redirect
     default:
       return "#";
@@ -613,7 +618,7 @@ function Row({
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
   const isClickable =
-    (isConnected || needsAccountPick || row.type === "AHREFS") && !row.comingSoon;
+    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO") && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
@@ -643,7 +648,7 @@ function Row({
       </button>
     );
   } else if (!isConnected) {
-    lastCell = row.type === "AHREFS" ? (
+    lastCell = (row.type === "AHREFS" || row.type === "ATTIO") ? (
       <button
         type="button"
         onClick={(e) => {
@@ -742,6 +747,8 @@ function isAuthedForSource(
       return status.hasMicrosoftAdsAccount;
     case "AHREFS":
       return status.hasAhrefsAccount;
+    case "ATTIO":
+      return status.hasAttioAccount;
     default:
       return false;
   }
@@ -910,6 +917,8 @@ function ConnectionsDetail({
         return !!status?.hasMicrosoftAdsAccount;
       case "AHREFS":
         return !!status?.hasAhrefsAccount;
+      case "ATTIO":
+        return !!status?.hasAttioAccount;
       default:
         return false;
     }
@@ -1301,6 +1310,8 @@ function oauthProviderFor(type: SourceType): string | null {
       return "mailchimp";
     case "AHREFS":
       return "ahrefs";
+    case "ATTIO":
+      return "attio";
     default:
       return null;
   }
@@ -1399,6 +1410,18 @@ function AddAccountSection({
   if (sourceType === "AHREFS") {
     return (
       <AhrefsConnectForm
+        isAuthed={isAuthed}
+        orgId={orgId}
+        onEnabled={onEnabled}
+        onError={onError}
+      />
+    );
+  }
+
+  // Attio: API key connect form (no OAuth)
+  if (sourceType === "ATTIO") {
+    return (
+      <AttioConnectForm
         isAuthed={isAuthed}
         orgId={orgId}
         onEnabled={onEnabled}
@@ -1818,6 +1841,97 @@ function AhrefsConnectForm({
   );
 }
 
+function AttioConnectForm({
+  isAuthed,
+  orgId,
+  onEnabled,
+  onError,
+}: {
+  isAuthed: boolean;
+  orgId: string | null;
+  onEnabled: () => void;
+  onError: (text: string) => void;
+}) {
+  const [apiKey, setApiKey] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [keyConnected, setKeyConnected] = React.useState(isAuthed);
+  const [workspaceName, setWorkspaceName] = React.useState("");
+
+  const inputClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // Step 1: Connect API key if not already connected
+      if (!keyConnected) {
+        if (!apiKey.trim()) { onError("API key is required"); setBusy(false); return; }
+        const res = await fetch("/api/auth/connect-attio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: apiKey.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) { onError(data.error || "Invalid API key"); setBusy(false); return; }
+        setKeyConnected(true);
+      }
+
+      // Step 2: Enable export with workspace name as identifier
+      const wsId = workspaceName.trim() || "default";
+      const res = await fetch("/api/attio/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: wsId, orgId: orgId || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) { onError(data.error || "Failed to connect"); return; }
+      onEnabled();
+    } catch {
+      onError("Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Step 1: API key input
+  if (!keyConnected) {
+    return (
+      <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          Paste your Attio API key. Generate one in{" "}
+          <a href="https://app.attio.com" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-2">
+            Attio → Settings → Developers
+          </a>
+        </p>
+        <label className="mb-1 block text-[12px] font-medium text-foreground">API Key</label>
+        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Attio API key" className={inputClass} required />
+        <div className="mt-4">
+          <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
+            {busy ? "Validating…" : "Connect"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  // Step 2: Workspace name + connect
+  return (
+    <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
+      <p className="mb-3 text-[13px] text-muted-foreground">
+        Attio account connected. Enter a name for this workspace (or leave blank for default).
+      </p>
+      <label className="mb-1 block text-[12px] font-medium text-foreground">Workspace Name <span className="text-muted-foreground">(optional)</span></label>
+      <input type="text" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="e.g. Sales CRM" className={inputClass} />
+      <div className="mt-4">
+        <Button type="submit" size="sm" disabled={busy}>
+          {busy ? "Connecting…" : "Connect workspace"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 async function fetchAccessibleAccounts(
   sourceType: SourceType
 ): Promise<PickerItem[]> {
@@ -1895,7 +2009,8 @@ async function fetchAccessibleAccounts(
       }));
     }
     case "AHREFS":
-      // Ahrefs uses API key auth, not an account picker — return empty
+    case "ATTIO":
+      // API key auth, not an account picker — return empty
       return [];
     default:
       return [];
@@ -1943,6 +2058,11 @@ function enableEndpoint(
       return {
         url: "/api/ahrefs/enable-export",
         body: { domain: id, orgId: orgVal },
+      };
+    case "ATTIO":
+      return {
+        url: "/api/attio/enable-export",
+        body: { workspaceId: id, orgId: orgVal },
       };
     default:
       return null;

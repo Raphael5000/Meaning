@@ -301,6 +301,14 @@ const CONNECTORS: Connector[] = [
     status: "live",
   },
   {
+    name: "Attio",
+    src: "/Attio.svg",
+    description:
+      "CRM contacts, companies, deals, pipeline value, tasks, and notes.",
+    dataTypes: ["CONTACTS", "DEALS", "PIPELINE", "TASKS"],
+    status: "live",
+  },
+  {
     name: "Meta Ads",
     src: "/Meta.svg",
     description:

@@ -689,6 +689,7 @@ export async function POST(request: NextRequest) {
   let gscSiteUrlFromOrg: string | null = null;
   let msAdsAccountIdFromOrg: string | null = null;
   let ahrefsDomainFromOrg: string | null = null;
+  let attioOrgIdFromOrg: string | null = null;
   let displayCurrency = "USD";
 
   if (body.orgId) {
@@ -729,8 +730,11 @@ export async function POST(request: NextRequest) {
     }
     const ahrefsDsList = orgDataSources.filter((ds) => ds.type === "AHREFS" && connectedStatuses.includes(ds.status));
     if (ahrefsDsList.length > 0) {
-      // For Ahrefs, the dataset key is the orgId (ahrefs_{orgId}), not the domain
       ahrefsDomainFromOrg = body.orgId!;
+    }
+    const attioDsList = orgDataSources.filter((ds) => ds.type === "ATTIO" && connectedStatuses.includes(ds.status));
+    if (attioDsList.length > 0) {
+      attioOrgIdFromOrg = body.orgId!;
     }
   }
 
@@ -768,13 +772,15 @@ export async function POST(request: NextRequest) {
   const gscSiteUrl = body.orgId ? gscSiteUrlFromOrg : (usesBigQuery && userId ? await getGscSiteUrl(userId, propertyId) : null);
   const msAdsAccountId = body.orgId ? msAdsAccountIdFromOrg : (usesBigQuery && userId ? await getMicrosoftAdsAccountId(userId, propertyId) : null);
   const ahrefsDomain = body.orgId ? ahrefsDomainFromOrg : null;
+  const attioOrgId = body.orgId ? attioOrgIdFromOrg : null;
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
   const hasMailchimp = !!mailchimpListId;
   const hasGsc = !!gscSiteUrl;
   const hasMsAds = !!msAdsAccountId;
   const hasAhrefs = !!ahrefsDomain;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} currency=${displayCurrency} reason=${rollout.reason}`);
+  const hasAttio = !!attioOrgId;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} attio=${hasAttio} currency=${displayCurrency} reason=${rollout.reason}`);
   let systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, hasAhrefs, displayCurrency) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
@@ -837,6 +843,8 @@ export async function POST(request: NextRequest) {
         return (input.description as string) || "Querying Microsoft Ads data";
       case "run_ahrefs_query":
         return (input.description as string) || "Querying Ahrefs SEO data";
+      case "run_attio_query":
+        return (input.description as string) || "Querying Attio CRM data";
       case "run_report":
         return `Querying GA4 report`;
       case "run_realtime_report":
@@ -952,49 +960,56 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_linkedin_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] LinkedIn query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_mailchimp_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Mailchimp query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_gsc_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] GSC query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_microsoft_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Microsoft Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "run_ahrefs_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ahrefs query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    break;
+                  }
+                  case "run_attio_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] Attio query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
                     break;
                   }
                   case "get_realtime_data": {

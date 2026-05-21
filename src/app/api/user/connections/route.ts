@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [googleAccount, linkedinAccount, mailchimpAccount, microsoftAdsAccount, ahrefsAccount] = await Promise.all([
+    const [googleAccount, linkedinAccount, mailchimpAccount, microsoftAdsAccount, ahrefsAccount, attioAccount] = await Promise.all([
       prisma.account.findFirst({
         where: { userId, provider: "google" },
         select: { id: true, providerAccountId: true, refresh_token: true, scope: true },
@@ -32,6 +32,10 @@ export async function GET(req: NextRequest) {
       }),
       prisma.account.findFirst({
         where: { userId, provider: "ahrefs" },
+        select: { id: true, providerAccountId: true },
+      }),
+      prisma.account.findFirst({
+        where: { userId, provider: "attio" },
         select: { id: true, providerAccountId: true },
       }),
     ]);
@@ -89,6 +93,7 @@ export async function GET(req: NextRequest) {
       hasMailchimpAccount: !!mailchimpAccount,
       hasMicrosoftAdsAccount: !!microsoftAdsAccount,
       hasAhrefsAccount: !!ahrefsAccount,
+      hasAttioAccount: !!attioAccount,
       dataSources: propertyDataSources,
     });
   } catch (err) {

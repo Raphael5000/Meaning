@@ -85,6 +85,16 @@ const CONNECTOR_DETAIL: {
       "Site Audit health score, errors, warnings, and issues",
     ],
   },
+  {
+    name: "Attio",
+    summary: "Modern CRM data — contacts, companies, deals, pipeline, tasks, and notes synced daily.",
+    unlocks: [
+      "People and company records with contact details",
+      "Deal pipeline with stages, values, and owners",
+      "Task tracking with completion status and deadlines",
+      "Workspace summary with total counts and pipeline value",
+    ],
+  },
 ];
 
 export default function ConnectorsPage() {
