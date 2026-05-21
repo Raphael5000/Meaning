@@ -1000,16 +1000,7 @@ body {
 }
 
 .dashboard-grid .react-resizable-handle {
-  opacity: 0;
-  transition: opacity 150ms ease;
-}
-
-.dashboard-grid .react-grid-item:hover .react-resizable-handle {
-  opacity: 1;
-}
-
-.dashboard-grid .react-resizable-handle::after {
-  border-color: var(--text-muted) !important;
+  display: none !important;
 }
 
 

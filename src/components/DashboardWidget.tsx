@@ -265,24 +265,23 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
           // Normalize target to chart granularity
           // e.g. monthly target of 1,000 on a daily chart → ~33/day
           let targetLine = match.targetValue;
-          let targetLabel = `Target: ${match.targetValue.toLocaleString()}`;
+          let legendName = `Target: ${match.targetValue.toLocaleString()}`;
           if (isChartDaily && match.displayFormat !== "percentage") {
             const dailyTarget = match.targetValue / 30;
             targetLine = Math.round(dailyTarget);
-            targetLabel = `Daily target: ${targetLine.toLocaleString()} (${match.targetValue.toLocaleString()}/mo)`;
+            legendName = `Target: ${targetLine.toLocaleString()}/day (${match.targetValue.toLocaleString()}/mo)`;
           }
 
           series[i].markLine = {
             silent: true,
             symbol: "none",
             lineStyle: { type: "dashed", color: "#ef4444", width: 1.5 },
-            label: {
-              formatter: targetLabel,
-              fontSize: 10,
-              color: "#ef4444",
-            },
+            label: { show: false },
             data: [{ yAxis: targetLine }],
           };
+
+          // Store for the custom table legend
+          option._kpiTargetLegend = { name: legendName, value: targetLine };
         }
       }
     }
@@ -302,7 +301,8 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
 
     // Disable ECharts legend — multi-series gets a table legend in the widget
     option.legend = { show: false };
-    if (series.length > 1) {
+    // Show table legend for multi-series OR when a KPI target line is present
+    if (series.length > 1 || option._kpiTargetLegend) {
       option._barLegend = series.map((s, i) => ({
         name: s.name as string || `Series ${i + 1}`,
         total: (s.data as number[]).reduce((sum: number, v: number) => sum + (v || 0), 0),
@@ -505,7 +505,11 @@ function WidgetTableLegend({ items, isPercentage }: { items: Array<{ name: strin
     <div className="flex flex-col justify-center gap-1.5 overflow-y-auto py-2 pr-2" style={{ minWidth: 100, maxWidth: "40%" }}>
       {items.map((d, i) => (
         <div key={i} className="flex items-center gap-2 text-[11px]">
-          <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+          {d.name.startsWith("Target:") ? (
+            <span className="inline-block h-0 w-3 shrink-0 border-t-2 border-dashed" style={{ borderColor: d.color }} />
+          ) : (
+            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+          )}
           <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-primary)" }}>{d.name}</span>
           <span className="shrink-0 tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {d.value.toLocaleString()}
@@ -586,18 +590,25 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   // Extract legend data from the option (set by mergeChartData)
   const pieLegend = option._pieLegend as Array<{ name: string; value: number }> | undefined;
   const barLegend = option._barLegend as Array<{ name: string; total: number; color: string }> | undefined;
-  const hasTableLegend = pieLegend || barLegend;
+  const kpiTargetLegend = option._kpiTargetLegend as { name: string; value: number } | undefined;
+  const hasTableLegend = pieLegend || barLegend || kpiTargetLegend;
 
   // Clean option before passing to ECharts (remove our custom keys)
   const cleanOption = { ...option };
   delete cleanOption._pieLegend;
   delete cleanOption._barLegend;
+  delete cleanOption._kpiTargetLegend;
 
   const legendItems = pieLegend
     ? pieLegend.map((d, i) => ({ name: d.name, value: d.value, color: ACCENT_PALETTE[i % ACCENT_PALETTE.length] }))
     : barLegend
       ? barLegend.map((d) => ({ name: d.name, value: d.total, color: d.color }))
       : [];
+
+  // Add KPI target as a dashed-line legend entry
+  if (kpiTargetLegend) {
+    legendItems.push({ name: kpiTargetLegend.name, value: kpiTargetLegend.value, color: "#ef4444" });
+  }
 
   if (!size) {
     return <div ref={containerRef} className="h-full w-full" />;

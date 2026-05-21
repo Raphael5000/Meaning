@@ -83,9 +83,9 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
       // Re-enforce fixed sizes (user can only change position, not size)
       const enforced = newLayout.map((item) => {
         const widget = widgetMap.get(item.i);
-        if (!widget) return item;
+        if (!widget) return { ...item, isResizable: false };
         const size = getFixedSize(widget);
-        return { ...item, w: size.w, h: size.h };
+        return { ...item, w: size.w, h: size.h, isResizable: false };
       });
 
       // Only persist if the user actually dragged (position changed).
@@ -107,13 +107,13 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
     [onLayoutChange, widgetMap]
   );
 
-  // Normalize layout: enforce fixed sizes per widget type, keep positions
+  // Normalize layout: enforce fixed sizes per widget type, disable resize
   const normalizedLayout = useMemo(() => {
     return layout.map((item) => {
       const widget = widgetMap.get(item.i);
-      if (!widget) return item;
+      if (!widget) return { ...item, isResizable: false };
       const size = getFixedSize(widget);
-      return { ...item, w: size.w, h: size.h };
+      return { ...item, w: size.w, h: size.h, isResizable: false };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, widgets]);
