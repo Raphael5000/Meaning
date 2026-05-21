@@ -1,10 +1,66 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 
 interface TableWidgetProps {
   config: { columns?: Array<{ key: string; label: string }> };
   data: unknown;
+}
+
+// Platform icon mapping — matches source/channel values to SVG icons
+const PLATFORM_ICONS: Record<string, { src: string; label: string }> = {
+  // Google Analytics / GA4
+  "google": { src: "/Google Analytics.svg", label: "Google" },
+  "google / organic": { src: "/Google Analytics.svg", label: "Google" },
+  "google / cpc": { src: "/Google Ads.svg", label: "Google Ads" },
+  // Google Ads
+  "google ads": { src: "/Google Ads.svg", label: "Google Ads" },
+  "paid search": { src: "/Google Ads.svg", label: "Paid Search" },
+  // Microsoft / Bing
+  "bing": { src: "/Microsoft Ads.svg", label: "Bing" },
+  "bing / organic": { src: "/Microsoft Ads.svg", label: "Bing" },
+  "bing / cpc": { src: "/Microsoft Ads.svg", label: "Microsoft Ads" },
+  "microsoft ads": { src: "/Microsoft Ads.svg", label: "Microsoft Ads" },
+  "microsoft": { src: "/Microsoft Ads.svg", label: "Microsoft" },
+  // LinkedIn
+  "linkedin": { src: "/Linkedin.svg", label: "LinkedIn" },
+  "linkedin.com": { src: "/Linkedin.svg", label: "LinkedIn" },
+  "l.linkedin.com": { src: "/Linkedin.svg", label: "LinkedIn" },
+  // Mailchimp
+  "mailchimp": { src: "/Mailchimp.svg", label: "Mailchimp" },
+  // Search Console
+  "search console": { src: "/Search Console.svg", label: "Search Console" },
+  "organic search": { src: "/Search Console.svg", label: "Organic Search" },
+  // Ahrefs
+  "ahrefs": { src: "/Ahrefs.svg", label: "Ahrefs" },
+  // Meta
+  "facebook": { src: "/Meta.svg", label: "Facebook" },
+  "facebook.com": { src: "/Meta.svg", label: "Facebook" },
+  "l.facebook.com": { src: "/Meta.svg", label: "Facebook" },
+  "instagram": { src: "/Meta.svg", label: "Instagram" },
+  "instagram.com": { src: "/Meta.svg", label: "Instagram" },
+  "meta": { src: "/Meta.svg", label: "Meta" },
+  // Common channels
+  "email": { src: "/Mailchimp.svg", label: "Email" },
+};
+
+// Columns that likely contain source/platform values
+const SOURCE_COLUMNS = new Set([
+  "source", "medium", "source_medium", "session_source", "session_medium",
+  "session_default_channel_group", "channel_group", "channel", "default_channel_group",
+  "platform", "source_platform", "referrer", "domain",
+]);
+
+function matchPlatformIcon(value: string): { src: string; label: string } | null {
+  const lower = value.toLowerCase().trim();
+  // Exact match
+  if (PLATFORM_ICONS[lower]) return PLATFORM_ICONS[lower];
+  // Partial match — check if value contains a known platform name
+  for (const [key, icon] of Object.entries(PLATFORM_ICONS)) {
+    if (lower.includes(key) || key.includes(lower)) return icon;
+  }
+  return null;
 }
 
 // Unwrap BigQuery value objects: {value: "x"} → "x"
@@ -142,15 +198,34 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
                   display = s.replace(/^https?:\/\//, "").replace(/\/$/, "") || s;
                 }
 
+                // Check if this cell should show a platform icon
+                const isSourceCol = SOURCE_COLUMNS.has(col.key.toLowerCase());
+                const icon = isSourceCol && typeof val === "string" ? matchPlatformIcon(val) : null;
+
                 return (
                   <td
                     key={col.key}
                     className={`px-3 py-2.5 text-foreground ${isNum ? "text-right font-medium tabular-nums" : "text-left"}`}
                     title={typeof val === "string" ? val : undefined}
                   >
-                    <span className={isNum ? "" : "block truncate"} style={{ maxWidth: isNum ? undefined : 280 }}>
-                      {display || "—"}
-                    </span>
+                    {icon ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Image
+                          src={icon.src}
+                          alt={icon.label}
+                          width={16}
+                          height={16}
+                          className="h-4 w-4 shrink-0 object-contain"
+                        />
+                        <span className="truncate" style={{ maxWidth: 260 }}>
+                          {display || "—"}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className={isNum ? "" : "block truncate"} style={{ maxWidth: isNum ? undefined : 280 }}>
+                        {display || "—"}
+                      </span>
+                    )}
                   </td>
                 );
               })}

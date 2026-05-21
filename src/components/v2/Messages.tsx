@@ -3,10 +3,69 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Image from "next/image";
 import { Mark, ThinkingBlob } from "./primitives";
 
+// Platform icon mapping for inline rendering in markdown tables
+const PLATFORM_ICONS: Record<string, { src: string; label: string }> = {
+  "google": { src: "/Google Analytics.svg", label: "Google" },
+  "google / organic": { src: "/Google Analytics.svg", label: "Google" },
+  "google / cpc": { src: "/Google Ads.svg", label: "Google Ads" },
+  "google ads": { src: "/Google Ads.svg", label: "Google Ads" },
+  "paid search": { src: "/Google Ads.svg", label: "Paid Search" },
+  "bing": { src: "/Microsoft Ads.svg", label: "Bing" },
+  "microsoft ads": { src: "/Microsoft Ads.svg", label: "Microsoft Ads" },
+  "microsoft": { src: "/Microsoft Ads.svg", label: "Microsoft" },
+  "linkedin": { src: "/Linkedin.svg", label: "LinkedIn" },
+  "linkedin.com": { src: "/Linkedin.svg", label: "LinkedIn" },
+  "mailchimp": { src: "/Mailchimp.svg", label: "Mailchimp" },
+  "organic search": { src: "/Search Console.svg", label: "Organic Search" },
+  "facebook": { src: "/Meta.svg", label: "Facebook" },
+  "facebook.com": { src: "/Meta.svg", label: "Facebook" },
+  "instagram": { src: "/Meta.svg", label: "Instagram" },
+  "instagram.com": { src: "/Meta.svg", label: "Instagram" },
+  "email": { src: "/Mailchimp.svg", label: "Email" },
+  "ahrefs": { src: "/Ahrefs.svg", label: "Ahrefs" },
+};
+
+function matchIcon(text: string): { src: string; label: string } | null {
+  const lower = text.toLowerCase().trim();
+  if (PLATFORM_ICONS[lower]) return PLATFORM_ICONS[lower];
+  for (const [key, icon] of Object.entries(PLATFORM_ICONS)) {
+    if (lower === key || (lower.length > 3 && key.includes(lower))) return icon;
+  }
+  return null;
+}
+
+// Custom td that shows platform icons for known source/channel values
+function SmartTd(props: React.TdHTMLAttributes<HTMLTableCellElement> & { children?: React.ReactNode }) {
+  const { children, ...rest } = props;
+  const text = typeof children === "string" ? children :
+    Array.isArray(children) ? children.filter((c) => typeof c === "string").join("") : "";
+  const icon = text ? matchIcon(text) : null;
+
+  if (icon) {
+    return (
+      <td {...rest}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Image src={icon.src} alt={icon.label} width={14} height={14} style={{ width: 14, height: 14, objectFit: "contain", flexShrink: 0 }} />
+          {children}
+        </span>
+      </td>
+    );
+  }
+  return <td {...rest}>{children}</td>;
+}
+
 export function Markdown({ text }: { text: string }) {
-  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{ td: SmartTd }}
+    >
+      {text}
+    </ReactMarkdown>
+  );
 }
 
 export function UserMsg({ children }: { children: React.ReactNode }) {
