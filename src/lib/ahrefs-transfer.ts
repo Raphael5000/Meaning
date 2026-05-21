@@ -133,6 +133,33 @@ const TABLE_SCHEMAS: Record<
       { name: "is_spam", type: "BOOLEAN" },
     ],
   },
+  site_audit_health: {
+    partition: "snapshot_date",
+    fields: [
+      { name: "snapshot_date", type: "DATE" },
+      { name: "project_id", type: "STRING" },
+      { name: "health_score", type: "INT64" },
+      { name: "total_urls", type: "INT64" },
+      { name: "urls_with_errors", type: "INT64" },
+      { name: "urls_with_warnings", type: "INT64" },
+      { name: "urls_with_notices", type: "INT64" },
+    ],
+  },
+  site_audit_issues: {
+    partition: "snapshot_date",
+    fields: [
+      { name: "snapshot_date", type: "DATE" },
+      { name: "project_id", type: "STRING" },
+      { name: "issue_id", type: "STRING" },
+      { name: "name", type: "STRING" },
+      { name: "importance", type: "STRING" },
+      { name: "category", type: "STRING" },
+      { name: "crawled", type: "INT64" },
+      { name: "change", type: "INT64" },
+      { name: "added", type: "INT64" },
+      { name: "removed", type: "INT64" },
+    ],
+  },
   site_info: {
     fields: [
       { name: "target_domain", type: "STRING" },
@@ -149,6 +176,8 @@ export const AHREFS_KEY_COLUMNS: Record<string, string[]> = {
   organic_keywords: ["snapshot_date", "keyword"],
   top_pages: ["snapshot_date", "url"],
   referring_domains: ["snapshot_date", "domain"],
+  site_audit_health: ["snapshot_date", "project_id"],
+  site_audit_issues: ["snapshot_date", "project_id", "issue_id"],
   site_info: ["target_domain"],
 };
 
@@ -224,6 +253,8 @@ export interface AhrefsSyncResult {
   organicKeywordsRows: number;
   topPagesRows: number;
   referringDomainsRows: number;
+  siteAuditHealthRows: number;
+  siteAuditIssuesRows: number;
 }
 
 /**
@@ -464,8 +495,77 @@ export async function syncAhrefsData(
     console.warn(`[ahrefs-sync] Referring domains fetch failed (non-fatal):`, (err as Error).message);
   }
 
+  // ── 7. Site Audit — health score + issues ──
+  // Look up the project_id for this domain from management/projects
+  let siteAuditHealthRows: Record<string, unknown>[] = [];
+  let siteAuditIssuesRows: Record<string, unknown>[] = [];
+  try {
+    const projectsData = (await ahrefsGet({
+      apiKey,
+      path: "/management/projects",
+      params: { output: "json" },
+    })) as { projects?: Array<{ project_id: string; url?: string }> };
+
+    // Match domain to project (strip protocol + trailing slash for comparison)
+    const cleanTarget = domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+    const matchedProject = (projectsData.projects ?? []).find((p) => {
+      const pUrl = (p.url ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+      return pUrl === cleanTarget || pUrl === `www.${cleanTarget}` || `www.${pUrl}` === cleanTarget;
+    });
+
+    if (matchedProject) {
+      const pid = parseInt(matchedProject.project_id, 10);
+
+      // 7a. Health score from site-audit/projects
+      const healthData = (await ahrefsGet({
+        apiKey,
+        path: "/site-audit/projects",
+        params: { project_id: String(pid), output: "json" },
+      })) as { healthscores?: Array<Record<string, unknown>> };
+
+      const hs = healthData.healthscores?.[0];
+      if (hs) {
+        siteAuditHealthRows = [{
+          snapshot_date: today,
+          project_id: matchedProject.project_id,
+          health_score: hs.health_score ?? null,
+          total_urls: hs.total ?? null,
+          urls_with_errors: hs.urls_with_errors ?? null,
+          urls_with_warnings: hs.urls_with_warnings ?? null,
+          urls_with_notices: hs.urls_with_notices ?? null,
+        }];
+      }
+
+      // 7b. Issues list from site-audit/issues
+      const issuesData = (await ahrefsGet({
+        apiKey,
+        path: "/site-audit/issues",
+        params: { project_id: String(pid), output: "json" },
+      })) as { issues?: Array<Record<string, unknown>> };
+
+      for (const issue of issuesData.issues ?? []) {
+        siteAuditIssuesRows.push({
+          snapshot_date: today,
+          project_id: matchedProject.project_id,
+          issue_id: issue.issue_id ?? "",
+          name: issue.name ?? "",
+          importance: issue.importance ?? "",
+          category: issue.category ?? "",
+          crawled: issue.crawled ?? 0,
+          change: issue.change ?? null,
+          added: issue.added ?? null,
+          removed: issue.removed ?? null,
+        });
+      }
+    } else {
+      console.log(`[ahrefs-sync] No Site Audit project found for ${domain} — skipping audit data`);
+    }
+  } catch (err) {
+    console.warn(`[ahrefs-sync] Site Audit fetch failed (non-fatal):`, (err as Error).message);
+  }
+
   console.log(
-    `[ahrefs-sync] Fetched: ${siteMetricsRows.length} metrics, ${domainRatingRows.length} DR, ${backlinksStatsRows.length} backlinks, ${organicKeywordsRows.length} keywords, ${topPagesRows.length} pages, ${referringDomainsRows.length} refdomains`
+    `[ahrefs-sync] Fetched: ${siteMetricsRows.length} metrics, ${domainRatingRows.length} DR, ${backlinksStatsRows.length} backlinks, ${organicKeywordsRows.length} keywords, ${topPagesRows.length} pages, ${referringDomainsRows.length} refdomains, ${siteAuditHealthRows.length} audit health, ${siteAuditIssuesRows.length} audit issues`
   );
 
   // ── Write to BigQuery ──
@@ -498,6 +598,15 @@ export async function syncAhrefsData(
     if (ok) insertTasks.push(dataset.table("referring_domains").insert(referringDomainsRows));
   }
 
+  if (siteAuditHealthRows.length > 0) {
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.site_audit_health WHERE snapshot_date = '${today}'`, "ahrefs-sync");
+    if (ok) insertTasks.push(dataset.table("site_audit_health").insert(siteAuditHealthRows));
+  }
+  if (siteAuditIssuesRows.length > 0) {
+    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.site_audit_issues WHERE snapshot_date = '${today}'`, "ahrefs-sync");
+    if (ok) insertTasks.push(dataset.table("site_audit_issues").insert(siteAuditIssuesRows));
+  }
+
   // Site info (always overwrite)
   const siteInfoRows = [
     {
@@ -519,6 +628,8 @@ export async function syncAhrefsData(
     organicKeywordsRows: organicKeywordsRows.length,
     topPagesRows: topPagesRows.length,
     referringDomainsRows: referringDomainsRows.length,
+    siteAuditHealthRows: siteAuditHealthRows.length,
+    siteAuditIssuesRows: siteAuditIssuesRows.length,
   };
 }
 

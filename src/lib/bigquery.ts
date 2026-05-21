@@ -143,6 +143,8 @@ const AHREFS_TABLES = new Map([
   ["ahrefs_organic_keywords", "organic_keywords"],
   ["ahrefs_top_pages", "top_pages"],
   ["ahrefs_referring_domains", "referring_domains"],
+  ["ahrefs_site_audit_health", "site_audit_health"],
+  ["ahrefs_site_audit_issues", "site_audit_issues"],
   ["ahrefs_site_info", "site_info"],
 ]);
 
