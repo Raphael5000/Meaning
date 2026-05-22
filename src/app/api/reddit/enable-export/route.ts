@@ -64,8 +64,12 @@ export async function POST(req: NextRequest) {
 
     for (const subreddit of subredditList) {
       try {
-        // Validate subreddit exists
-        await validateRedditSubreddit(subreddit);
+        // Validate subreddit exists (non-fatal — Reddit may block server IPs)
+        try {
+          await validateRedditSubreddit(subreddit);
+        } catch (valErr) {
+          console.warn(`[reddit/enable-export] Validation failed for r/${subreddit} (proceeding anyway):`, (valErr as Error).message);
+        }
 
         // Upsert DataSource
         const existingDs = await prisma.dataSource.findFirst({
@@ -120,6 +124,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const anySuccess = results.some((r) => r.success);
+    if (!anySuccess) {
+      const errors = results.map((r) => `r/${r.subreddit}: ${r.error}`).join("; ");
+      return NextResponse.json({ error: `Failed to add subreddits: ${errors}` }, { status: 400 });
+    }
     return NextResponse.json({ success: true, results, syncing: true });
   } catch (err) {
     console.error("[reddit/enable-export] Error:", err);
