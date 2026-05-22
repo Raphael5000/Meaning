@@ -93,6 +93,8 @@ const SOURCE_ICON: Record<string, { icon: string; label: string }> = {
   LINKEDIN: { icon: "/Linkedin.svg", label: "LinkedIn" },
   MAILCHIMP: { icon: "/Mailchimp.svg", label: "Mailchimp" },
   MICROSOFT_ADS: { icon: "/Microsoft Ads.svg", label: "Microsoft Ads" },
+  AHREFS: { icon: "/Ahrefs.svg", label: "Ahrefs" },
+  ATTIO: { icon: "/Attio.svg", label: "Attio" },
 };
 
 interface OrgApi {
