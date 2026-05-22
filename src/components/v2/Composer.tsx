@@ -20,6 +20,10 @@ const SOURCE_ICONS: Record<string, string> = {
   SEARCH_CONSOLE: "/Search Console.svg",
   MAILCHIMP: "/Mailchimp.svg",
   MICROSOFT_ADS: "/Microsoft Ads.svg",
+  AHREFS: "/Ahrefs.svg",
+  ATTIO: "/Attio.svg",
+  HUBSPOT: "/HubSpot.svg",
+  REDDIT: "/Reddit.svg",
 };
 
 interface ComposerProps {
