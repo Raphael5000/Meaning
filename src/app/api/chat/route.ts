@@ -230,7 +230,7 @@ Common dimensions: date, country, city, source, medium, pagePath, deviceCategory
 
 ${SHARED_PROMPT_OUTPUT}`;
 
-function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false, includeAhrefs = false, displayCurrency = "USD"): string {
+function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, includeMailchimp = false, includeGsc = false, includeMsAds = false, includeAhrefs = false, displayCurrency = "USD", includeReddit = false): string {
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = includeAds ? `
@@ -265,6 +265,11 @@ function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, in
   - ahrefs_top_pages: Pages by organic traffic — snapshot_date, url, keywords, sum_traffic, value (USD cents), top_keyword, top_keyword_best_position, ur (URL Rating 0-100)
   - ahrefs_referring_domains: Backlink sources — snapshot_date, domain, domain_rating, dofollow_links, links_to_target, traffic_domain, first_seen, last_seen, is_spam
   - ahrefs_site_info: Target domain metadata — target_domain, country, last_synced_at` : "";
+
+  const redditTablesPrompt = includeReddit ? `
+  - reddit_subreddit_stats: Daily subreddit snapshot — snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description
+  - reddit_subreddit_posts: Daily hot/top posts snapshot — snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied
+  - reddit_subreddit_traffic: Daily traffic stats (mod-only) — snapshot_date, subreddit, period_date, period_type (day), uniques, pageviews, subscriptions` : "";
 
   const msAdsTablesPrompt = includeMsAds ? `
   - msads_campaign_performance: Daily Bing campaign metrics — stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost (currency units), conversions, conversions_value, revenue
@@ -375,6 +380,17 @@ AHREFS QUERIES:
 - For "how many backlinks": SELECT live_backlinks, live_refdomains FROM \`{dataset}.ahrefs_backlinks_stats\` ORDER BY snapshot_date DESC LIMIT 1.
 - Always use {dataset}.tableName format — the system routes Ahrefs tables to the correct dataset automatically.` : "";
 
+  const redditQueryGuidance = includeReddit ? `
+
+REDDIT QUERIES:
+- Use the run_reddit_query tool for all Reddit community/subreddit questions.
+- Table names are prefixed with reddit_: reddit_subreddit_stats, reddit_subreddit_posts, reddit_subreddit_traffic.
+- Reddit data is daily snapshots. Use the latest snapshot: WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_stats\`).
+- For "how many subscribers": SELECT subreddit, subscribers, active_accounts FROM \`{dataset}.reddit_subreddit_stats\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_stats\`).
+- For "top posts": SELECT title, score, num_comments, upvote_ratio FROM \`{dataset}.reddit_subreddit_posts\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_posts\`) ORDER BY score DESC LIMIT 20.
+- For "traffic trends": SELECT period_date, uniques, pageviews FROM \`{dataset}.reddit_subreddit_traffic\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_traffic\`) ORDER BY period_date DESC.
+- Always use {dataset}.tableName format — the system routes Reddit tables to the correct dataset automatically.` : "";
+
   const adsQueryGuidance = includeAds ? `
 
 GOOGLE ADS QUERIES:
@@ -415,14 +431,15 @@ You have access to these tools:
   - users: property_id, user_pseudo_id, first_seen, last_seen, total_sessions, total_pageviews, avg_session_duration_seconds, bounce_rate, total_engagement_time_msec, acquisition_source, acquisition_medium, acquisition_channel_group, acquisition_landing_page, device_category, geo_country, geo_city, is_new_user
   - conversions: property_id, user_pseudo_id, ga_session_id, event_date, event_timestamp, event_name, page_location, page_title, session_source, session_medium, session_default_channel_group, device_category, geo_country
   - traffic_sources: session_date, property_id, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate, avg_session_duration_seconds, avg_engagement_time_msec
-  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}${ahrefsTablesPrompt}
+  - stg_events: raw flattened event data (event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, page_title, session_source, session_medium, device_category, geo_country, engagement_time_msec)${adsTablesPrompt}${msAdsTablesPrompt}${linkedInTablesPrompt}${mailchimpTablesPrompt}${gscTablesPrompt}${ahrefsTablesPrompt}${redditTablesPrompt}
 - run_mailchimp_query: Query Mailchimp email marketing data (campaign performance, audience growth, open/click rates, bounces, revenue). Use {dataset}.tableName for all table references.
 - run_linkedin_query: Query LinkedIn company page analytics (post performance, follower growth, demographics, page engagement). Use {dataset}.tableName for all table references.
 - get_realtime_data: See active users in the last 30 minutes with page, country, and device breakdowns.
 - run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
 - run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaign performance, keywords, search queries, spend). Use {dataset}.tableName for all table references.
 - run_ahrefs_query: Query Ahrefs SEO data (domain rating, organic keywords, backlinks, top pages, referring domains). Use {dataset}.tableName for all table references.
-- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${ahrefsQueryGuidance}${currencyConversionGuidance}
+- run_reddit_query: Query Reddit community data (subreddit stats, posts, engagement, traffic). Use {dataset}.tableName for all table references.
+- get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${ahrefsQueryGuidance}${redditQueryGuidance}${currencyConversionGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: Sankey queries require CTEs and window functions, so you MUST use the run_ads_query tool (not query_analytics) with raw SQL. The run_ads_query tool works for ANY raw SQL query, not just Ads. Use {dataset}.pageviews for table references. Each pageviews row has ga_session_id, event_timestamp, page_location, session_source, session_medium, and session_default_channel_group. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, prefix each layer with a unique label so every node is unique. The result columns MUST be named from_page (or from_node), to_page (or to_node), and transitions.
 
@@ -690,6 +707,7 @@ export async function POST(request: NextRequest) {
   let msAdsAccountIdFromOrg: string | null = null;
   let ahrefsDomainFromOrg: string | null = null;
   let attioOrgIdFromOrg: string | null = null;
+  let redditOrgIdFromOrg: string | null = null;
   let displayCurrency = "USD";
 
   if (body.orgId) {
@@ -736,6 +754,10 @@ export async function POST(request: NextRequest) {
     if (attioDsList.length > 0) {
       attioOrgIdFromOrg = body.orgId!;
     }
+    const redditDsList = orgDataSources.filter((ds) => ds.type === "REDDIT" && connectedStatuses.includes(ds.status));
+    if (redditDsList.length > 0) {
+      redditOrgIdFromOrg = body.orgId!;
+    }
   }
 
   if (!propertyId && !body.orgId) {
@@ -773,6 +795,7 @@ export async function POST(request: NextRequest) {
   const msAdsAccountId = body.orgId ? msAdsAccountIdFromOrg : (usesBigQuery && userId ? await getMicrosoftAdsAccountId(userId, propertyId) : null);
   const ahrefsDomain = body.orgId ? ahrefsDomainFromOrg : null;
   const attioOrgId = body.orgId ? attioOrgIdFromOrg : null;
+  const redditOrgId = body.orgId ? redditOrgIdFromOrg : null;
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
   const hasMailchimp = !!mailchimpListId;
@@ -780,8 +803,9 @@ export async function POST(request: NextRequest) {
   const hasMsAds = !!msAdsAccountId;
   const hasAhrefs = !!ahrefsDomain;
   const hasAttio = !!attioOrgId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} attio=${hasAttio} currency=${displayCurrency} reason=${rollout.reason}`);
-  let systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, hasAhrefs, displayCurrency) : GA4_SYSTEM_PROMPT;
+  const hasReddit = !!redditOrgId;
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} attio=${hasAttio} reddit=${hasReddit} currency=${displayCurrency} reason=${rollout.reason}`);
+  let systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, hasAhrefs, displayCurrency, hasReddit) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
   // Inject organization KPIs with pre-computed values into system prompt
@@ -845,6 +869,8 @@ export async function POST(request: NextRequest) {
         return (input.description as string) || "Querying Ahrefs SEO data";
       case "run_attio_query":
         return (input.description as string) || "Querying Attio CRM data";
+      case "run_reddit_query":
+        return (input.description as string) || "Querying Reddit data";
       case "run_report":
         return `Querying GA4 report`;
       case "run_realtime_report":
@@ -960,56 +986,63 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_linkedin_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] LinkedIn query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_mailchimp_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Mailchimp query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_gsc_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] GSC query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_microsoft_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Microsoft Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_ahrefs_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ahrefs query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "run_attio_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Attio query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    break;
+                  }
+                  case "run_reddit_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] Reddit query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
                     break;
                   }
                   case "get_realtime_data": {

@@ -157,6 +157,14 @@ const AHREFS_TABLES = new Map([
   ["ahrefs_site_info", "site_info"],
 ]);
 
+/** Reddit tables — prefixed with reddit_ to avoid collision.
+ *  These live in reddit_{orgId} dataset. The reddit_ prefix is stripped when routing. */
+const REDDIT_TABLES = new Map([
+  ["reddit_subreddit_stats", "subreddit_stats"],
+  ["reddit_subreddit_posts", "subreddit_posts"],
+  ["reddit_subreddit_traffic", "subreddit_traffic"],
+]);
+
 /**
  * Run a query that is automatically scoped to a specific GA4 property's
  * BigQuery dataset. The `{dataset}` placeholder in the SQL is replaced
@@ -183,7 +191,8 @@ export async function runPropertyQuery(
   gscSiteUrl?: string | null,
   msAdsAccountId?: string | null,
   ahrefsOrgId?: string | null,
-  attioOrgId?: string | null
+  attioOrgId?: string | null,
+  redditOrgId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
@@ -193,6 +202,7 @@ export async function runPropertyQuery(
   const msAdsDataset = msAdsAccountId ? `msads_${msAdsAccountId.replace(/-/g, "")}` : null;
   const ahrefsDataset = ahrefsOrgId ? `ahrefs_${ahrefsOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
   const attioDataset = attioOrgId ? `attio_${attioOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
+  const redditDataset = redditOrgId ? `reddit_${redditOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
@@ -219,6 +229,9 @@ export async function runPropertyQuery(
       }
       if (ATTIO_TABLES.has(tableName) && attioDataset) {
         return `${attioDataset}.${ATTIO_TABLES.get(tableName)}`;
+      }
+      if (REDDIT_TABLES.has(tableName) && redditDataset) {
+        return `${redditDataset}.${REDDIT_TABLES.get(tableName)}`;
       }
       if (DBT_SHARED_TABLES.has(tableName)) {
         // Shared reference tables — no property_id filter

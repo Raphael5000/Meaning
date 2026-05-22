@@ -330,6 +330,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_reddit_query",
+    description:
+      "Run a custom SQL query against Reddit community data. Use this to answer questions about subreddit stats, posts, engagement, and traffic. Use {dataset}.tableName for table references. Table names are prefixed with reddit_ to distinguish from other connectors. Reddit tables: reddit_subreddit_stats (snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description), reddit_subreddit_posts (snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied), reddit_subreddit_traffic (snapshot_date, subreddit, period_date, period_type — day, uniques, pageviews, subscriptions).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT subreddit, subscribers, active_accounts FROM `{dataset}.reddit_subreddit_stats` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM `{dataset}.reddit_subreddit_stats`)",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "get_realtime_data",
     description:
       "Get real-time analytics data showing active users in the last 30 minutes, broken down by page, country, and device. Use this when users ask about current site activity.",

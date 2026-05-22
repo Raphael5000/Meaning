@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
       hasMicrosoftAdsAccount: !!microsoftAdsAccount,
       hasAhrefsAccount: !!ahrefsAccount,
       hasAttioAccount: !!attioAccount,
+      hasRedditAccount: userId === process.env.REDDIT_ALLOWED_USER_ID && !!process.env.REDDIT_CLIENT_ID,
       dataSources: propertyDataSources,
     });
   } catch (err) {

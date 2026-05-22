@@ -44,6 +44,7 @@ interface ConnectionStatus {
   hasMicrosoftAdsAccount: boolean;
   hasAhrefsAccount: boolean;
   hasAttioAccount: boolean;
+  hasRedditAccount: boolean;
   dataSources: DataSourceInfo[];
 }
 
@@ -88,6 +89,7 @@ type SourceType =
   | "MICROSOFT_ADS"
   | "AHREFS"
   | "ATTIO"
+  | "REDDIT"
   | "META";
 
 interface SourceDef {
@@ -106,6 +108,7 @@ const SOURCES: SourceDef[] = [
   { type: "MICROSOFT_ADS", label: "Microsoft Ads", icon: "/Microsoft Ads.svg" },
   { type: "AHREFS", label: "Ahrefs", icon: "/Ahrefs.svg" },
   { type: "ATTIO", label: "Attio", icon: "/Attio.svg" },
+  { type: "REDDIT", label: "Reddit", icon: "/Reddit.svg" },
   { type: "META", label: "Meta", icon: "/Meta.svg", comingSoon: true },
 ];
 
@@ -205,6 +208,7 @@ export default function ConnectionsV2({
     if (status.hasMicrosoftAdsAccount) authedTypes.push("MICROSOFT_ADS");
     if (status.hasAhrefsAccount) authedTypes.push("AHREFS");
     if (status.hasAttioAccount) authedTypes.push("ATTIO");
+    if (status.hasRedditAccount) authedTypes.push("REDDIT");
     const toFetch = new Set<SourceType>([
       ...authedTypes,
       ...Array.from(typesWithDataSources).map((t) => t as SourceType),
@@ -311,7 +315,13 @@ function ConnectionsList({
   onClose,
 }: ConnectionsListProps) {
   const rows = React.useMemo(
-    () => buildRows(status, SOURCES, nameMap),
+    () => {
+      // Gate Reddit connector to users with hasRedditAccount
+      const visibleSources = status?.hasRedditAccount
+        ? SOURCES
+        : SOURCES.filter((s) => s.type !== "REDDIT");
+      return buildRows(status, visibleSources, nameMap);
+    },
     [status, nameMap]
   );
   const connected = rows.filter((r) => r.uiStatus !== "DISCONNECTED");
@@ -546,7 +556,8 @@ function connectUrl(type: SourceType): string {
       return "/api/auth/connect-microsoft-ads";
     case "AHREFS":
     case "ATTIO":
-      return "#"; // API key flow handled inline, no redirect
+    case "REDDIT":
+      return "#"; // API key / env-var flow handled inline, no redirect
     default:
       return "#";
   }
@@ -618,7 +629,7 @@ function Row({
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
   const isClickable =
-    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO") && !row.comingSoon;
+    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO" || row.type === "REDDIT") && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
@@ -648,7 +659,7 @@ function Row({
       </button>
     );
   } else if (!isConnected) {
-    lastCell = (row.type === "AHREFS" || row.type === "ATTIO") ? (
+    lastCell = (row.type === "AHREFS" || row.type === "ATTIO" || row.type === "REDDIT") ? (
       <button
         type="button"
         onClick={(e) => {
@@ -749,6 +760,8 @@ function isAuthedForSource(
       return status.hasAhrefsAccount;
     case "ATTIO":
       return status.hasAttioAccount;
+    case "REDDIT":
+      return status.hasRedditAccount;
     default:
       return false;
   }
@@ -919,6 +932,8 @@ function ConnectionsDetail({
         return !!status?.hasAhrefsAccount;
       case "ATTIO":
         return !!status?.hasAttioAccount;
+      case "REDDIT":
+        return !!status?.hasRedditAccount;
       default:
         return false;
     }
@@ -1312,6 +1327,8 @@ function oauthProviderFor(type: SourceType): string | null {
       return "ahrefs";
     case "ATTIO":
       return "attio";
+    case "REDDIT":
+      return "reddit";
     default:
       return null;
   }
@@ -1411,6 +1428,17 @@ function AddAccountSection({
     return (
       <AhrefsConnectForm
         isAuthed={isAuthed}
+        orgId={orgId}
+        onEnabled={onEnabled}
+        onError={onError}
+      />
+    );
+  }
+
+  // Reddit: subreddit names form (env-var auth, no OAuth)
+  if (sourceType === "REDDIT") {
+    return (
+      <RedditConnectForm
         orgId={orgId}
         onEnabled={onEnabled}
         onError={onError}
@@ -1932,6 +1960,76 @@ function AttioConnectForm({
   );
 }
 
+function RedditConnectForm({
+  orgId,
+  onEnabled,
+  onError,
+}: {
+  orgId: string | null;
+  onEnabled: () => void;
+  onError: (text: string) => void;
+}) {
+  const [subreddits, setSubreddits] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  const inputClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!subreddits.trim()) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/reddit/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subreddits: subreddits.trim(),
+          orgId: orgId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onError(data.error || "Failed to add subreddits");
+        return;
+      }
+      onEnabled();
+    } catch {
+      onError("Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[10px] border border-border bg-card px-4 py-5"
+    >
+      <p className="mb-3 text-[13px] text-muted-foreground">
+        Enter the subreddit names you moderate (comma-separated, without r/).
+        Reddit credentials are configured server-side.
+      </p>
+      <label className="mb-1 block text-[12px] font-medium text-foreground">
+        Subreddits
+      </label>
+      <input
+        type="text"
+        value={subreddits}
+        onChange={(e) => setSubreddits(e.target.value)}
+        placeholder="e.g. meaning, meaningdev"
+        className={inputClass}
+        required
+      />
+      <div className="mt-4">
+        <Button type="submit" size="sm" disabled={busy || !subreddits.trim()}>
+          {busy ? "Adding…" : "Add subreddits"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 async function fetchAccessibleAccounts(
   sourceType: SourceType
 ): Promise<PickerItem[]> {
@@ -2010,7 +2108,8 @@ async function fetchAccessibleAccounts(
     }
     case "AHREFS":
     case "ATTIO":
-      // API key auth, not an account picker — return empty
+    case "REDDIT":
+      // API key / env-var auth, not an account picker — return empty
       return [];
     default:
       return [];
@@ -2063,6 +2162,11 @@ function enableEndpoint(
       return {
         url: "/api/attio/enable-export",
         body: { workspaceId: id, orgId: orgVal },
+      };
+    case "REDDIT":
+      return {
+        url: "/api/reddit/enable-export",
+        body: { subreddits: id, orgId: orgVal },
       };
     default:
       return null;
