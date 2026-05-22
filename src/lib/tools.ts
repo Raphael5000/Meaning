@@ -330,6 +330,26 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "run_hubspot_query",
+    description:
+      "Run a custom SQL query against HubSpot CRM data. Use this to answer questions about contacts, companies, deals, pipeline, and CRM summary metrics. Use {dataset}.tableName for table references. Table names are prefixed with hubspot_ to distinguish from other connectors. HubSpot tables: hubspot_contacts (snapshot_date, contact_id, email, firstname, lastname, phone, company, lifecyclestage, created_at, last_modified), hubspot_companies (snapshot_date, company_id, name, domain, industry, num_employees, annual_revenue, city, country, created_at, last_modified), hubspot_deals (snapshot_date, deal_id, deal_name, deal_stage, pipeline, amount, close_date, owner_id, created_at, last_modified), hubspot_crm_summary (snapshot_date, total_contacts, total_companies, total_deals, open_deals, total_deal_value, closed_won_deals, closed_won_value, last_synced_at).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        sql: {
+          type: "string",
+          description:
+            "The SQL query to run. Use {dataset}.tableName for all table references. Example: SELECT total_contacts, total_deals, total_deal_value, open_deals FROM `{dataset}.hubspot_crm_summary` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM `{dataset}.hubspot_crm_summary`)",
+        },
+        description: {
+          type: "string",
+          description: "Brief description of what this query does, for logging.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  {
     name: "run_reddit_query",
     description:
       "Run a custom SQL query against Reddit community data. Use this to answer questions about subreddit stats, posts, and engagement. Use {dataset}.tableName for table references. Table names are prefixed with reddit_ to distinguish from other connectors. Reddit tables: reddit_subreddit_stats (snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description), reddit_subreddit_posts (snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied).",

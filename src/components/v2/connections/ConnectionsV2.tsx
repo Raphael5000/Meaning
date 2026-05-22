@@ -44,6 +44,7 @@ interface ConnectionStatus {
   hasMicrosoftAdsAccount: boolean;
   hasAhrefsAccount: boolean;
   hasAttioAccount: boolean;
+  hasHubSpotAccount: boolean;
   hasRedditAccount: boolean;
   dataSources: DataSourceInfo[];
 }
@@ -89,6 +90,7 @@ type SourceType =
   | "MICROSOFT_ADS"
   | "AHREFS"
   | "ATTIO"
+  | "HUBSPOT"
   | "REDDIT"
   | "META";
 
@@ -108,6 +110,7 @@ const SOURCES: SourceDef[] = [
   { type: "MICROSOFT_ADS", label: "Microsoft Ads", icon: "/Microsoft Ads.svg" },
   { type: "AHREFS", label: "Ahrefs", icon: "/Ahrefs.svg" },
   { type: "ATTIO", label: "Attio", icon: "/Attio.svg" },
+  { type: "HUBSPOT", label: "HubSpot", icon: "/HubSpot.svg" },
   { type: "REDDIT", label: "Reddit", icon: "/Reddit.svg" },
   { type: "META", label: "Meta", icon: "/Meta.svg", comingSoon: true },
 ];
@@ -208,6 +211,7 @@ export default function ConnectionsV2({
     if (status.hasMicrosoftAdsAccount) authedTypes.push("MICROSOFT_ADS");
     if (status.hasAhrefsAccount) authedTypes.push("AHREFS");
     if (status.hasAttioAccount) authedTypes.push("ATTIO");
+    if (status.hasHubSpotAccount) authedTypes.push("HUBSPOT");
     if (status.hasRedditAccount) authedTypes.push("REDDIT");
     const toFetch = new Set<SourceType>([
       ...authedTypes,
@@ -556,6 +560,7 @@ function connectUrl(type: SourceType): string {
       return "/api/auth/connect-microsoft-ads";
     case "AHREFS":
     case "ATTIO":
+    case "HUBSPOT":
     case "REDDIT":
       return "#"; // API key / env-var flow handled inline, no redirect
     default:
@@ -629,7 +634,7 @@ function Row({
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
   const isClickable =
-    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO" || row.type === "REDDIT") && !row.comingSoon;
+    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT") && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
@@ -659,7 +664,7 @@ function Row({
       </button>
     );
   } else if (!isConnected) {
-    lastCell = (row.type === "AHREFS" || row.type === "ATTIO" || row.type === "REDDIT") ? (
+    lastCell = (row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT") ? (
       <button
         type="button"
         onClick={(e) => {
@@ -760,6 +765,8 @@ function isAuthedForSource(
       return status.hasAhrefsAccount;
     case "ATTIO":
       return status.hasAttioAccount;
+    case "HUBSPOT":
+      return status.hasHubSpotAccount;
     case "REDDIT":
       return status.hasRedditAccount;
     default:
@@ -932,6 +939,8 @@ function ConnectionsDetail({
         return !!status?.hasAhrefsAccount;
       case "ATTIO":
         return !!status?.hasAttioAccount;
+      case "HUBSPOT":
+        return !!status?.hasHubSpotAccount;
       case "REDDIT":
         return !!status?.hasRedditAccount;
       default:
@@ -1327,6 +1336,8 @@ function oauthProviderFor(type: SourceType): string | null {
       return "ahrefs";
     case "ATTIO":
       return "attio";
+    case "HUBSPOT":
+      return "hubspot";
     case "REDDIT":
       return "reddit";
     default:
@@ -1439,6 +1450,18 @@ function AddAccountSection({
   if (sourceType === "REDDIT") {
     return (
       <RedditConnectForm
+        orgId={orgId}
+        onEnabled={onEnabled}
+        onError={onError}
+      />
+    );
+  }
+
+  // HubSpot: Private App token connect form (no OAuth)
+  if (sourceType === "HUBSPOT") {
+    return (
+      <HubSpotConnectForm
+        isAuthed={isAuthed}
         orgId={orgId}
         onEnabled={onEnabled}
         onError={onError}
@@ -1869,6 +1892,97 @@ function AhrefsConnectForm({
   );
 }
 
+function HubSpotConnectForm({
+  isAuthed,
+  orgId,
+  onEnabled,
+  onError,
+}: {
+  isAuthed: boolean;
+  orgId: string | null;
+  onEnabled: () => void;
+  onError: (text: string) => void;
+}) {
+  const [apiKey, setApiKey] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [keyConnected, setKeyConnected] = React.useState(isAuthed);
+
+  const inputClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // Step 1: Connect API key if not already connected
+      if (!keyConnected) {
+        if (!apiKey.trim()) { onError("Access token is required"); setBusy(false); return; }
+        const res = await fetch("/api/auth/connect-hubspot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: apiKey.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) { onError(data.error || "Invalid access token"); setBusy(false); return; }
+        setKeyConnected(true);
+      }
+
+      // Step 2: Enable export
+      const hubspotId = "default";
+      const res = await fetch("/api/hubspot/enable-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hubspotId, orgId: orgId || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) { onError(data.error || "Failed to connect"); return; }
+      onEnabled();
+    } catch {
+      onError("Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Step 1: Token input
+  if (!keyConnected) {
+    return (
+      <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          Paste your HubSpot Private App access token. Create one in{" "}
+          <a href="https://app.hubspot.com" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-2">
+            HubSpot → Settings → Integrations → Private Apps
+          </a>
+        </p>
+        <p className="mb-3 text-[12px] text-muted-foreground">
+          Required scopes: <code className="text-[11px]">crm.objects.contacts.read</code>, <code className="text-[11px]">crm.objects.companies.read</code>, <code className="text-[11px]">crm.objects.deals.read</code>
+        </p>
+        <label className="mb-1 block text-[12px] font-medium text-foreground">Access Token</label>
+        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your HubSpot Private App token" className={inputClass} required />
+        <div className="mt-4">
+          <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
+            {busy ? "Validating…" : "Connect"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  // Step 2: Confirm and enable
+  return (
+    <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
+      <p className="mb-3 text-[13px] text-muted-foreground">
+        HubSpot account connected. Click below to start syncing your CRM data.
+      </p>
+      <div className="mt-4">
+        <Button type="submit" size="sm" disabled={busy}>
+          {busy ? "Connecting…" : "Start sync"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function AttioConnectForm({
   isAuthed,
   orgId,
@@ -2108,6 +2222,7 @@ async function fetchAccessibleAccounts(
     }
     case "AHREFS":
     case "ATTIO":
+    case "HUBSPOT":
     case "REDDIT":
       // API key / env-var auth, not an account picker — return empty
       return [];
@@ -2162,6 +2277,11 @@ function enableEndpoint(
       return {
         url: "/api/attio/enable-export",
         body: { workspaceId: id, orgId: orgVal },
+      };
+    case "HUBSPOT":
+      return {
+        url: "/api/hubspot/enable-export",
+        body: { hubspotId: id, orgId: orgVal },
       };
     case "REDDIT":
       return {

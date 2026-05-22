@@ -436,6 +436,7 @@ You have access to these tools:
 - run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
 - run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaign performance, keywords, search queries, spend). Use {dataset}.tableName for all table references.
 - run_ahrefs_query: Query Ahrefs SEO data (domain rating, organic keywords, backlinks, top pages, referring domains). Use {dataset}.tableName for all table references.
+- run_hubspot_query: Query HubSpot CRM data (contacts, companies, deals, pipeline, CRM summary). Use {dataset}.tableName for all table references.
 - run_reddit_query: Query Reddit community data (subreddit stats, posts, engagement). Use {dataset}.tableName for all table references.
 - get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${ahrefsQueryGuidance}${redditQueryGuidance}${currencyConversionGuidance}
 
@@ -705,6 +706,7 @@ export async function POST(request: NextRequest) {
   let msAdsAccountIdFromOrg: string | null = null;
   let ahrefsDomainFromOrg: string | null = null;
   let attioOrgIdFromOrg: string | null = null;
+  let hubspotOrgIdFromOrg: string | null = null;
   let redditOrgIdFromOrg: string | null = null;
   let displayCurrency = "USD";
 
@@ -752,6 +754,10 @@ export async function POST(request: NextRequest) {
     if (attioDsList.length > 0) {
       attioOrgIdFromOrg = body.orgId!;
     }
+    const hubspotDsList = orgDataSources.filter((ds) => ds.type === "HUBSPOT" && connectedStatuses.includes(ds.status));
+    if (hubspotDsList.length > 0) {
+      hubspotOrgIdFromOrg = body.orgId!;
+    }
     const redditDsList = orgDataSources.filter((ds) => ds.type === "REDDIT" && connectedStatuses.includes(ds.status));
     if (redditDsList.length > 0) {
       redditOrgIdFromOrg = body.orgId!;
@@ -793,6 +799,7 @@ export async function POST(request: NextRequest) {
   const msAdsAccountId = body.orgId ? msAdsAccountIdFromOrg : (usesBigQuery && userId ? await getMicrosoftAdsAccountId(userId, propertyId) : null);
   const ahrefsDomain = body.orgId ? ahrefsDomainFromOrg : null;
   const attioOrgId = body.orgId ? attioOrgIdFromOrg : null;
+  const hubspotOrgId = body.orgId ? hubspotOrgIdFromOrg : null;
   const redditOrgId = body.orgId ? redditOrgIdFromOrg : null;
   const hasAds = !!adsCustomerId;
   const hasLinkedIn = !!linkedInOrgId;
@@ -801,8 +808,9 @@ export async function POST(request: NextRequest) {
   const hasMsAds = !!msAdsAccountId;
   const hasAhrefs = !!ahrefsDomain;
   const hasAttio = !!attioOrgId;
+  const hasHubSpot = !!hubspotOrgId;
   const hasReddit = !!redditOrgId;
-  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} attio=${hasAttio} reddit=${hasReddit} currency=${displayCurrency} reason=${rollout.reason}`);
+  console.log(`[chat] property=${propertyId} user=${userId} path=${usesBigQuery ? "bigquery" : "ga4"} ads=${hasAds} msads=${hasMsAds} linkedin=${hasLinkedIn} mailchimp=${hasMailchimp} gsc=${hasGsc} ahrefs=${hasAhrefs} attio=${hasAttio} hubspot=${hasHubSpot} reddit=${hasReddit} currency=${displayCurrency} reason=${rollout.reason}`);
   let systemPrompt = usesBigQuery ? getBigQuerySystemPrompt(hasAds, hasLinkedIn, hasMailchimp, hasGsc, hasMsAds, hasAhrefs, displayCurrency, hasReddit) : GA4_SYSTEM_PROMPT;
   const tools = usesBigQuery ? BIGQUERY_TOOLS : GA4_TOOLS;
 
@@ -867,6 +875,8 @@ export async function POST(request: NextRequest) {
         return (input.description as string) || "Querying Ahrefs SEO data";
       case "run_attio_query":
         return (input.description as string) || "Querying Attio CRM data";
+      case "run_hubspot_query":
+        return (input.description as string) || "Querying HubSpot CRM data";
       case "run_reddit_query":
         return (input.description as string) || "Querying Reddit data";
       case "run_report":
@@ -984,63 +994,70 @@ export async function POST(request: NextRequest) {
                     const { sql, params } = buildAnalyticsSQL(input);
                     console.log("[BigQuery] Tool input:", JSON.stringify(input));
                     console.log("[BigQuery] Generated SQL:", sql);
-                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_linkedin_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] LinkedIn query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_mailchimp_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Mailchimp query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_gsc_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] GSC query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_microsoft_ads_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Microsoft Ads query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_ahrefs_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Ahrefs query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_attio_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Attio query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
+                    break;
+                  }
+                  case "run_hubspot_query": {
+                    const input = toolUse.input as { sql: string; description?: string };
+                    console.log("[BigQuery] HubSpot query:", input.description || "custom");
+                    console.log("[BigQuery] Raw SQL:", input.sql);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "run_reddit_query": {
                     const input = toolUse.input as { sql: string; description?: string };
                     console.log("[BigQuery] Reddit query:", input.description || "custom");
                     console.log("[BigQuery] Raw SQL:", input.sql);
-                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId);
+                    result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsDomain, attioOrgId, redditOrgId, hubspotOrgId);
                     break;
                   }
                   case "get_realtime_data": {

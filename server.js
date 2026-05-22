@@ -53,7 +53,8 @@ function startCronJobs() {
   setTimeout(() => callLocal("/api/gsc/sync"), 150 * 1000);
   setTimeout(() => callLocal("/api/ahrefs/sync"), 180 * 1000);
   setTimeout(() => callLocal("/api/attio/sync"), 210 * 1000);
-  setTimeout(() => callLocal("/api/reddit/sync"), 240 * 1000);
+  setTimeout(() => callLocal("/api/hubspot/sync"), 240 * 1000);
+  setTimeout(() => callLocal("/api/reddit/sync"), 270 * 1000);
 
   // Exchange rates: sync on startup + daily (must run before data syncs)
   setTimeout(() => callLocal("/api/exchange-rates/sync"), 10 * 1000);
@@ -69,6 +70,7 @@ function startCronJobs() {
       callLocal("/api/microsoft-ads/sync");
       callLocal("/api/ahrefs/sync");
       callLocal("/api/attio/sync");
+      callLocal("/api/hubspot/sync");
       callLocal("/api/reddit/sync");
     }
   }, 60 * 60 * 1000);
@@ -91,6 +93,7 @@ function startCronJobs() {
       callLocal("/api/microsoft-ads/sync");
       callLocal("/api/ahrefs/sync");
       callLocal("/api/attio/sync");
+      callLocal("/api/hubspot/sync");
       callLocal("/api/reddit/sync");
     }
   }, 60 * 60 * 1000);

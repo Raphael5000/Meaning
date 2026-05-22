@@ -145,6 +145,13 @@ const ATTIO_TABLES = new Map([
   ["attio_workspace_summary", "workspace_summary"],
 ]);
 
+const HUBSPOT_TABLES = new Map([
+  ["hubspot_contacts", "contacts"],
+  ["hubspot_companies", "companies"],
+  ["hubspot_deals", "deals"],
+  ["hubspot_crm_summary", "crm_summary"],
+]);
+
 const AHREFS_TABLES = new Map([
   ["ahrefs_site_metrics", "site_metrics"],
   ["ahrefs_domain_rating", "domain_rating"],
@@ -191,7 +198,8 @@ export async function runPropertyQuery(
   msAdsAccountId?: string | null,
   ahrefsOrgId?: string | null,
   attioOrgId?: string | null,
-  redditOrgId?: string | null
+  redditOrgId?: string | null,
+  hubspotOrgId?: string | null
 ): Promise<QueryResult> {
   const rawDataset = `analytics_${propertyId}`;
   const adsDataset = adsCustomerId ? `ads_${adsCustomerId}` : null;
@@ -202,6 +210,7 @@ export async function runPropertyQuery(
   const ahrefsDataset = ahrefsOrgId ? `ahrefs_${ahrefsOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
   const attioDataset = attioOrgId ? `attio_${attioOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
   const redditDataset = redditOrgId ? `reddit_${redditOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
+  const hubspotDataset = hubspotOrgId ? `hubspot_${hubspotOrgId.replace(/[^a-zA-Z0-9]/g, "")}` : null;
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
@@ -228,6 +237,9 @@ export async function runPropertyQuery(
       }
       if (ATTIO_TABLES.has(tableName) && attioDataset) {
         return `${attioDataset}.${ATTIO_TABLES.get(tableName)}`;
+      }
+      if (HUBSPOT_TABLES.has(tableName) && hubspotDataset) {
+        return `${hubspotDataset}.${HUBSPOT_TABLES.get(tableName)}`;
       }
       if (REDDIT_TABLES.has(tableName) && redditDataset) {
         return `${redditDataset}.${REDDIT_TABLES.get(tableName)}`;
