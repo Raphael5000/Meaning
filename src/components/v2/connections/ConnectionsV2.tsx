@@ -275,7 +275,7 @@ export default function ConnectionsV2({
         orgId={orgId ?? null}
         sourceType={view.sourceType}
         nameMap={nameMap}
-        onBack={() => setView({ kind: "list" })}
+        onBack={() => { fetchStatus(true); setView({ kind: "list" }); }}
         onRefresh={() => fetchStatus(true)}
         onMessage={dispatchMessage}
       />
