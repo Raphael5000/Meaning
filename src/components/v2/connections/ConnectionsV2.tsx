@@ -1906,6 +1906,7 @@ function HubSpotConnectForm({
   const [apiKey, setApiKey] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [keyConnected, setKeyConnected] = React.useState(isAuthed);
+  const [done, setDone] = React.useState(false);
 
   const inputClass =
     "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
@@ -1936,12 +1937,26 @@ function HubSpotConnectForm({
       });
       const data = await res.json();
       if (!res.ok) { onError(data.error || "Failed to connect"); return; }
+      setDone(true);
       onEnabled();
     } catch {
       onError("Something went wrong");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-[10px] border border-border bg-card px-4 py-5">
+        <p className="text-[13px] text-foreground font-medium">
+          Connected! Syncing your HubSpot CRM data now.
+        </p>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Contacts, companies, and deals will appear shortly.
+        </p>
+      </div>
+    );
   }
 
   // Step 1: Token input
@@ -1998,6 +2013,7 @@ function AttioConnectForm({
   const [busy, setBusy] = React.useState(false);
   const [keyConnected, setKeyConnected] = React.useState(isAuthed);
   const [workspaceName, setWorkspaceName] = React.useState("");
+  const [done, setDone] = React.useState(false);
 
   const inputClass =
     "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
@@ -2028,12 +2044,26 @@ function AttioConnectForm({
       });
       const data = await res.json();
       if (!res.ok) { onError(data.error || "Failed to connect"); return; }
+      setDone(true);
       onEnabled();
     } catch {
       onError("Something went wrong");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-[10px] border border-border bg-card px-4 py-5">
+        <p className="text-[13px] text-foreground font-medium">
+          Connected! Syncing your Attio workspace data now.
+        </p>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          People, companies, deals, tasks, and notes will appear shortly.
+        </p>
+      </div>
+    );
   }
 
   // Step 1: API key input
@@ -2085,6 +2115,7 @@ function RedditConnectForm({
 }) {
   const [subreddits, setSubreddits] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [done, setDone] = React.useState(false);
 
   const inputClass =
     "w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
@@ -2107,12 +2138,26 @@ function RedditConnectForm({
         onError(data.error || "Failed to add subreddits");
         return;
       }
+      setDone(true);
       onEnabled();
     } catch {
       onError("Something went wrong");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-[10px] border border-border bg-card px-4 py-5">
+        <p className="text-[13px] text-foreground font-medium">
+          Connected! Syncing data for r/{subreddits.trim()} now.
+        </p>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          This usually takes a few seconds. The status will update automatically.
+        </p>
+      </div>
+    );
   }
 
   return (
