@@ -165,9 +165,10 @@ export default function ConnectionsV2({
   const fetchStatus = React.useCallback(
     (silent = false) => {
       if (!silent) setLoading(true);
-      const url = orgId
+      const base = orgId
         ? `/api/user/connections?orgId=${orgId}`
         : "/api/user/connections";
+      const url = `${base}${base.includes("?") ? "&" : "?"}_t=${Date.now()}`;
       fetch(url)
         .then((r) => r.json())
         .then((data) => setStatus(data))
