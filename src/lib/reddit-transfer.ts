@@ -85,24 +85,11 @@ const TABLE_SCHEMAS: Record<
       { name: "is_stickied", type: "BOOLEAN" },
     ],
   },
-  subreddit_traffic: {
-    partition: "snapshot_date",
-    fields: [
-      { name: "snapshot_date", type: "DATE" },
-      { name: "subreddit", type: "STRING" },
-      { name: "period_date", type: "DATE" },
-      { name: "period_type", type: "STRING" },
-      { name: "uniques", type: "INT64" },
-      { name: "pageviews", type: "INT64" },
-      { name: "subscriptions", type: "INT64" },
-    ],
-  },
 };
 
 export const REDDIT_KEY_COLUMNS: Record<string, string[]> = {
   subreddit_stats: ["snapshot_date", "subreddit"],
   subreddit_posts: ["snapshot_date", "post_id"],
-  subreddit_traffic: ["snapshot_date", "subreddit", "period_date", "period_type"],
 };
 
 // ---------------------------------------------------------------------------
@@ -135,59 +122,21 @@ export async function ensureRedditTables(datasetId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Reddit API helpers
+// Reddit public JSON helpers (no auth required)
 // ---------------------------------------------------------------------------
 
-const REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
-const REDDIT_API_BASE = "https://oauth.reddit.com";
-const USER_AGENT = "meaning:v1.0.0 (by /u/meaningbot)";
+const REDDIT_BASE = "https://www.reddit.com";
+const USER_AGENT = "meaning:v1.0.0 (server-side analytics sync)";
 
-async function getRedditToken(): Promise<string> {
-  const clientId = process.env.REDDIT_CLIENT_ID;
-  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
-  const username = process.env.REDDIT_USERNAME;
-  const password = process.env.REDDIT_PASSWORD;
-
-  if (!clientId || !clientSecret || !username || !password) {
-    throw new Error("Reddit env vars not configured (REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD)");
-  }
-
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
-  const res = await fetch(REDDIT_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basicAuth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": USER_AGENT,
-    },
-    body: `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+async function redditPublicGet(path: string): Promise<unknown> {
+  const url = `${REDDIT_BASE}${path}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT },
   });
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Reddit token request failed ${res.status}: ${body}`);
-  }
-
-  const data = (await res.json()) as { access_token?: string };
-  if (!data.access_token) {
-    throw new Error("Reddit token response missing access_token");
-  }
-
-  return data.access_token;
-}
-
-async function redditGet(token: string, path: string): Promise<unknown> {
-  const res = await fetch(`${REDDIT_API_BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "User-Agent": USER_AGENT,
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Reddit API error ${res.status} on ${path}: ${body}`);
+    throw new Error(`Reddit public JSON error ${res.status} on ${path}: ${body.slice(0, 200)}`);
   }
 
   return res.json();
@@ -200,7 +149,6 @@ async function redditGet(token: string, path: string): Promise<unknown> {
 export interface RedditSyncResult {
   statsRows: number;
   postsRows: number;
-  trafficRows: number;
 }
 
 export async function syncRedditData(
@@ -217,12 +165,10 @@ export async function syncRedditData(
   await ensureDataset(datasetId);
   await ensureRedditTables(datasetId);
 
-  const token = await getRedditToken();
-
   // ── 1. Subreddit stats ──
   let statsRows: Record<string, unknown>[] = [];
   try {
-    const data = (await redditGet(token, `/r/${subreddit}/about`)) as {
+    const data = (await redditPublicGet(`/r/${subreddit}/about.json`)) as {
       data?: Record<string, unknown>;
     };
     const d = data?.data;
@@ -256,8 +202,8 @@ export async function syncRedditData(
     const allPosts: Record<string, unknown>[] = [];
 
     for (const listing of ["hot", "top"]) {
-      const params = listing === "top" ? "?t=day&limit=100" : "?limit=100";
-      const data = (await redditGet(token, `/r/${subreddit}/${listing}${params}`)) as {
+      const params = listing === "top" ? "?t=day&limit=100&raw_json=1" : "?limit=100&raw_json=1";
+      const data = (await redditPublicGet(`/r/${subreddit}/${listing}.json${params}`)) as {
         data?: { children?: Array<{ data: Record<string, unknown> }> };
       };
       for (const child of data?.data?.children ?? []) {
@@ -293,33 +239,8 @@ export async function syncRedditData(
     console.warn(`[reddit-sync] Posts fetch failed (non-fatal):`, (err as Error).message);
   }
 
-  // ── 3. Traffic (mod-only endpoint) ──
-  let trafficRows: Record<string, unknown>[] = [];
-  try {
-    const data = (await redditGet(token, `/r/${subreddit}/about/traffic`)) as {
-      day?: Array<[number, number, number, number]>;
-    };
-
-    // day entries: [timestamp, uniques, pageviews, subscriptions]
-    for (const entry of data?.day ?? []) {
-      const [ts, uniques, pageviews, subscriptions] = entry;
-      const periodDate = new Date(ts * 1000).toISOString().split("T")[0];
-      trafficRows.push({
-        snapshot_date: today,
-        subreddit,
-        period_date: periodDate,
-        period_type: "day",
-        uniques: uniques ?? 0,
-        pageviews: pageviews ?? 0,
-        subscriptions: subscriptions ?? 0,
-      });
-    }
-  } catch (err) {
-    console.warn(`[reddit-sync] Traffic fetch failed (non-fatal, may need mod access):`, (err as Error).message);
-  }
-
   console.log(
-    `[reddit-sync] Fetched: ${statsRows.length} stats, ${postsRows.length} posts, ${trafficRows.length} traffic entries`
+    `[reddit-sync] Fetched: ${statsRows.length} stats, ${postsRows.length} posts`
   );
 
   // ── Write to BigQuery ──
@@ -343,14 +264,6 @@ export async function syncRedditData(
     );
     if (ok) insertTasks.push(dataset.table("subreddit_posts").insert(postsRows));
   }
-  if (trafficRows.length > 0) {
-    const ok = await safeDelete(
-      bq,
-      `DELETE FROM ${fqDataset}.subreddit_traffic WHERE snapshot_date = '${today}' AND subreddit = '${subreddit}'`,
-      "reddit-sync"
-    );
-    if (ok) insertTasks.push(dataset.table("subreddit_traffic").insert(trafficRows));
-  }
 
   await Promise.all(insertTasks);
 
@@ -358,17 +271,15 @@ export async function syncRedditData(
   return {
     statsRows: statsRows.length,
     postsRows: postsRows.length,
-    trafficRows: trafficRows.length,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Validate Reddit credentials by testing a subreddit about endpoint
+// Validate a subreddit exists via public JSON
 // ---------------------------------------------------------------------------
 
 export async function validateRedditSubreddit(subreddit: string): Promise<boolean> {
-  const token = await getRedditToken();
-  const data = (await redditGet(token, `/r/${subreddit}/about`)) as {
+  const data = (await redditPublicGet(`/r/${subreddit}/about.json`)) as {
     data?: { display_name?: string };
   };
   return !!data?.data?.display_name;

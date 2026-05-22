@@ -12,6 +12,7 @@ const ALLOWED_USER_ID = process.env.REDDIT_ALLOWED_USER_ID;
  * POST /api/reddit/enable-export
  *
  * Creates DataSource entries for Reddit subreddits and triggers backfill.
+ * Uses Reddit's public JSON endpoints — no API credentials needed.
  * Body: { subreddits: string, orgId?: string }
  *   subreddits is a comma-separated list of subreddit names (without r/)
  */
@@ -25,11 +26,6 @@ export async function POST(req: NextRequest) {
 
   if (ALLOWED_USER_ID && userId !== ALLOWED_USER_ID) {
     return NextResponse.json({ error: "Reddit connector is not available for your account" }, { status: 403 });
-  }
-
-  // Check Reddit env vars are configured
-  if (!process.env.REDDIT_CLIENT_ID || !process.env.REDDIT_CLIENT_SECRET) {
-    return NextResponse.json({ error: "Reddit credentials not configured on server" }, { status: 500 });
   }
 
   let body: { subreddits?: string; orgId?: string };

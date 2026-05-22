@@ -268,8 +268,7 @@ function getBigQuerySystemPrompt(includeAds = false, includeLinkedIn = false, in
 
   const redditTablesPrompt = includeReddit ? `
   - reddit_subreddit_stats: Daily subreddit snapshot — snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description
-  - reddit_subreddit_posts: Daily hot/top posts snapshot — snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied
-  - reddit_subreddit_traffic: Daily traffic stats (mod-only) — snapshot_date, subreddit, period_date, period_type (day), uniques, pageviews, subscriptions` : "";
+  - reddit_subreddit_posts: Daily hot/top posts snapshot — snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied` : "";
 
   const msAdsTablesPrompt = includeMsAds ? `
   - msads_campaign_performance: Daily Bing campaign metrics — stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost (currency units), conversions, conversions_value, revenue
@@ -384,11 +383,10 @@ AHREFS QUERIES:
 
 REDDIT QUERIES:
 - Use the run_reddit_query tool for all Reddit community/subreddit questions.
-- Table names are prefixed with reddit_: reddit_subreddit_stats, reddit_subreddit_posts, reddit_subreddit_traffic.
+- Table names are prefixed with reddit_: reddit_subreddit_stats, reddit_subreddit_posts.
 - Reddit data is daily snapshots. Use the latest snapshot: WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_stats\`).
 - For "how many subscribers": SELECT subreddit, subscribers, active_accounts FROM \`{dataset}.reddit_subreddit_stats\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_stats\`).
 - For "top posts": SELECT title, score, num_comments, upvote_ratio FROM \`{dataset}.reddit_subreddit_posts\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_posts\`) ORDER BY score DESC LIMIT 20.
-- For "traffic trends": SELECT period_date, uniques, pageviews FROM \`{dataset}.reddit_subreddit_traffic\` WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM \`{dataset}.reddit_subreddit_traffic\`) ORDER BY period_date DESC.
 - Always use {dataset}.tableName format — the system routes Reddit tables to the correct dataset automatically.` : "";
 
   const adsQueryGuidance = includeAds ? `
@@ -438,7 +436,7 @@ You have access to these tools:
 - run_gsc_query: Query Google Search Console data (search queries, impressions, clicks, CTR, position). Use {dataset}.tableName for all table references.
 - run_microsoft_ads_query: Query Microsoft/Bing Ads data (campaign performance, keywords, search queries, spend). Use {dataset}.tableName for all table references.
 - run_ahrefs_query: Query Ahrefs SEO data (domain rating, organic keywords, backlinks, top pages, referring domains). Use {dataset}.tableName for all table references.
-- run_reddit_query: Query Reddit community data (subreddit stats, posts, engagement, traffic). Use {dataset}.tableName for all table references.
+- run_reddit_query: Query Reddit community data (subreddit stats, posts, engagement). Use {dataset}.tableName for all table references.
 - get_available_fields: Discover available tables and columns in the dataset.${adsQueryGuidance}${msAdsQueryGuidance}${linkedInQueryGuidance}${mailchimpQueryGuidance}${gscQueryGuidance}${ahrefsQueryGuidance}${redditQueryGuidance}${currencyConversionGuidance}
 
 USER FLOW / SANKEY DIAGRAMS: Sankey queries require CTEs and window functions, so you MUST use the run_ads_query tool (not query_analytics) with raw SQL. The run_ads_query tool works for ANY raw SQL query, not just Ads. Use {dataset}.pageviews for table references. Each pageviews row has ga_session_id, event_timestamp, page_location, session_source, session_medium, and session_default_channel_group. CRITICAL: Sankey diagrams are DAGs and cannot have cycles. Users often revisit pages (A→B→A), which creates cycles. To fix this, prefix each layer with a unique label so every node is unique. The result columns MUST be named from_page (or from_node), to_page (or to_node), and transitions.

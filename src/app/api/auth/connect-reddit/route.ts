@@ -10,8 +10,8 @@ const ALLOWED_USER_ID = process.env.REDDIT_ALLOWED_USER_ID;
 /**
  * POST /api/auth/connect-reddit
  *
- * Validates that Reddit env-var credentials work by making a test API call.
- * Body: { subreddit?: string } — optional subreddit to validate
+ * Validates a subreddit exists via Reddit's public JSON endpoint.
+ * Body: { subreddit?: string }
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -25,19 +25,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Reddit connector is not available for your account" }, { status: 403 });
   }
 
-  if (!process.env.REDDIT_CLIENT_ID || !process.env.REDDIT_CLIENT_SECRET ||
-      !process.env.REDDIT_USERNAME || !process.env.REDDIT_PASSWORD) {
-    return NextResponse.json(
-      { error: "Reddit credentials not configured on server" },
-      { status: 500 }
-    );
-  }
-
   let body: { subreddit?: string } = {};
   try {
     body = await req.json();
   } catch {
-    // No body is fine — just validate credentials
+    // No body is fine — just validate connectivity
   }
 
   try {
@@ -47,7 +39,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[connect-reddit] Validation failed:", err);
     return NextResponse.json(
-      { error: "Failed to authenticate with Reddit. Check server credentials." },
+      { error: "Failed to reach Reddit. The subreddit may not exist." },
       { status: 400 }
     );
   }

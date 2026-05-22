@@ -162,7 +162,6 @@ const AHREFS_TABLES = new Map([
 const REDDIT_TABLES = new Map([
   ["reddit_subreddit_stats", "subreddit_stats"],
   ["reddit_subreddit_posts", "subreddit_posts"],
-  ["reddit_subreddit_traffic", "subreddit_traffic"],
 ]);
 
 /**

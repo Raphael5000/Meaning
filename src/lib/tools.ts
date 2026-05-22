@@ -332,7 +332,7 @@ export const BIGQUERY_TOOLS: Anthropic.Tool[] = [
   {
     name: "run_reddit_query",
     description:
-      "Run a custom SQL query against Reddit community data. Use this to answer questions about subreddit stats, posts, engagement, and traffic. Use {dataset}.tableName for table references. Table names are prefixed with reddit_ to distinguish from other connectors. Reddit tables: reddit_subreddit_stats (snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description), reddit_subreddit_posts (snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied), reddit_subreddit_traffic (snapshot_date, subreddit, period_date, period_type — day, uniques, pageviews, subscriptions).",
+      "Run a custom SQL query against Reddit community data. Use this to answer questions about subreddit stats, posts, and engagement. Use {dataset}.tableName for table references. Table names are prefixed with reddit_ to distinguish from other connectors. Reddit tables: reddit_subreddit_stats (snapshot_date, subreddit, subscribers, active_accounts, created_utc, description, public_description), reddit_subreddit_posts (snapshot_date, subreddit, post_id, title, author, score, upvote_ratio, num_comments, created_utc, url, selftext_preview, link_flair_text, is_stickied).",
     input_schema: {
       type: "object" as const,
       properties: {
