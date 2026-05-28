@@ -382,7 +382,19 @@ export async function POST(
         const entryLines = m.entries.map((e) => `${e.period}: ${e.value}${e.note ? ` (${e.note})` : ""}`);
         return `- ${m.name} (id: ${m.id}, format: ${m.displayFormat}): ${entryLines.join(", ")}`;
       });
-      systemPrompt += `\n\nMANUAL METRICS (user-entered data, stored in PostgreSQL not BigQuery):\n${lines.join("\n")}\n\nFor charts using manual metric data, use the query_manual_metrics tool to fetch structured data. Pass the metric IDs you need. The tool returns rows with period and value columns per metric. Build the chart from this data — do NOT try to query BigQuery for manual metrics.`;
+      systemPrompt += `\n\nMANUAL METRICS (user-entered data, stored in PostgreSQL not BigQuery):
+${lines.join("\n")}
+
+To chart manual metrics, call the query_manual_metrics tool with the metric IDs. It returns WIDE-FORMAT rows like:
+  {"month": "Jan 2026", "Meta Leads": 10, "Website Leads": 5}
+The first column (month) is the x-axis dimension. Each metric is a separate column.
+
+CRITICAL for manual metric charts:
+- Do NOT embed data in the chart JSON. The system auto-populates from query results.
+- Output a chart config with EMPTY series data arrays — one series per metric, matching the column names.
+- Example for 2 metrics: [[chart]]{"title":{"text":"Leads by Source"},"series":[{"name":"Meta Leads","type":"bar","data":[]},{"name":"Website Leads","type":"bar","data":[]}]}[[/chart]]
+- Do NOT create a series per month. Create one series per METRIC.
+- Do NOT query BigQuery for manual metrics — they don't exist there.`;
     }
 
     // Build tools list — add manual metrics tool if needed
