@@ -259,7 +259,10 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
             || kpiName.includes(seriesName) || seriesName.includes(kpiName)) return true;
           const kpiTokens = expandWithSynonyms(tokenize(kpi.name));
           const overlap = kpiTokens.filter((t) => widgetTokens.some((w) => w.includes(t) || t.includes(w)));
-          return overlap.length >= 1;
+          // Require majority overlap to avoid false matches
+          // e.g. "website leads" should NOT match "monthly website visits" (1 of 2 tokens)
+          const minTokens = Math.min(kpiTokens.length, widgetTokens.length);
+          return minTokens > 0 && overlap.length >= Math.max(2, Math.ceil(minTokens * 0.6));
         });
         if (match) {
           // Normalize target to chart granularity
