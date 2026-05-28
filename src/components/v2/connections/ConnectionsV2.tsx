@@ -462,7 +462,7 @@ function ConnectionsList({
 
             {/* Manual data section */}
             <div className="mt-8">
-              <ManualMetrics orgId={orgId} />
+              <ManualMetrics orgId={orgId} currencyCode={displayCurrency} />
             </div>
           </>
         )}

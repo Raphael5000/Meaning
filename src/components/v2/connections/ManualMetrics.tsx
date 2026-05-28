@@ -45,12 +45,21 @@ function formatPeriodLabel(period: string): string {
   return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
 }
 
-function formatVal(value: number, displayFormat: string): string {
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", ZAR: "R", AUD: "A$", CAD: "C$", JPY: "¥",
+  CHF: "CHF ", INR: "₹", BRL: "R$", NZD: "NZ$", SEK: "kr ", NOK: "kr ",
+  MXN: "$", SGD: "S$", HKD: "HK$", KRW: "₩", TRY: "₺", ILS: "₪",
+  AED: "AED ", NGN: "₦", PHP: "₱", THB: "฿", CNY: "¥",
+};
+
+function formatVal(value: number, displayFormat: string, currencyCode = "USD"): string {
   switch (displayFormat) {
     case "percentage":
       return `${(value * 100).toFixed(1)}%`;
-    case "currency":
-      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    case "currency": {
+      const sym = CURRENCY_SYMBOLS[currencyCode] || currencyCode + " ";
+      return `${sym}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
     default:
       return value.toLocaleString();
   }
@@ -60,9 +69,10 @@ function formatVal(value: number, displayFormat: string): string {
 
 interface ManualMetricsProps {
   orgId: string | null;
+  currencyCode?: string;
 }
 
-export default function ManualMetrics({ orgId }: ManualMetricsProps) {
+export default function ManualMetrics({ orgId, currencyCode = "USD" }: ManualMetricsProps) {
   const [metrics, setMetrics] = React.useState<ManualMetric[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -144,6 +154,7 @@ export default function ManualMetrics({ orgId }: ManualMetricsProps) {
     return (
       <MetricDetail
         metric={activeMetric}
+        currencyCode={currencyCode}
         onBack={() => setActiveMetric(null)}
         onSaveEntry={(period, value, note) => saveEntry(activeMetric.id, period, value, note)}
         onDeleteEntry={(period) => deleteEntry(activeMetric.id, period)}
@@ -215,7 +226,7 @@ export default function ManualMetrics({ orgId }: ManualMetricsProps) {
                   </div>
                   <div className="mt-0.5 text-[12px] text-muted-foreground">
                     {latest
-                      ? `${formatPeriodLabel(latest.period)}: ${formatVal(latest.value, metric.displayFormat)}`
+                      ? `${formatPeriodLabel(latest.period)}: ${formatVal(latest.value, metric.displayFormat, currencyCode)}`
                       : "No entries yet"}
                     {metric.entries.length > 1 && ` · ${metric.entries.length} entries`}
                   </div>
@@ -253,12 +264,13 @@ export default function ManualMetrics({ orgId }: ManualMetricsProps) {
 
 interface MetricDetailProps {
   metric: ManualMetric;
+  currencyCode: string;
   onBack: () => void;
   onSaveEntry: (period: string, value: number, note?: string) => Promise<void>;
   onDeleteEntry: (period: string) => Promise<void>;
 }
 
-function MetricDetail({ metric, onBack, onSaveEntry, onDeleteEntry }: MetricDetailProps) {
+function MetricDetail({ metric, currencyCode, onBack, onSaveEntry, onDeleteEntry }: MetricDetailProps) {
   const [period, setPeriod] = React.useState(getCurrentPeriod());
   const [value, setValue] = React.useState("");
   const [note, setNote] = React.useState("");
@@ -362,7 +374,7 @@ function MetricDetail({ metric, onBack, onSaveEntry, onDeleteEntry }: MetricDeta
                       {formatPeriodLabel(entry.period)}
                     </td>
                     <td className="px-3 py-1.5 text-right font-medium text-foreground">
-                      {formatVal(entry.value, metric.displayFormat)}
+                      {formatVal(entry.value, metric.displayFormat, currencyCode)}
                     </td>
                     <td className="px-3 py-1.5 text-muted-foreground">
                       {entry.note || "—"}
@@ -451,7 +463,7 @@ function CreateMetricDialog({ open, onOpenChange, onCreate }: CreateMetricDialog
                     }`}
                     onClick={() => setDisplayFormat(fmt)}
                   >
-                    {fmt === "currency" ? "Dollar" : fmt}
+                    {fmt === "currency" ? "Currency" : fmt}
                   </button>
                 ))}
               </div>
