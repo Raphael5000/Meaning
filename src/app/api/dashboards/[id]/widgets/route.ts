@@ -385,16 +385,15 @@ export async function POST(
       systemPrompt += `\n\nMANUAL METRICS (user-entered data, stored in PostgreSQL not BigQuery):
 ${lines.join("\n")}
 
-To chart manual metrics, call the query_manual_metrics tool with the metric IDs. It returns WIDE-FORMAT rows like:
-  {"month": "Jan 2026", "Meta Leads": 10, "Website Leads": 5}
-The first column (month) is the x-axis dimension. Each metric is a separate column.
+To use manual metrics in widgets:
+1. Call query_manual_metrics with the relevant metric IDs (and optional year filter).
+2. The tool returns rows like: {"month": "Jan 2026", "Meta Leads": 10, "Website Leads": 5}
+3. IMPORTANT: For manual metric charts, you MUST embed the actual data directly in the ECharts config — the auto-population system only works for BigQuery results.
+4. Look at the data returned, think about what the user is asking, and build a complete ECharts config with the data filled in.
+5. Do NOT query BigQuery for manual metrics — they only exist in PostgreSQL.
 
-CRITICAL for manual metric charts:
-- Do NOT embed data in the chart JSON. The system auto-populates from query results.
-- Output a chart config with EMPTY series data arrays — one series per metric, matching the column names.
-- Example for 2 metrics: [[chart]]{"title":{"text":"Leads by Source"},"series":[{"name":"Meta Leads","type":"bar","data":[]},{"name":"Website Leads","type":"bar","data":[]}]}[[/chart]]
-- Do NOT create a series per month. Create one series per METRIC.
-- Do NOT query BigQuery for manual metrics — they don't exist there.`;
+Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026","Leads":8}], output:
+[[chart]]{"title":{"text":"Monthly Leads"},"xAxis":{"type":"category","data":["Jan 2026","Feb 2026"]},"yAxis":{"type":"value"},"series":[{"name":"Leads","type":"bar","data":[10,8]}]}[[/chart]]`;
     }
 
     // Build tools list — add manual metrics tool if needed
@@ -513,9 +512,10 @@ CRITICAL for manual metric charts:
                   return row;
                 });
               result = { rows };
+              // Don't set capturedData — the AI embeds data directly in the
+              // ECharts config for manual metrics, so we skip auto-population.
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_manual_metrics", input: toolUse.input };
-                capturedData = rows;
               }
               break;
             }
