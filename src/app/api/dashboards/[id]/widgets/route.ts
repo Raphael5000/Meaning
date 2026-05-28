@@ -478,13 +478,28 @@ export async function POST(
                 include: { metric: { select: { name: true } } },
                 orderBy: { period: "asc" },
               });
-              // Group by metric and return structured rows
-              const rows = entries.map((e) => ({
-                metric: e.metric.name,
-                period: e.period,
-                value: e.value,
-                note: e.note,
-              }));
+              // Pivot into wide format: one row per period, one column per metric
+              // e.g. { month: "Jan 2026", "Meta Leads": 10, "Website Leads": 5 }
+              const periodMap = new Map<string, Record<string, unknown>>();
+              const metricNames = new Set<string>();
+              for (const e of entries) {
+                metricNames.add(e.metric.name);
+                if (!periodMap.has(e.period)) {
+                  const [y, m] = e.period.split("-");
+                  const label = new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                  periodMap.set(e.period, { month: label });
+                }
+                periodMap.get(e.period)![e.metric.name] = e.value;
+              }
+              // Fill missing metrics with 0
+              const rows = Array.from(periodMap.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([, row]) => {
+                  for (const name of metricNames) {
+                    if (!(name in row)) row[name] = 0;
+                  }
+                  return row;
+                });
               result = { rows };
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_manual_metrics", input: toolUse.input };
