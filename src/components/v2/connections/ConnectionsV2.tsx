@@ -651,7 +651,19 @@ function Row({
   if (row.comingSoon) {
     lastCell = <span className="text-[11.5px] text-muted-foreground">—</span>;
   } else if (isError) {
-    lastCell = (
+    const isInlineAuth = row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT";
+    lastCell = isInlineAuth ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenDetail(row.type);
+        }}
+        className="text-[12px] font-medium text-destructive underline-offset-2 hover:underline"
+      >
+        Reconnect
+      </button>
+    ) : (
       <a
         href={connectUrl(row.type)}
         onClick={(e) => e.stopPropagation()}
