@@ -302,6 +302,13 @@ export default function ConnectionsV2({
    LIST VIEW
    ========================================================================== */
 
+const CURRENCY_OPTIONS = [
+  "USD", "EUR", "GBP", "ZAR", "AUD", "CAD", "JPY", "CHF", "INR", "BRL",
+  "NZD", "SEK", "NOK", "DKK", "PLN", "MXN", "SGD", "HKD", "KRW", "TRY",
+  "ILS", "AED", "SAR", "NGN", "KES", "GHS", "EGP", "PHP", "THB", "MYR",
+  "IDR", "CNY",
+];
+
 interface ConnectionsListProps {
   status: ConnectionStatus | null;
   loading: boolean;
@@ -323,6 +330,39 @@ function ConnectionsList({
   onOpenDetail,
   onClose,
 }: ConnectionsListProps) {
+  const [displayCurrency, setDisplayCurrency] = React.useState("USD");
+  const [savingCurrency, setSavingCurrency] = React.useState(false);
+
+  // Fetch org display currency
+  React.useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/organizations/${orgId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.organization?.displayCurrency) {
+          setDisplayCurrency(data.organization.displayCurrency);
+        }
+      })
+      .catch(() => {});
+  }, [orgId]);
+
+  async function handleCurrencyChange(newCurrency: string) {
+    if (!orgId) return;
+    setDisplayCurrency(newCurrency);
+    setSavingCurrency(true);
+    try {
+      await fetch(`/api/organizations/${orgId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayCurrency: newCurrency }),
+      });
+      toast.success(`Display currency set to ${newCurrency}`);
+    } catch {
+      toast.error("Failed to update currency");
+    } finally {
+      setSavingCurrency(false);
+    }
+  }
   const rows = React.useMemo(
     () => {
       // Gate Reddit connector to users with hasRedditAccount
@@ -384,6 +424,29 @@ function ConnectionsList({
                   onOpenDetail={onOpenDetail}
                   status={status}
                 />
+              </div>
+            )}
+
+            {/* Display currency */}
+            {orgId && (
+              <div className="mb-6 flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">Display currency</p>
+                  <p className="text-[11px] text-muted-foreground">All monetary values will be converted to this currency</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={displayCurrency}
+                    onChange={(e) => handleCurrencyChange(e.target.value)}
+                    disabled={savingCurrency}
+                    className="h-8 rounded-md border border-input bg-transparent px-2 text-[12px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {savingCurrency && <RefreshCw className="size-3.5 animate-spin text-muted-foreground" />}
+                </div>
               </div>
             )}
 
