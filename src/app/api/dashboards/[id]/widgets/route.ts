@@ -368,14 +368,46 @@ export async function POST(
     const sourceCurrencies = await getSourceCurrencies(adsCustomerId, msAdsAccountId);
     console.log(`[widget-gen] sourceCurrencies:`, sourceCurrencies);
 
-    const systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, displayCurrency, sourceCurrencies);
+    let systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, displayCurrency, sourceCurrencies);
+
+    // Inject manual metrics so the AI knows about user-entered data
+    const manualMetrics = await prisma.manualMetric.findMany({
+      where: { orgId: dashboard.orgId },
+      include: { entries: { orderBy: { period: "desc" } } },
+    });
+    const hasManualMetrics = manualMetrics.length > 0;
+    if (hasManualMetrics) {
+      const lines = manualMetrics.map((m) => {
+        if (m.entries.length === 0) return `- ${m.name} (id: ${m.id}): No entries yet`;
+        const entryLines = m.entries.map((e) => `${e.period}: ${e.value}${e.note ? ` (${e.note})` : ""}`);
+        return `- ${m.name} (id: ${m.id}, format: ${m.displayFormat}): ${entryLines.join(", ")}`;
+      });
+      systemPrompt += `\n\nMANUAL METRICS (user-entered data, stored in PostgreSQL not BigQuery):\n${lines.join("\n")}\n\nFor charts using manual metric data, use the query_manual_metrics tool to fetch structured data. Pass the metric IDs you need. The tool returns rows with period and value columns per metric. Build the chart from this data — do NOT try to query BigQuery for manual metrics.`;
+    }
+
+    // Build tools list — add manual metrics tool if needed
+    const tools: Anthropic.Tool[] = [...BIGQUERY_TOOLS];
+    if (hasManualMetrics) {
+      tools.push({
+        name: "query_manual_metrics",
+        description: "Fetch manual metric entries for charting. Returns rows with period (YYYY-MM) and value columns for each requested metric.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            metric_ids: { type: "array", items: { type: "string" }, description: "Array of manual metric IDs to fetch" },
+            year: { type: "number", description: "Optional: filter to a specific year (e.g. 2026)" },
+          },
+          required: ["metric_ids"],
+        },
+      });
+    }
 
     // Call Claude with tools
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: systemPrompt,
-      tools: BIGQUERY_TOOLS,
+      tools,
       messages: [{ role: "user", content: body.prompt }],
     });
 
@@ -436,6 +468,30 @@ export async function POST(
               result = await getPropertySchema(propertyId);
               break;
             }
+            case "query_manual_metrics": {
+              const input = toolUse.input as { metric_ids: string[]; year?: number };
+              const entries = await prisma.manualMetricEntry.findMany({
+                where: {
+                  metricId: { in: input.metric_ids },
+                  ...(input.year ? { period: { startsWith: String(input.year) } } : {}),
+                },
+                include: { metric: { select: { name: true } } },
+                orderBy: { period: "asc" },
+              });
+              // Group by metric and return structured rows
+              const rows = entries.map((e) => ({
+                metric: e.metric.name,
+                period: e.period,
+                value: e.value,
+                note: e.note,
+              }));
+              result = { rows };
+              if (!capturedQueryConfig) {
+                capturedQueryConfig = { tool: "query_manual_metrics", input: toolUse.input };
+                capturedData = rows;
+              }
+              break;
+            }
             default:
               result = { error: `Unknown tool: ${toolUse.name}` };
               isError = true;
@@ -462,7 +518,7 @@ export async function POST(
         model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         system: systemPrompt,
-        tools: BIGQUERY_TOOLS,
+        tools,
         messages: conversationMessages,
       });
     }
