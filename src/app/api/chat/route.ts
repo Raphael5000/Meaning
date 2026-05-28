@@ -853,6 +853,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Inject manual metrics (user-entered data not from any connector)
+  if (body.orgId) {
+    const manualMetrics = await prisma.manualMetric.findMany({
+      where: { orgId: body.orgId },
+      include: { entries: { orderBy: { period: "desc" }, take: 12 } },
+    });
+    if (manualMetrics.length > 0) {
+      const lines = manualMetrics.map((m) => {
+        if (m.entries.length === 0) return `- ${m.name}: No entries logged yet`;
+        const entryLines = m.entries.map((e) => `${e.period}: ${e.value}${e.note ? ` (${e.note})` : ""}`);
+        return `- ${m.name} (format: ${m.displayFormat}): ${entryLines.join(", ")}`;
+      });
+      systemPrompt += `\n\nMANUAL METRICS (user-entered data):\n${lines.join("\n")}\n\nThese are metrics the user logs manually (e.g. leads, sales calls). Use these values when the user asks about them. You can identify trends across months.`;
+    }
+  }
+
   // Helper: describe a tool call for the progress stream
   function describeToolCall(name: string, input: Record<string, unknown>): string {
     switch (name) {

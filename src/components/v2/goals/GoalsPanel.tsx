@@ -16,6 +16,7 @@ interface Kpi {
   id: string;
   name: string;
   metricQuery: string;
+  dataSourceType: string;
   targetValue: number;
   targetDirection: string;
   displayFormat: string;
@@ -23,6 +24,7 @@ interface Kpi {
   sortOrder: number;
   cachedValue: number | null;
   cachedAt: string | null;
+  manualMetricId: string | null;
 }
 
 interface GoalsPanelProps {
@@ -44,7 +46,6 @@ function formatValue(value: number, displayFormat: string): string {
 function getProgress(actual: number, target: number, direction: string): number {
   if (target === 0) return actual > 0 ? 100 : 0;
   if (direction === "below") {
-    // For "below" targets: being at or under target = 100%
     if (actual <= target) return 100;
     return Math.max(0, (2 * target - actual) / target * 100);
   }
@@ -83,9 +84,13 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
     load();
   }, [load, orgId]);
 
-  // Auto-refresh if any KPIs have no cached value
+  // Auto-refresh if any non-manual KPIs have no cached value
   React.useEffect(() => {
-    if (!loading && kpis.length > 0 && kpis.some((k) => k.cachedAt === null)) {
+    if (
+      !loading &&
+      kpis.length > 0 &&
+      kpis.some((k) => !k.manualMetricId && k.cachedAt === null)
+    ) {
       refreshKpis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,8 +126,10 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
       setKpis((prev) => [...prev, created]);
       setDialogOpen(false);
       toast.success("Goal created.");
-      // Refresh after a short delay to pick up the auto-executed value
-      setTimeout(() => load(), 3000);
+      // For query-backed KPIs, refresh after delay to pick up auto-executed value
+      if (!created.manualMetricId) {
+        setTimeout(() => load(), 3000);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create");
       throw err;
@@ -258,6 +265,11 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
                         <span className="text-[13px] font-medium text-foreground">
                           {kpi.name}
                         </span>
+                        {kpi.manualMetricId && (
+                          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                            Manual
+                          </span>
+                        )}
                         {onTrack !== null && (
                           <span
                             className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
@@ -283,7 +295,11 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
                         ) : (
                           <span className="text-[12px] text-muted-foreground">
                             Target: {formatValue(kpi.targetValue, kpi.displayFormat)}
-                            {refreshing ? " — refreshing..." : " — no data yet"}
+                            {kpi.manualMetricId
+                              ? " — log values in Connections → Manual data"
+                              : refreshing
+                                ? " — refreshing..."
+                                : " — no data yet"}
                           </span>
                         )}
                       </div>

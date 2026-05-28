@@ -174,8 +174,32 @@ export async function refreshOrgKpis(orgId: string): Promise<KpiExecutionResult[
 
   if (kpis.length === 0) return [];
 
-  const results = await Promise.all(kpis.map((kpi) => executeKpi(kpi, dsInfo)));
-  return results;
+  // Separate manual-metric-linked KPIs from BigQuery-backed ones
+  const manualKpis = kpis.filter((kpi) => kpi.manualMetricId);
+  const queryKpis = kpis.filter((kpi) => !kpi.manualMetricId);
+
+  // Refresh manual KPIs from their linked metric's latest entry
+  const manualResults: KpiExecutionResult[] = [];
+  for (const kpi of manualKpis) {
+    try {
+      const latestEntry = await prisma.manualMetricEntry.findFirst({
+        where: { metricId: kpi.manualMetricId! },
+        orderBy: { period: "desc" },
+      });
+      const value = latestEntry?.value ?? null;
+      await prisma.kpi.update({
+        where: { id: kpi.id },
+        data: { cachedValue: value, cachedAt: new Date() },
+      });
+      manualResults.push({ kpiId: kpi.id, value, data: null });
+    } catch (err) {
+      console.error(`[kpi-executor] Manual KPI ${kpi.id} refresh failed:`, err);
+      manualResults.push({ kpiId: kpi.id, value: null, data: null, error: "Refresh failed" });
+    }
+  }
+
+  const results = await Promise.all(queryKpis.map((kpi) => executeKpi(kpi, dsInfo)));
+  return [...manualResults, ...results];
 }
 
 /** Check if a KPI's cache is stale based on its time period */

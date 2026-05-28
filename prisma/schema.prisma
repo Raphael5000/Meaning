@@ -344,7 +344,8 @@ model Organization {
   emailAlerts EmailAlert[]
   dashboards  Dashboard[]
   chatUsage   OrgChatUsage[]
-  kpis        Kpi[]
+  kpis           Kpi[]
+  manualMetrics  ManualMetric[]
 }
 
 // ──────────────────────────────────────────────
@@ -442,12 +443,48 @@ model Kpi {
   cachedValue     Float?
   cachedData      Json?
   cachedAt        DateTime?
+  manualMetricId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  manualMetric ManualMetric? @relation(fields: [manualMetricId], references: [id], onDelete: SetNull)
 
   @@index([orgId])
+}
+
+// ──────────────────────────────────────────────
+// Manual Metrics
+// ──────────────────────────────────────────────
+
+model ManualMetric {
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String
+  displayFormat String   @default("number")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  org     Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  entries ManualMetricEntry[]
+  kpis    Kpi[]
+
+  @@index([orgId])
+}
+
+model ManualMetricEntry {
+  id       String   @id @default(cuid())
+  metricId String
+  period   String   // e.g. "2026-05"
+  value    Float
+  note     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metric ManualMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@unique([metricId, period])
+  @@index([metricId])
 }
 
 model OrgInvite {

@@ -54,17 +54,21 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as {
     name: string;
-    metricDescription: string;
+    metricDescription?: string;
     targetValue: number;
     targetDirection?: string;
     timePeriod?: string;
     displayFormat?: string;
+    manualMetricId?: string;
   };
 
   if (!body.name?.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
-  if (!body.metricDescription?.trim()) {
+
+  const isLinkedToManual = !!body.manualMetricId;
+
+  if (!isLinkedToManual && !body.metricDescription?.trim()) {
     return NextResponse.json(
       { error: "Metric description is required" },
       { status: 400 }
@@ -115,6 +119,38 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Get max sortOrder for this org
+    const maxSort = await prisma.kpi.aggregate({
+      where: { orgId },
+      _max: { sortOrder: true },
+    });
+
+    if (isLinkedToManual) {
+      // Goal linked to a manual metric — no SQL generation needed
+      // Fetch latest entry value to populate cache immediately
+      const latestEntry = await prisma.manualMetricEntry.findFirst({
+        where: { metricId: body.manualMetricId },
+        orderBy: { period: "desc" },
+      });
+      const kpi = await prisma.kpi.create({
+        data: {
+          orgId,
+          name: body.name.trim(),
+          metricQuery: "",
+          dataSourceType: "MANUAL",
+          targetValue: body.targetValue,
+          targetDirection,
+          timePeriod,
+          displayFormat,
+          manualMetricId: body.manualMetricId,
+          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+          cachedValue: latestEntry?.value ?? null,
+          cachedAt: latestEntry ? new Date() : null,
+        },
+      });
+      return NextResponse.json(kpi, { status: 201 });
+    }
+
     // Generate SQL from the natural language description using Claude
     const anthropic = new Anthropic();
     const sqlResponse = await anthropic.messages.create({
@@ -158,12 +194,6 @@ Format: ${displayFormat}`,
         { status: 500 }
       );
     }
-
-    // Get max sortOrder for this org
-    const maxSort = await prisma.kpi.aggregate({
-      where: { orgId },
-      _max: { sortOrder: true },
-    });
 
     const kpi = await prisma.kpi.create({
       data: {

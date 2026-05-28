@@ -502,6 +502,22 @@ export async function generateAlertContent(
     }
   }
 
+  // Inject manual metrics for alerts
+  if (orgId) {
+    const manualMetrics = await prisma.manualMetric.findMany({
+      where: { orgId },
+      include: { entries: { orderBy: { period: "desc" }, take: 6 } },
+    });
+    if (manualMetrics.length > 0) {
+      const lines = manualMetrics.map((m) => {
+        if (m.entries.length === 0) return `- ${m.name}: No entries logged yet`;
+        const entryLines = m.entries.map((e) => `${e.period}: ${e.value}${e.note ? ` (${e.note})` : ""}`);
+        return `- ${m.name} (format: ${m.displayFormat}): ${entryLines.join(", ")}`;
+      });
+      systemPrompt += `\n\nMANUAL METRICS (user-entered data):\n${lines.join("\n")}\n\nInclude any notable trends from manual metrics in the report where relevant.`;
+    }
+  }
+
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: userPrompt },
   ];

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { I } from "../icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ManualMetrics from "./ManualMetrics";
 import {
   Table,
   TableBody,
@@ -289,6 +290,7 @@ export default function ConnectionsV2({
       loading={loading}
       nameMap={nameMap}
       syncingAll={syncingAll}
+      orgId={orgId ?? null}
       onSyncAll={handleSyncAll}
       onOpenDetail={(t) => setView({ kind: "detail", sourceType: t })}
       onClose={onClose}
@@ -305,6 +307,7 @@ interface ConnectionsListProps {
   loading: boolean;
   nameMap: Map<string, string>;
   syncingAll: boolean;
+  orgId: string | null;
   onSyncAll: () => void;
   onOpenDetail: (sourceType: SourceType) => void;
   onClose: () => void;
@@ -315,6 +318,7 @@ function ConnectionsList({
   loading,
   nameMap,
   syncingAll,
+  orgId,
   onSyncAll,
   onOpenDetail,
   onClose,
@@ -392,6 +396,11 @@ function ConnectionsList({
               addSource
               status={status}
             />
+
+            {/* Manual data section */}
+            <div className="mt-8">
+              <ManualMetrics orgId={orgId} />
+            </div>
           </>
         )}
       </PageBody>
