@@ -66,9 +66,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
 
-  const isLinkedToManual = !!body.manualMetricId;
-
-  if (!isLinkedToManual && !body.metricDescription?.trim()) {
+  if (!body.metricDescription?.trim()) {
     return NextResponse.json(
       { error: "Metric description is required" },
       { status: 400 }
@@ -125,33 +123,63 @@ export async function POST(request: NextRequest) {
       _max: { sortOrder: true },
     });
 
-    if (isLinkedToManual) {
-      // Goal linked to a manual metric — no SQL generation needed
-      // Fetch latest entry value to populate cache immediately
-      const latestEntry = await prisma.manualMetricEntry.findFirst({
-        where: { metricId: body.manualMetricId },
-        orderBy: { period: "desc" },
-      });
-      const kpi = await prisma.kpi.create({
-        data: {
-          orgId,
-          name: body.name.trim(),
-          metricQuery: "",
-          dataSourceType: "MANUAL",
-          targetValue: body.targetValue,
-          targetDirection,
-          timePeriod,
-          displayFormat,
-          manualMetricId: body.manualMetricId,
-          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-          cachedValue: latestEntry?.value ?? null,
-          cachedAt: latestEntry ? new Date() : null,
-        },
-      });
-      return NextResponse.json(kpi, { status: 201 });
+    // Auto-detect if the goal matches a manual metric
+    const manualMetrics = await prisma.manualMetric.findMany({
+      where: { orgId },
+      select: { id: true, name: true },
+    });
+
+    if (manualMetrics.length > 0) {
+      const desc = (body.metricDescription || body.name).toLowerCase();
+      const nameLC = body.name.toLowerCase();
+      // Fuzzy match: tokenize and check overlap
+      const tokenize = (s: string) =>
+        s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter((w) => w.length > 1);
+      const descTokens = new Set([...tokenize(desc), ...tokenize(nameLC)]);
+
+      let bestMatch: { id: string; name: string } | null = null;
+      let bestScore = 0;
+
+      for (const m of manualMetrics) {
+        const mTokens = tokenize(m.name);
+        if (mTokens.length === 0) continue;
+        const overlap = mTokens.filter((t) =>
+          Array.from(descTokens).some((d) => d.includes(t) || t.includes(d))
+        ).length;
+        const score = overlap / mTokens.length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = m;
+        }
+      }
+
+      // If >50% of the manual metric's tokens match, link to it
+      if (bestMatch && bestScore >= 0.5) {
+        const latestEntry = await prisma.manualMetricEntry.findFirst({
+          where: { metricId: bestMatch.id },
+          orderBy: { period: "desc" },
+        });
+        const kpi = await prisma.kpi.create({
+          data: {
+            orgId,
+            name: body.name.trim(),
+            metricQuery: "",
+            dataSourceType: "MANUAL",
+            targetValue: body.targetValue,
+            targetDirection,
+            timePeriod,
+            displayFormat,
+            manualMetricId: bestMatch.id,
+            sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+            cachedValue: latestEntry?.value ?? null,
+            cachedAt: latestEntry ? new Date() : null,
+          },
+        });
+        return NextResponse.json(kpi, { status: 201 });
+      }
     }
 
-    // Generate SQL from the natural language description using Claude
+    // No manual metric match — generate SQL from the natural language description using Claude
     const anthropic = new Anthropic();
     const sqlResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
