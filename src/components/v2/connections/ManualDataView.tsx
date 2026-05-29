@@ -31,6 +31,15 @@ interface ManualDataViewProps {
 
 /* ──────────────── Helpers ──────────────── */
 
+const MONTHS = [
+  { value: "01", label: "Jan" }, { value: "02", label: "Feb" },
+  { value: "03", label: "Mar" }, { value: "04", label: "Apr" },
+  { value: "05", label: "May" }, { value: "06", label: "Jun" },
+  { value: "07", label: "Jul" }, { value: "08", label: "Aug" },
+  { value: "09", label: "Sep" }, { value: "10", label: "Oct" },
+  { value: "11", label: "Nov" }, { value: "12", label: "Dec" },
+];
+
 function getCurrentPeriod(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -64,6 +73,43 @@ function fmtValue(value: number, displayFormat: string, cc: string): string {
   }
 }
 
+const selectClass = "flex h-7 rounded-md border border-input bg-transparent px-2 text-[12px] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+function getYearOptions(): number[] {
+  const now = new Date().getFullYear();
+  const years: number[] = [];
+  for (let y = now - 3; y <= now + 1; y++) years.push(y);
+  return years;
+}
+
+/* ──────────────── Period Picker ──────────────── */
+
+function PeriodPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [year, month] = value.split("-");
+  return (
+    <div className="flex gap-1">
+      <select
+        value={month}
+        onChange={(e) => onChange(`${year}-${e.target.value}`)}
+        className={selectClass}
+      >
+        {MONTHS.map((m) => (
+          <option key={m.value} value={m.value}>{m.label}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={(e) => onChange(`${e.target.value}-${month}`)}
+        className={selectClass}
+      >
+        {getYearOptions().map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /* ──────────────── Component ──────────────── */
 
 export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
@@ -81,7 +127,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
   const [renameDraft, setRenameDraft] = React.useState("");
 
   // Editing entry (inline)
-  const [editingKey, setEditingKey] = React.useState<string | null>(null); // "metricId:period" or "metricId:new"
+  const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [editPeriod, setEditPeriod] = React.useState("");
   const [editValue, setEditValue] = React.useState("");
   const [editNote, setEditNote] = React.useState("");
@@ -124,10 +170,10 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
         body: JSON.stringify({ name: newName.trim(), displayFormat: newFormat }),
       });
       if (!res.ok) throw new Error();
+      const created = (await res.json()) as ManualMetric;
+      setMetrics((prev) => [...prev, created]);
       setNewName("");
       setNewFormat("number");
-      await load();
-      toast.success("Metric added.");
     } catch {
       toast.error("Could not create metric.");
     } finally {
@@ -137,6 +183,9 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
 
   async function renameMetric(id: string) {
     if (!renameDraft.trim()) return;
+    // Optimistic
+    setMetrics((prev) => prev.map((m) => m.id === id ? { ...m, name: renameDraft.trim() } : m));
+    setRenamingId(null);
     try {
       const res = await fetch(`/api/manual-metrics/${id}`, {
         method: "PUT",
@@ -144,20 +193,19 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
         body: JSON.stringify({ name: renameDraft.trim() }),
       });
       if (!res.ok) throw new Error();
-      setRenamingId(null);
-      await load();
     } catch {
       toast.error("Could not rename metric.");
+      await load();
     }
   }
 
   async function deleteMetric(id: string) {
+    setMetrics((prev) => prev.filter((m) => m.id !== id));
     try {
       await fetch(`/api/manual-metrics/${id}`, { method: "DELETE" });
-      setMetrics((prev) => prev.filter((m) => m.id !== id));
-      toast.success("Metric deleted.");
     } catch {
       toast.error("Could not delete metric.");
+      await load();
     }
   }
 
@@ -185,6 +233,29 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
     const val = parseFloat(editValue);
     if (isNaN(val) || !editPeriod) return;
     setSaving(true);
+
+    // Optimistic update
+    const newEntry: ManualMetricEntry = {
+      id: `temp-${Date.now()}`,
+      period: editPeriod,
+      value: val,
+      note: editNote.trim() || null,
+    };
+    setMetrics((prev) =>
+      prev.map((m) => {
+        if (m.id !== metricId) return m;
+        const existing = m.entries.findIndex((e) => e.period === editPeriod);
+        let entries: ManualMetricEntry[];
+        if (existing >= 0) {
+          entries = m.entries.map((e, i) => i === existing ? { ...e, value: val, note: editNote.trim() || null } : e);
+        } else {
+          entries = [...m.entries, newEntry].sort((a, b) => b.period.localeCompare(a.period));
+        }
+        return { ...m, entries };
+      })
+    );
+    setEditingKey(null);
+
     try {
       const res = await fetch(`/api/manual-metrics/${metricId}/entries`, {
         method: "POST",
@@ -192,21 +263,30 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
         body: JSON.stringify({ period: editPeriod, value: val, note: editNote.trim() || undefined }),
       });
       if (!res.ok) throw new Error();
-      setEditingKey(null);
+      // Reload to get real IDs
       await load();
     } catch {
       toast.error("Could not save entry.");
+      await load();
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteEntry(metricId: string, period: string) {
+    // Optimistic
+    setMetrics((prev) =>
+      prev.map((m) =>
+        m.id === metricId
+          ? { ...m, entries: m.entries.filter((e) => e.period !== period) }
+          : m
+      )
+    );
     try {
       await fetch(`/api/manual-metrics/${metricId}/entries?period=${encodeURIComponent(period)}`, { method: "DELETE" });
-      await load();
     } catch {
       toast.error("Could not delete entry.");
+      await load();
     }
   }
 
@@ -315,9 +395,6 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
                           </button>
                         </>
                       )}
-                      <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground capitalize">
-                        {metric.displayFormat}
-                      </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Button
@@ -344,7 +421,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
                   <table className="w-full text-[12px]">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground w-[140px]">Month</th>
+                        <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground w-[160px]">Month</th>
                         <th className="px-4 py-2 text-right text-[11px] font-medium text-muted-foreground w-[120px]">Value</th>
                         <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground">Note</th>
                         <th className="w-[70px] px-2 py-2" />
@@ -359,12 +436,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
                           return (
                             <tr key={entry.id} className="border-b border-border bg-muted/20">
                               <td className="px-3 py-1.5">
-                                <Input
-                                  type="month"
-                                  value={editPeriod}
-                                  onChange={(e) => setEditPeriod(e.target.value)}
-                                  className="h-7 text-[12px]"
-                                />
+                                <PeriodPicker value={editPeriod} onChange={setEditPeriod} />
                               </td>
                               <td className="px-3 py-1.5">
                                 <Input
@@ -428,12 +500,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
                       {isNewRow ? (
                         <tr className="bg-muted/20">
                           <td className="px-3 py-1.5">
-                            <Input
-                              type="month"
-                              value={editPeriod}
-                              onChange={(e) => setEditPeriod(e.target.value)}
-                              className="h-7 text-[12px]"
-                            />
+                            <PeriodPicker value={editPeriod} onChange={setEditPeriod} />
                           </td>
                           <td className="px-3 py-1.5">
                             <Input
