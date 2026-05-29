@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
 import GoalsPanel from "@/components/v2/goals/GoalsPanel";
+import ReportsPanel from "@/components/v2/reports/ReportsPanel";
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
 import DashboardListPanel from "@/components/v2/dashboard/DashboardListPanel";
@@ -160,6 +161,7 @@ type ActivePanel =
   | { kind: "connections"; initialSourceType?: ConnectionsSourceType }
   | { kind: "alerts" }
   | { kind: "goals" }
+  | { kind: "reports" }
   | { kind: "team" }
   | { kind: "account" }
   | { kind: "dashboardList" }
@@ -824,16 +826,18 @@ export default function ChatV2() {
       }
     : null;
 
-  const activeRoute: "chat" | "dashboards" | "alerts" | "goals" | "connections" =
+  const activeRoute: "chat" | "dashboards" | "alerts" | "goals" | "reports" | "connections" =
     activePanel.kind === "connections"
       ? "connections"
       : activePanel.kind === "alerts"
         ? "alerts"
         : activePanel.kind === "goals"
           ? "goals"
-          : activePanel.kind === "dashboard" || activePanel.kind === "dashboardList"
-            ? "dashboards"
-            : "chat";
+          : activePanel.kind === "reports"
+            ? "reports"
+            : activePanel.kind === "dashboard" || activePanel.kind === "dashboardList"
+              ? "dashboards"
+              : "chat";
 
   /* ----- Render ----- */
 
@@ -978,6 +982,7 @@ export default function ChatV2() {
           onOpenDashboards={() => setActivePanel({ kind: "dashboardList" })}
           onOpenAlerts={() => setActivePanel({ kind: "alerts" })}
           onOpenGoals={() => setActivePanel({ kind: "goals" })}
+          onOpenReports={() => setActivePanel({ kind: "reports" })}
           onOpenConnections={() => setActivePanel({ kind: "connections" })}
           accountMenu={accountMenu}
         />
@@ -1045,6 +1050,9 @@ export default function ChatV2() {
                 onClose={() => setActivePanel({ kind: "none" })}
                 orgId={activeOrgId}
               />
+            )}
+            {activePanel.kind === "reports" && (
+              <ReportsPanel orgId={activeOrgId} />
             )}
             {(activePanel.kind === "team" ||
               activePanel.kind === "account") && (

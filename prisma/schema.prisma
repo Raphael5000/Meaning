@@ -344,8 +344,9 @@ model Organization {
   emailAlerts EmailAlert[]
   dashboards  Dashboard[]
   chatUsage   OrgChatUsage[]
-  kpis           Kpi[]
-  manualMetrics  ManualMetric[]
+  kpis            Kpi[]
+  manualMetrics   ManualMetric[]
+  reportTemplates ReportTemplate[]
 }
 
 // ──────────────────────────────────────────────
@@ -485,6 +486,23 @@ model ManualMetricEntry {
 
   @@unique([metricId, period])
   @@index([metricId])
+}
+
+// ──────────────────────────────────────────────
+// Report Templates
+// ──────────────────────────────────────────────
+
+model ReportTemplate {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  slides    Json     // Array of slide definitions
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
 }
 
 model OrgInvite {

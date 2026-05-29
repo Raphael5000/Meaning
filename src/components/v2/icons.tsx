@@ -182,6 +182,14 @@ export const I = {
       <circle cx="12" cy="12" r="3" />
     </Base>
   ),
+  FileDown: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="M12 18v-6" />
+      <path d="M9 15l3 3 3-3" />
+    </Base>
+  ),
 };
 
 export type IconComponent = React.ComponentType<IconProps>;

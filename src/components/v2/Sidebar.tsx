@@ -44,7 +44,7 @@ interface SidebarProps {
   user?: SidebarUser | null;
   alertsBadge?: number;
   connectionErrors?: number;
-  activeRoute?: "chat" | "dashboards" | "alerts" | "goals" | "connections";
+  activeRoute?: "chat" | "dashboards" | "alerts" | "goals" | "reports" | "connections";
   renamingChatId?: string | null;
   renameValue?: string;
   onRenameChange?: (value: string) => void;
@@ -61,6 +61,7 @@ interface SidebarProps {
   onOpenDashboards?: () => void;
   onOpenAlerts?: () => void;
   onOpenGoals?: () => void;
+  onOpenReports?: () => void;
   onOpenConnections?: () => void;
   onOpenAccount?: () => void;
   accountMenu?: React.ReactNode;
@@ -93,6 +94,7 @@ function CollapsedContent({
   onOpenDashboards,
   onOpenAlerts,
   onOpenGoals,
+  onOpenReports,
   onOpenConnections,
   onOpenAccount,
 }: SidebarProps) {
@@ -122,6 +124,12 @@ function CollapsedContent({
           label="Goals"
           onClick={onOpenGoals}
           active={activeRoute === "goals"}
+        />
+        <IconBtn
+          icon={<I.FileDown />}
+          label="Reports"
+          onClick={onOpenReports}
+          active={activeRoute === "reports"}
         />
         <IconBtn
           icon={<I.Plug />}
@@ -219,6 +227,7 @@ function ExpandedContent({
   onOpenDashboards,
   onOpenAlerts,
   onOpenGoals,
+  onOpenReports,
   onOpenConnections,
   onOpenAccount,
   accountMenu,
@@ -313,6 +322,12 @@ function ExpandedContent({
           label="Goals"
           active={activeRoute === "goals"}
           onClick={onOpenGoals}
+        />
+        <NavLink
+          icon={<I.FileDown size={14} />}
+          label="Reports"
+          active={activeRoute === "reports"}
+          onClick={onOpenReports}
         />
         <NavLink
           icon={<I.Plug size={14} />}
