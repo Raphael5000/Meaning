@@ -132,12 +132,6 @@ function GoalCard({
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {hasValue && (
-            <Badge variant="secondary" className="gap-1.5 text-[11px] font-medium px-2 py-0.5">
-              <span className={`size-[6px] rounded-full ${cfg.dotClass}`} />
-              {cfg.label}
-            </Badge>
-          )}
           <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
             <button
               type="button"
@@ -154,6 +148,12 @@ function GoalCard({
               <Trash2 className="size-3" />
             </button>
           </div>
+          {hasValue && (
+            <Badge variant="secondary" className="gap-1.5 text-[11px] font-medium px-2 py-0.5">
+              <span className={`size-[6px] rounded-full ${cfg.dotClass}`} />
+              {cfg.label}
+            </Badge>
+          )}
         </div>
       </div>
 
