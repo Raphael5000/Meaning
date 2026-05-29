@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Page, PageBody, PageHeader } from "../layout";
@@ -52,16 +52,42 @@ function formatPeriodLabel(period: string): string {
   });
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", ZAR: "R", AUD: "A$", CAD: "C$", JPY: "¥",
+  CHF: "CHF ", INR: "₹", BRL: "R$", NZD: "NZ$", SEK: "kr ", NOK: "kr ",
+  MXN: "$", SGD: "S$", HKD: "HK$", KRW: "₩", TRY: "₺", ILS: "₪",
+  AED: "AED ", NGN: "₦", PHP: "₱", THB: "฿", CNY: "¥",
+};
+
+function formatValue(value: number, displayFormat: string, currencyCode: string): string {
+  switch (displayFormat) {
+    case "percentage":
+      return `${value.toFixed(1)}%`;
+    case "currency": {
+      const sym = CURRENCY_SYMBOLS[currencyCode] || currencyCode + " ";
+      return `${sym}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    default:
+      return value.toLocaleString();
+  }
+}
+
 /* ──────────────── Component ──────────────── */
 
 export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
   const [metrics, setMetrics] = React.useState<ManualMetric[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [currencyCode, setCurrencyCode] = React.useState("USD");
 
   // New metric form
   const [newName, setNewName] = React.useState("");
   const [newFormat, setNewFormat] = React.useState("number");
   const [adding, setAdding] = React.useState(false);
+
+  // Rename
+  const [renamingId, setRenamingId] = React.useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = React.useState("");
+  const [savingRename, setSavingRename] = React.useState(false);
 
   // Entry form
   const [entryMetricId, setEntryMetricId] = React.useState<string | null>(null);
@@ -86,6 +112,36 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
   React.useEffect(() => {
     load();
   }, [load, orgId]);
+
+  // Fetch org currency
+  React.useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/organizations/${orgId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.organization?.displayCurrency) setCurrencyCode(data.organization.displayCurrency);
+      })
+      .catch(() => {});
+  }, [orgId]);
+
+  async function renameMetric(id: string) {
+    if (!renameDraft.trim()) return;
+    setSavingRename(true);
+    try {
+      const res = await fetch(`/api/manual-metrics/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameDraft.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setRenamingId(null);
+      await load();
+    } catch {
+      toast.error("Could not rename metric.");
+    } finally {
+      setSavingRename(false);
+    }
+  }
 
   async function addMetric() {
     if (!newName.trim()) return;
@@ -235,13 +291,59 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
         ) : (
           <div className="space-y-6">
             {metrics.map((metric) => (
-              <div key={metric.id} className="rounded-lg border border-border bg-card">
+              <div key={metric.id} className="group/card rounded-lg border border-border bg-card">
                 {/* Metric header */}
                 <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-foreground">
-                      {metric.name}
-                    </span>
+                    {renamingId === metric.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={renameDraft}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameMetric(metric.id);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          autoFocus
+                          className="h-7 w-[200px] text-[13px]"
+                          disabled={savingRename}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => renameMetric(metric.id)}
+                          disabled={savingRename}
+                        >
+                          <Check className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setRenamingId(null)}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-[13px] font-medium text-foreground">
+                          {metric.name}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 opacity-0 group-hover/card:opacity-100"
+                          onClick={() => {
+                            setRenamingId(metric.id);
+                            setRenameDraft(metric.name);
+                          }}
+                        >
+                          <Pencil className="size-3 text-muted-foreground" />
+                        </Button>
+                      </>
+                    )}
                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground capitalize">
                       {metric.displayFormat}
                     </span>
@@ -344,7 +446,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
                             {formatPeriodLabel(entry.period)}
                           </TableCell>
                           <TableCell className="text-right text-[12px] font-medium tabular-nums">
-                            {entry.value.toLocaleString()}
+                            {formatValue(entry.value, metric.displayFormat, currencyCode)}
                           </TableCell>
                           <TableCell className="text-[12px] text-muted-foreground">
                             {entry.note || "—"}
