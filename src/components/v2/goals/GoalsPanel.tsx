@@ -126,10 +126,6 @@ function GoalCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[13.5px] font-medium truncate">{kpi.name}</div>
-          <div className="text-[11.5px] text-muted-foreground mt-0.5">
-            {kpi.dataSourceType === "MANUAL" ? "Manual data" : "Analytics"}
-            {kpi.timePeriod !== "monthly" && ` · ${kpi.timePeriod}`}
-          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
