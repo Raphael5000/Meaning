@@ -264,8 +264,6 @@ Format: ${displayFormat}`,
     });
 
     // Auto-execute the KPI query to populate cachedValue immediately
-    const orgDataSources = await getOrgDataSources(orgId);
-    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
     const ga4Ds = orgDataSources.find(
       (ds) => ds.type === "GA4_BIGQUERY" && connectedStatuses.includes(ds.status)
     );

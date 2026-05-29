@@ -268,11 +268,6 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
                         <span className="text-[13px] font-medium text-foreground">
                           {kpi.name}
                         </span>
-                        {kpi.manualMetricId && (
-                          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
-                            Manual
-                          </span>
-                        )}
                         {onTrack !== null && (
                           <span
                             className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
