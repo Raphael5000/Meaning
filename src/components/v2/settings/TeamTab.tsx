@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Mail, MoreHorizontal, Trash2 } from "lucide-react";
+import { Loader2, Mail, MoreHorizontal, Trash2, Check } from "lucide-react";
 
 import { Section } from "../layout/Section";
 import { FieldRow } from "../layout/FieldRow";
@@ -47,6 +47,7 @@ interface OrgData {
   id: string;
   name: string;
   ownerId: string;
+  displayCurrency: string;
   memberships: OrgMember[];
   invites: OrgInvite[];
 }
@@ -76,6 +77,10 @@ export function TeamTab({ orgId, orgName }: TeamTabProps) {
   const [renaming, setRenaming] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState("");
   const [savingName, setSavingName] = React.useState(false);
+
+  // Display currency
+  const [savingCurrency, setSavingCurrency] = React.useState(false);
+  const [currencySaved, setCurrencySaved] = React.useState(false);
 
   // Invite form
   const [inviteEmail, setInviteEmail] = React.useState("");
@@ -126,6 +131,29 @@ export function TeamTab({ orgId, orgName }: TeamTabProps) {
       setError("Failed to rename workspace");
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function saveCurrency(newCurrency: string) {
+    if (!orgId || !org) return;
+    setSavingCurrency(true);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayCurrency: newCurrency }),
+      });
+      if (res.ok) {
+        setOrg({ ...org, displayCurrency: newCurrency });
+        setCurrencySaved(true);
+        setTimeout(() => setCurrencySaved(false), 2000);
+      } else {
+        setError("Failed to update currency");
+      }
+    } catch {
+      setError("Failed to update currency");
+    } finally {
+      setSavingCurrency(false);
     }
   }
 
@@ -305,6 +333,30 @@ export function TeamTab({ orgId, orgName }: TeamTabProps) {
             <span className="tabular-nums">
               {memberCount} of unlimited
             </span>
+          }
+        />
+        <FieldRow
+          label="Display currency"
+          value={
+            <div className="flex items-center gap-2">
+              <select
+                value={org.displayCurrency || "USD"}
+                onChange={(e) => saveCurrency(e.target.value)}
+                disabled={savingCurrency}
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-[13px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {[
+                  "USD", "EUR", "GBP", "ZAR", "AUD", "CAD", "JPY", "CHF", "INR", "BRL",
+                  "NZD", "SEK", "NOK", "DKK", "PLN", "MXN", "SGD", "HKD", "KRW", "TRY",
+                  "ILS", "AED", "SAR", "NGN", "KES", "GHS", "EGP", "PHP", "THB", "MYR",
+                  "IDR", "CNY",
+                ].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {savingCurrency && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+              {currencySaved && <Check className="size-3.5 text-emerald-500" />}
+            </div>
           }
           last
         />
