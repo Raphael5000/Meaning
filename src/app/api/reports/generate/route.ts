@@ -124,10 +124,35 @@ export async function POST(request: NextRequest) {
                 prevEndDate: prevMonthEnd,
               });
               if (rows.length > 0) {
-                const firstVal = Object.values(rows[0])[0];
-                resolved[binding.placeholder] = typeof firstVal === "number"
-                  ? firstVal.toLocaleString()
-                  : String(firstVal ?? "—");
+                const row = rows[0];
+                const entries = Object.entries(row);
+                if (entries.length === 1) {
+                  // Single value — use placeholder directly
+                  const val = entries[0][1];
+                  resolved[binding.placeholder] = typeof val === "number"
+                    ? val.toLocaleString()
+                    : String(val ?? "—");
+                } else {
+                  // Multiple columns — flatten with prefix
+                  // e.g. placeholder "ads" + column "impressions" → "ads_impressions"
+                  for (const [col, val] of entries) {
+                    const key = `${binding.placeholder}_${col}`;
+                    let formatted: string;
+                    if (val === null || val === undefined) {
+                      formatted = "—";
+                    } else if (typeof val === "number") {
+                      formatted = Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2);
+                    } else {
+                      formatted = String(val);
+                    }
+                    resolved[key] = formatted;
+                  }
+                  // Also set the base placeholder to the first value for simple references
+                  const firstVal = entries[0][1];
+                  resolved[binding.placeholder] = typeof firstVal === "number"
+                    ? firstVal.toLocaleString()
+                    : String(firstVal ?? "—");
+                }
               }
               break;
             }
