@@ -123,60 +123,87 @@ export async function POST(request: NextRequest) {
       _max: { sortOrder: true },
     });
 
-    // Auto-detect if the goal matches a manual metric
+    // Decide data source: ask Claude to look at available manual metrics
+    // AND connected data sources and determine the best match.
     const manualMetrics = await prisma.manualMetric.findMany({
       where: { orgId },
-      select: { id: true, name: true },
+      include: { entries: { orderBy: { period: "desc" }, take: 3 } },
     });
+    const orgDataSources = await getOrgDataSources(orgId);
+    const connectedStatuses = ["ACTIVE", "BACKFILLING", "ERROR"];
+    const connectedSources = orgDataSources
+      .filter((ds) => connectedStatuses.includes(ds.status))
+      .map((ds) => ds.type);
+
+    let matchedManualId: string | null = null;
 
     if (manualMetrics.length > 0) {
-      const desc = (body.metricDescription || body.name).toLowerCase();
-      const nameLC = body.name.toLowerCase();
-      // Fuzzy match: tokenize and check overlap
-      const tokenize = (s: string) =>
-        s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter((w) => w.length > 1);
-      const descTokens = new Set([...tokenize(desc), ...tokenize(nameLC)]);
+      const anthropic = new Anthropic();
+      const routingResponse = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20250514",
+        max_tokens: 200,
+        system: `You decide whether a KPI goal should be tracked from a MANUAL metric (user-entered data) or from CONNECTED data sources (BigQuery analytics).
 
-      let bestMatch: { id: string; name: string } | null = null;
-      let bestScore = 0;
+Rules:
+- Only match to a manual metric if the goal is clearly about the SAME thing the manual metric tracks.
+- "website views" or "sessions" is analytics data from GA4, NOT manual leads data.
+- "leads from Meta" matches a manual metric called "Meta Leads" — same concept.
+- If unsure, choose CONNECTED.
 
-      for (const m of manualMetrics) {
-        const mTokens = tokenize(m.name);
-        if (mTokens.length === 0) continue;
-        const overlap = mTokens.filter((t) =>
-          Array.from(descTokens).some((d) => d.includes(t) || t.includes(d))
-        ).length;
-        const score = overlap / mTokens.length;
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = m;
+Respond with ONLY a JSON object: {"source": "manual", "metricId": "..."} or {"source": "connected"}
+No explanation.`,
+        messages: [{
+          role: "user",
+          content: `Goal name: "${body.name}"
+Goal description: "${body.metricDescription}"
+
+Manual metrics available:
+${manualMetrics.map((m) => `- id: ${m.id}, name: "${m.name}", recent entries: ${m.entries.map((e) => `${e.period}=${e.value}`).join(", ") || "none"}`).join("\n")}
+
+Connected data sources: ${connectedSources.length > 0 ? connectedSources.join(", ") : "none"}
+
+Which source should this goal use?`,
+        }],
+      });
+
+      const textBlock = routingResponse.content.find((b) => b.type === "text");
+      if (textBlock) {
+        try {
+          const decision = JSON.parse(textBlock.text.trim()) as { source: string; metricId?: string };
+          if (decision.source === "manual" && decision.metricId) {
+            // Verify the metric exists and belongs to this org
+            const validMetric = manualMetrics.find((m) => m.id === decision.metricId);
+            if (validMetric) matchedManualId = decision.metricId;
+          }
+        } catch {
+          // Parse failed — fall through to BigQuery
+          console.warn("[api/kpis] Could not parse routing decision, falling through to BigQuery");
         }
       }
+    }
 
-      // If >50% of the manual metric's tokens match, link to it
-      if (bestMatch && bestScore >= 0.5) {
-        const latestEntry = await prisma.manualMetricEntry.findFirst({
-          where: { metricId: bestMatch.id },
-          orderBy: { period: "desc" },
-        });
-        const kpi = await prisma.kpi.create({
-          data: {
-            orgId,
-            name: body.name.trim(),
-            metricQuery: "",
-            dataSourceType: "MANUAL",
-            targetValue: body.targetValue,
-            targetDirection,
-            timePeriod,
-            displayFormat,
-            manualMetricId: bestMatch.id,
-            sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-            cachedValue: latestEntry?.value ?? null,
-            cachedAt: latestEntry ? new Date() : null,
-          },
-        });
-        return NextResponse.json(kpi, { status: 201 });
-      }
+    if (matchedManualId) {
+      const latestEntry = await prisma.manualMetricEntry.findFirst({
+        where: { metricId: matchedManualId },
+        orderBy: { period: "desc" },
+      });
+      const kpi = await prisma.kpi.create({
+        data: {
+          orgId,
+          name: body.name.trim(),
+          metricQuery: "",
+          dataSourceType: "MANUAL",
+          targetValue: body.targetValue,
+          targetDirection,
+          timePeriod,
+          displayFormat,
+          manualMetricId: matchedManualId,
+          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+          cachedValue: latestEntry?.value ?? null,
+          cachedAt: latestEntry ? new Date() : null,
+        },
+      });
+      return NextResponse.json(kpi, { status: 201 });
     }
 
     // No manual metric match — generate SQL from the natural language description using Claude
