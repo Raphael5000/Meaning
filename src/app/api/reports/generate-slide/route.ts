@@ -19,12 +19,11 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const body = (await request.json()) as {
-    referenceImage?: string; // base64 data URL
     prompt?: string;
   };
 
-  if (!body.referenceImage && !body.prompt) {
-    return NextResponse.json({ error: "Provide a reference image or a prompt" }, { status: 400 });
+  if (!body.prompt?.trim()) {
+    return NextResponse.json({ error: "Provide a slide description" }, { status: 400 });
   }
 
   try {
@@ -98,34 +97,10 @@ For bigquery bindings that return multiple columns, the placeholder will be reso
     const anthropic = new Anthropic();
     const messages: Anthropic.MessageParam[] = [];
 
-    if (body.referenceImage) {
-      // Extract media type and base64 data
-      const match = body.referenceImage.match(/^data:(image\/[^;]+);base64,(.+)$/);
-      if (!match) {
-        return NextResponse.json({ error: "Invalid image format" }, { status: 400 });
-      }
-      const mediaType = match[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-      const imageData = match[2];
-
-      messages.push({
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mediaType, data: imageData },
-          },
-          {
-            type: "text",
-            text: `Recreate this slide as HTML/CSS. Match the layout, structure, and data presentation as closely as possible. Use {{placeholder}} syntax for all dynamic values.${body.prompt ? `\n\nAdditional instructions: ${body.prompt}` : ""}\n\n${dataContext}`,
-          },
-        ],
-      });
-    } else {
-      messages.push({
-        role: "user",
-        content: `${body.prompt}\n\n${dataContext}`,
-      });
-    }
+    messages.push({
+      role: "user",
+      content: `Design a report slide for: ${body.prompt}\n\n${dataContext}`,
+    });
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
