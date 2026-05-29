@@ -65,18 +65,20 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingKpi, setEditingKpi] = React.useState<Kpi | null>(null);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const load = React.useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch("/api/kpis");
       if (!res.ok) throw new Error("Failed to load goals");
       const data = (await res.json()) as Kpi[];
       setKpis(Array.isArray(data) ? data : []);
     } catch {
-      setKpis([]);
-      toast.error("Could not load goals.");
+      if (!silent) {
+        setKpis([]);
+        toast.error("Could not load goals.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -104,7 +106,7 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
     try {
       const res = await fetch("/api/kpis/refresh", { method: "POST" });
       if (!res.ok) throw new Error("Refresh failed");
-      await load();
+      await load(true);
       toast.success("KPIs refreshed.");
     } catch {
       toast.error("Could not refresh KPIs.");
@@ -129,10 +131,8 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
       setKpis((prev) => [...prev, created]);
       setDialogOpen(false);
       toast.success("Goal created.");
-      // For query-backed KPIs, refresh after delay to pick up auto-executed value
-      if (!created.manualMetricId) {
-        setTimeout(() => load(), 3000);
-      }
+      // Silently reload after delay to pick up auto-executed values
+      setTimeout(() => load(true), 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create");
       throw err;

@@ -169,7 +169,9 @@ Connected sources: ${connectedSources.length > 0 ? connectedSources.join(", ") :
       console.log("[api/kpis] Routing decision raw:", textBlock?.text);
       if (textBlock) {
         try {
-          const decision = JSON.parse(textBlock.text.trim()) as { source: string; metricId?: string };
+          // Strip markdown fences if present
+          const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+          const decision = JSON.parse(raw) as { source: string; metricId?: string };
           console.log("[api/kpis] Routing decision:", decision);
           if (decision.source === "manual" && decision.metricId) {
             // Verify the metric exists and belongs to this org
