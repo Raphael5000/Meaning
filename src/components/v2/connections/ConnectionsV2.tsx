@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { I } from "../icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import ManualMetrics from "./ManualMetrics";
+import ManualDataView from "./ManualDataView";
 import {
   Table,
   TableBody,
@@ -93,7 +93,8 @@ type SourceType =
   | "ATTIO"
   | "HUBSPOT"
   | "REDDIT"
-  | "META";
+  | "META"
+  | "MANUAL_DATA";
 
 interface SourceDef {
   type: SourceType;
@@ -114,6 +115,7 @@ const SOURCES: SourceDef[] = [
   { type: "HUBSPOT", label: "HubSpot", icon: "/HubSpot.svg" },
   { type: "REDDIT", label: "Reddit", icon: "/Reddit.svg" },
   { type: "META", label: "Meta", icon: "/Meta.svg", comingSoon: true },
+  { type: "MANUAL_DATA", label: "Manual Data", icon: "/Manual Data.svg" },
 ];
 
 /* =============================================================================
@@ -271,6 +273,14 @@ export default function ConnectionsV2({
   }
 
   if (view.kind === "detail") {
+    if (view.sourceType === "MANUAL_DATA") {
+      return (
+        <ManualDataView
+          orgId={orgId ?? null}
+          onBack={() => setView({ kind: "list" })}
+        />
+      );
+    }
     return (
       <ConnectionsDetail
         status={status}
@@ -323,29 +333,26 @@ function ConnectionsList({
   onOpenDetail,
   onClose,
 }: ConnectionsListProps) {
-  const [displayCurrency, setDisplayCurrency] = React.useState("USD");
+  const [manualMetricCount, setManualMetricCount] = React.useState(0);
 
-  // Fetch org display currency (for ManualMetrics formatting)
+  // Fetch manual metric count to determine connected state
   React.useEffect(() => {
-    if (!orgId) return;
-    fetch(`/api/organizations/${orgId}`)
+    fetch("/api/manual-metrics")
       .then((r) => r.json())
       .then((data) => {
-        if (data.organization?.displayCurrency) {
-          setDisplayCurrency(data.organization.displayCurrency);
-        }
+        if (Array.isArray(data)) setManualMetricCount(data.length);
       })
       .catch(() => {});
-  }, [orgId]);
+  }, []);
   const rows = React.useMemo(
     () => {
       // Gate Reddit connector to users with hasRedditAccount
       const visibleSources = status?.hasRedditAccount
         ? SOURCES
         : SOURCES.filter((s) => s.type !== "REDDIT");
-      return buildRows(status, visibleSources, nameMap);
+      return buildRows(status, visibleSources, nameMap, manualMetricCount);
     },
-    [status, nameMap]
+    [status, nameMap, manualMetricCount]
   );
   const connected = rows.filter((r) => r.uiStatus !== "DISCONNECTED");
   const available = rows.filter((r) => r.uiStatus === "DISCONNECTED");
@@ -411,10 +418,6 @@ function ConnectionsList({
               status={status}
             />
 
-            {/* Manual data section */}
-            <div className="mt-8">
-              <ManualMetrics orgId={orgId} currencyCode={displayCurrency} />
-            </div>
           </>
         )}
       </PageBody>
@@ -493,7 +496,8 @@ interface UiRow {
 function buildRows(
   status: ConnectionStatus | null,
   sources: SourceDef[],
-  nameMap: Map<string, string>
+  nameMap: Map<string, string>,
+  manualMetricCount = 0,
 ): UiRow[] {
   const dataByType = new Map<string, DataSourceInfo[]>();
   for (const ds of status?.dataSources ?? []) {
@@ -502,6 +506,19 @@ function buildRows(
     dataByType.set(ds.type, list);
   }
   return sources.map((s) => {
+    // Manual Data is not backed by a DataSource row — use metric count
+    if (s.type === "MANUAL_DATA") {
+      return {
+        type: s.type,
+        label: s.label,
+        icon: s.icon,
+        uiStatus: manualMetricCount > 0 ? "ACTIVE" as const : "DISCONNECTED" as const,
+        lastSync: null,
+        accountSummary: manualMetricCount > 0 ? `${manualMetricCount} metric${manualMetricCount === 1 ? "" : "s"}` : "",
+        comingSoon: false,
+        dataSources: [],
+      };
+    }
     const sources = dataByType.get(s.type) ?? [];
     const uiStatus = summariseStatus(sources);
     const lastSync = pickLastSync(sources);
@@ -586,6 +603,7 @@ function connectUrl(type: SourceType): string {
     case "ATTIO":
     case "HUBSPOT":
     case "REDDIT":
+    case "MANUAL_DATA":
       return "#"; // API key / env-var flow handled inline, no redirect
     default:
       return "#";
@@ -658,14 +676,14 @@ function Row({
   // does, so the list row would otherwise show "Connect" forever.
   const needsAccountPick = !isConnected && isAuthedForSource(row.type, status);
   const isClickable =
-    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT") && !row.comingSoon;
+    (isConnected || needsAccountPick || row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT" || row.type === "MANUAL_DATA") && !row.comingSoon;
 
   // Last-sync column holds the verb that describes the row's sync state.
   let lastCell: React.ReactNode;
   if (row.comingSoon) {
     lastCell = <span className="text-[11.5px] text-muted-foreground">—</span>;
   } else if (isError) {
-    const isInlineAuth = row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT";
+    const isInlineAuth = row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT" || row.type === "MANUAL_DATA";
     lastCell = isInlineAuth ? (
       <button
         type="button"
@@ -700,7 +718,7 @@ function Row({
       </button>
     );
   } else if (!isConnected) {
-    lastCell = (row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT") ? (
+    lastCell = (row.type === "AHREFS" || row.type === "ATTIO" || row.type === "HUBSPOT" || row.type === "REDDIT" || row.type === "MANUAL_DATA") ? (
       <button
         type="button"
         onClick={(e) => {
