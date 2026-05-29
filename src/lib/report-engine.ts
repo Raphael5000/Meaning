@@ -47,14 +47,12 @@ function buildDocument(slideHtmlPages: string[]): string {
     width: 1280px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    color: #FFFFFF;
   }
   .slide {
     width: 1280px;
     height: 720px;
     overflow: hidden;
     position: relative;
-    background: #0A0A0A;
     padding: 48px 56px;
   }
   /* Utility classes for slide templates */

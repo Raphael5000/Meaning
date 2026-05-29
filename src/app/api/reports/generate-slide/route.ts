@@ -79,8 +79,8 @@ RULES:
 7. For tables with last month vs this month: use ONE query with CASE expressions to compute both periods in a single query, e.g.:
    SELECT SUM(CASE WHEN date >= @startDate THEN val ELSE 0 END) as current, SUM(CASE WHEN date >= @prevStartDate AND date < @startDate THEN val ELSE 0 END) as previous FROM ...
    Available params: @startDate, @endDate, @prevStartDate, @prevEndDate
-8. Dark theme: bg #0A0A0A, surface #141414, border #2A2A2A, text white, muted #888, green #00A352, red #EF4444, amber #F59E0B.
-9. Match the reference image layout as closely as possible if one is provided.
+8. COLORS: If a reference image is provided, extract the EXACT color scheme from it — background color, text color, accent colors, card colors. Match them precisely. Do NOT default to dark mode. If the image has a light/white background, use that. If it has green accents, use those exact greens. Copy the visual identity.
+9. Match the reference image layout, structure, typography, and spacing as closely as possible.
 
 RESPONSE FORMAT — ONLY a JSON object, no markdown fences:
 {
