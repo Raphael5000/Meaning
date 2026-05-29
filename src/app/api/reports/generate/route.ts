@@ -204,7 +204,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      console.log(`[report-gen] Slide "${slide.title}" resolved ${Object.keys(resolved).length} placeholders:`, Object.keys(resolved).join(", "));
       const filledHtml = fillTemplate(slide.htmlTemplate, slide.dataBindings || [], resolved);
+      // Log any remaining unfilled placeholders
+      const unfilled = filledHtml.match(/\{\{[^}]+\}\}/g);
+      if (unfilled) console.warn(`[report-gen] Slide "${slide.title}" has ${unfilled.length} unfilled placeholders:`, unfilled.slice(0, 10).join(", "));
       filledPages.push(filledHtml);
     }
 

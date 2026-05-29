@@ -6,16 +6,16 @@ import type { SlideDefinition, DataBinding } from "./report-types";
  */
 export function fillTemplate(
   html: string,
-  bindings: DataBinding[],
+  _bindings: DataBinding[],
   resolvedData: Record<string, string>,
 ): string {
   let result = html;
-  for (const b of bindings) {
-    const value = resolvedData[b.placeholder] ?? "";
-    result = result.replaceAll(`{{${b.placeholder}}}`, value);
+  // Replace ALL resolved keys — includes flattened BQ columns like ads_impressions
+  for (const [key, value] of Object.entries(resolvedData)) {
+    result = result.replaceAll(`{{${key}}}`, value);
   }
-  // Also replace any remaining {{...}} with empty string
-  result = result.replace(/\{\{[^}]+\}\}/g, "");
+  // Replace any remaining unfilled {{...}} with "—"
+  result = result.replace(/\{\{[^}]+\}\}/g, "—");
   return result;
 }
 
