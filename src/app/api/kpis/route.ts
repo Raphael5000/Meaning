@@ -138,38 +138,39 @@ export async function POST(request: NextRequest) {
     let matchedManualId: string | null = null;
 
     if (manualMetrics.length > 0) {
+      try {
       const anthropic = new Anthropic();
       const routingResponse = await anthropic.messages.create({
         model: "claude-haiku-4-5-20250514",
         max_tokens: 200,
-        system: `You decide whether a KPI goal should be tracked from a MANUAL metric (user-entered data) or from CONNECTED data sources (BigQuery analytics).
+        system: `You decide whether a KPI goal matches a MANUAL metric or should use CONNECTED data sources (BigQuery).
 
-Rules:
-- Only match to a manual metric if the goal is clearly about the SAME thing the manual metric tracks.
-- "website views" or "sessions" is analytics data from GA4, NOT manual leads data.
-- "leads from Meta" matches a manual metric called "Meta Leads" — same concept.
-- If unsure, choose CONNECTED.
+Think about the MEANING of the goal, not just keywords:
+- "Monthly website leads" → if there's a manual metric called "Website Leads", that's a match. Leads are typically manual data.
+- "Monthly website visits" or "sessions" → that's GA4 analytics, use CONNECTED.
+- "Meta leads" → if there's a manual metric called "Meta Leads", match it.
+- "Ad spend" or "impressions" → that's ad platform data, use CONNECTED.
+- The key question: does a manual metric track the SAME concept as the goal?
 
 Respond with ONLY a JSON object: {"source": "manual", "metricId": "..."} or {"source": "connected"}
 No explanation.`,
         messages: [{
           role: "user",
-          content: `Goal name: "${body.name}"
-Goal description: "${body.metricDescription}"
+          content: `Goal: "${body.name}" — "${body.metricDescription}"
 
-Manual metrics available:
-${manualMetrics.map((m) => `- id: ${m.id}, name: "${m.name}", recent entries: ${m.entries.map((e) => `${e.period}=${e.value}`).join(", ") || "none"}`).join("\n")}
+Manual metrics:
+${manualMetrics.map((m) => `- id: "${m.id}", name: "${m.name}"${m.entries.length > 0 ? `, values: ${m.entries.map((e) => `${e.period}=${e.value}`).join(", ")}` : ""}`).join("\n")}
 
-Connected data sources: ${connectedSources.length > 0 ? connectedSources.join(", ") : "none"}
-
-Which source should this goal use?`,
+Connected sources: ${connectedSources.length > 0 ? connectedSources.join(", ") : "none"}`,
         }],
       });
 
       const textBlock = routingResponse.content.find((b) => b.type === "text");
+      console.log("[api/kpis] Routing decision raw:", textBlock?.text);
       if (textBlock) {
         try {
           const decision = JSON.parse(textBlock.text.trim()) as { source: string; metricId?: string };
+          console.log("[api/kpis] Routing decision:", decision);
           if (decision.source === "manual" && decision.metricId) {
             // Verify the metric exists and belongs to this org
             const validMetric = manualMetrics.find((m) => m.id === decision.metricId);
@@ -179,6 +180,9 @@ Which source should this goal use?`,
           // Parse failed — fall through to BigQuery
           console.warn("[api/kpis] Could not parse routing decision, falling through to BigQuery");
         }
+      }
+      } catch (routeErr) {
+        console.error("[api/kpis] Routing call failed, falling through to BigQuery:", routeErr);
       }
     }
 
