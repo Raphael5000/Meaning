@@ -4,22 +4,18 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { runPropertyQuery } from "@/lib/bigquery";
 import { getOrgDataSources } from "@/lib/org-access";
-import { generateReport, type ReportData } from "@/lib/report-engine";
-import type { SlideDefinition, ChannelTableConfig, ScorecardRowConfig } from "@/lib/report-types";
+import { fillTemplate, renderPdf } from "@/lib/report-engine";
+import type { SlideDefinition } from "@/lib/report-types";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/reports/generate — generate a .pptx from a template */
+/** POST /api/reports/generate — render a report template to PDF */
 export async function POST(request: NextRequest) {
   const session = await auth();
   const userId = (session as { userId?: string })?.userId;
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const body = (await request.json()) as {
-    templateId: string;
-    period: string; // "YYYY-MM"
-  };
-
+  const body = (await request.json()) as { templateId: string; period: string };
   if (!body.templateId || !body.period) {
     return NextResponse.json({ error: "templateId and period required" }, { status: 400 });
   }
@@ -33,22 +29,17 @@ export async function POST(request: NextRequest) {
       prisma.reportTemplate.findFirst({ where: { id: body.templateId, orgId } }),
       prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, displayCurrency: true } }),
     ]);
-
     if (!template) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const slides = template.slides as unknown as SlideDefinition[];
-    const displayCurrency = org?.displayCurrency ?? "USD";
-
-    // Parse period
     const [year, month] = body.period.split("-").map(Number);
+    const periodLabel = new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const thisMonthStart = `${year}-${String(month).padStart(2, "0")}-01`;
     const thisMonthEnd = new Date(year, month, 0).toISOString().split("T")[0];
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
     const prevMonthStart = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
     const prevMonthEnd = new Date(prevYear, prevMonth, 0).toISOString().split("T")[0];
-
-    const periodLabel = new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
     // Gather org data sources
     const orgDataSources = await getOrgDataSources(orgId);
@@ -61,7 +52,6 @@ export async function POST(request: NextRequest) {
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
 
-    // Helper to run BQ queries
     async function runQuery(sql: string, params?: Record<string, unknown>) {
       if (!propertyId) return [];
       try {
@@ -73,166 +63,134 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build report data
-    const reportData: ReportData = {
-      orgName: org?.name ?? "Report",
-      period: periodLabel,
-      displayCurrency,
-      scorecards: {},
-      channelData: {},
-      goals: [],
-      manualMetrics: [],
-    };
+    // Pre-fetch common data that slides might need
+    const [kpis, manualMetrics] = await Promise.all([
+      prisma.kpi.findMany({ where: { orgId }, orderBy: { sortOrder: "asc" } }),
+      prisma.manualMetric.findMany({ where: { orgId }, include: { entries: { orderBy: { period: "desc" }, take: 12 } } }),
+    ]);
 
-    // Gather goals
-    const kpis = await prisma.kpi.findMany({ where: { orgId }, orderBy: { sortOrder: "asc" } });
-    reportData.goals = kpis.map((k) => ({
-      name: k.name,
-      value: k.cachedValue,
-      target: k.targetValue,
-      direction: k.targetDirection,
-      displayFormat: k.displayFormat,
-    }));
+    // Resolve each slide's data bindings
+    const filledPages: string[] = [];
 
-    // Gather manual metrics
-    const manualMetrics = await prisma.manualMetric.findMany({
-      where: { orgId },
-      include: { entries: { orderBy: { period: "asc" } } },
-    });
-    reportData.manualMetrics = manualMetrics.map((m) => ({
-      name: m.name,
-      entries: m.entries.map((e) => ({ period: e.period, value: e.value })),
-    }));
-
-    // Gather channel data based on what slides need
-    const channelSlides = slides.filter((s) => s.type === "channel-table" || s.type === "campaign-table");
-    for (const s of channelSlides) {
-      const config = s.config as ChannelTableConfig;
-      const sourceType = config.sourceType;
-
-      if (sourceType === "GOOGLE_ADS" && adsCustomerId) {
-        const [current, previous] = await Promise.all([
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, SAFE_DIVIDE(SUM(clicks), SUM(impressions)) as ctr, SAFE_DIVIDE(SUM(cost), SUM(clicks)) as cpc, SUM(cost) as cost, SUM(conversions) as conversions FROM \`{dataset}.campaign_performance\` WHERE stats_date >= @startDate AND stats_date <= @endDate`, { startDate: thisMonthStart, endDate: thisMonthEnd }),
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, SAFE_DIVIDE(SUM(clicks), SUM(impressions)) as ctr, SAFE_DIVIDE(SUM(cost), SUM(clicks)) as cpc, SUM(cost) as cost, SUM(conversions) as conversions FROM \`{dataset}.campaign_performance\` WHERE stats_date >= @startDate AND stats_date <= @endDate`, { startDate: prevMonthStart, endDate: prevMonthEnd }),
-        ]);
-        const cur = current[0] || {};
-        const prev = previous[0] || {};
-        reportData.channelData["GOOGLE_ADS"] = {
-          metrics: {
-            Impressions: { current: Number(cur.impressions ?? 0), previous: Number(prev.impressions ?? 0), format: "number" },
-            Clicks: { current: Number(cur.clicks ?? 0), previous: Number(prev.clicks ?? 0), format: "number" },
-            CTR: { current: Number(cur.ctr ?? 0), previous: Number(prev.ctr ?? 0), format: "percentage" },
-            CPC: { current: Number(cur.cpc ?? 0), previous: Number(prev.cpc ?? 0), format: "currency" },
-            Cost: { current: Number(cur.cost ?? 0), previous: Number(prev.cost ?? 0), format: "currency" },
-            Conversions: { current: Number(cur.conversions ?? 0), previous: Number(prev.conversions ?? 0), format: "number" },
-          },
-        };
+    for (const slide of slides) {
+      if (!slide.htmlTemplate) {
+        filledPages.push(`<div class="slide bg-dark" style="display:flex;align-items:center;justify-content:center;"><p class="text-muted">Empty slide</p></div>`);
+        continue;
       }
 
-      if (sourceType === "SEARCH_CONSOLE" && gscSiteUrl) {
-        const [current, previous] = await Promise.all([
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, AVG(ctr) as ctr, AVG(position) as position FROM \`{dataset}.search_performance\` WHERE query_date >= @startDate AND query_date <= @endDate`, { startDate: thisMonthStart, endDate: thisMonthEnd }),
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, AVG(ctr) as ctr, AVG(position) as position FROM \`{dataset}.search_performance\` WHERE query_date >= @startDate AND query_date <= @endDate`, { startDate: prevMonthStart, endDate: prevMonthEnd }),
-        ]);
-        const cur = current[0] || {};
-        const prev = previous[0] || {};
-        reportData.channelData["SEARCH_CONSOLE"] = {
-          metrics: {
-            "Organic Impressions": { current: Number(cur.impressions ?? 0), previous: Number(prev.impressions ?? 0), format: "number" },
-            "Organic Clicks": { current: Number(cur.clicks ?? 0), previous: Number(prev.clicks ?? 0), format: "number" },
-            CTR: { current: Number(cur.ctr ?? 0), previous: Number(prev.ctr ?? 0), format: "percentage" },
-            "Avg. Position": { current: Number(cur.position ?? 0), previous: Number(prev.position ?? 0), format: "number" },
-          },
-        };
-      }
+      const resolved: Record<string, string> = {
+        orgName: org?.name ?? "",
+        period: periodLabel,
+        currency: org?.displayCurrency ?? "USD",
+      };
 
-      if (sourceType === "LINKEDIN" && linkedInOrgId) {
-        const [current, previous] = await Promise.all([
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(likes) as reactions, MAX(total_followers) as followers FROM \`{dataset}.post_performance\` p LEFT JOIN \`{dataset}.follower_stats\` f ON 1=1 WHERE published_date >= @startDate AND published_date <= @endDate`, { startDate: thisMonthStart, endDate: thisMonthEnd }),
-          runQuery(`SELECT SUM(impressions) as impressions, SUM(likes) as reactions, MAX(total_followers) as followers FROM \`{dataset}.post_performance\` p LEFT JOIN \`{dataset}.follower_stats\` f ON 1=1 WHERE published_date >= @startDate AND published_date <= @endDate`, { startDate: prevMonthStart, endDate: prevMonthEnd }),
-        ]);
-        const cur = current[0] || {};
-        const prev = previous[0] || {};
-        reportData.channelData["LINKEDIN"] = {
-          metrics: {
-            Impressions: { current: Number(cur.impressions ?? 0), previous: Number(prev.impressions ?? 0), format: "number" },
-            Reactions: { current: Number(cur.reactions ?? 0), previous: Number(prev.reactions ?? 0), format: "number" },
-            Followers: { current: Number(cur.followers ?? 0), previous: Number(prev.followers ?? 0), format: "number" },
-          },
-        };
-      }
-    }
+      for (const binding of slide.dataBindings || []) {
+        try {
+          switch (binding.source) {
+            case "static":
+              resolved[binding.placeholder] = binding.value;
+              break;
 
-    // Build scorecards from whatever data we gathered + manual metrics + goals
-    const scorecardSlides = slides.filter((s) => s.type === "scorecard-row");
-    for (const s of scorecardSlides) {
-      const config = s.config as ScorecardRowConfig;
-      for (const m of config.metrics) {
-        if (m.source === "manual") {
-          const metric = manualMetrics.find((mm) => mm.name === m.label || mm.id === m.sourceId);
-          if (metric) {
-            const currentEntry = metric.entries.find((e) => e.period === body.period);
-            const prevPeriod = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
-            const prevEntry = metric.entries.find((e) => e.period === prevPeriod);
-            reportData.scorecards[m.label] = {
-              value: currentEntry?.value ?? 0,
-              prevValue: prevEntry?.value,
-              format: metric.displayFormat,
-            };
+            case "org":
+              if (binding.value === "name") resolved[binding.placeholder] = org?.name ?? "";
+              else if (binding.value === "currency") resolved[binding.placeholder] = org?.displayCurrency ?? "USD";
+              else if (binding.value === "period") resolved[binding.placeholder] = periodLabel;
+              break;
+
+            case "manual": {
+              const metric = manualMetrics.find((m) => m.name === binding.value || m.id === binding.value);
+              if (metric) {
+                const currentEntry = metric.entries.find((e) => e.period === body.period);
+                resolved[binding.placeholder] = currentEntry
+                  ? currentEntry.value.toLocaleString()
+                  : "—";
+              }
+              break;
+            }
+
+            case "goal": {
+              const kpi = kpis.find((k) => k.name === binding.value || k.id === binding.value);
+              if (kpi) {
+                resolved[binding.placeholder] = kpi.cachedValue?.toLocaleString() ?? "—";
+              }
+              break;
+            }
+
+            case "bigquery": {
+              const rows = await runQuery(binding.value, {
+                startDate: thisMonthStart,
+                endDate: thisMonthEnd,
+                prevStartDate: prevMonthStart,
+                prevEndDate: prevMonthEnd,
+              });
+              if (rows.length > 0) {
+                const firstVal = Object.values(rows[0])[0];
+                resolved[binding.placeholder] = typeof firstVal === "number"
+                  ? firstVal.toLocaleString()
+                  : String(firstVal ?? "—");
+              }
+              break;
+            }
           }
-        } else if (m.source === "goal") {
-          const kpi = kpis.find((k) => k.name === m.label || k.id === m.sourceId);
-          if (kpi) {
-            reportData.scorecards[m.label] = {
-              value: kpi.cachedValue ?? 0,
-              format: kpi.displayFormat,
-            };
-          }
-        } else if (m.source === "bigquery" && m.query && propertyId) {
-          try {
-            const rows = await runQuery(m.query, { startDate: thisMonthStart, endDate: thisMonthEnd });
-            const prevRows = await runQuery(m.query, { startDate: prevMonthStart, endDate: prevMonthEnd });
-            const val = rows[0] ? Number(Object.values(rows[0])[0] ?? 0) : 0;
-            const prevVal = prevRows[0] ? Number(Object.values(prevRows[0])[0] ?? 0) : undefined;
-            reportData.scorecards[m.label] = { value: val, prevValue: prevVal, format: "number" };
-          } catch { /* skip */ }
+        } catch {
+          resolved[binding.placeholder] = "—";
         }
       }
-    }
 
-    // Generate AI insights if any slide needs them
-    const insightSlide = slides.find((s) => s.type === "ai-insights");
-    if (insightSlide) {
-      try {
-        const anthropic = new Anthropic();
-        const dataSnapshot = JSON.stringify({
-          goals: reportData.goals,
-          channels: reportData.channelData,
-          manualMetrics: reportData.manualMetrics.map((m) => ({ name: m.name, latestEntries: m.entries.slice(-3) })),
-        });
-        const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 500,
-          system: "You are a marketing analyst. Write 4-5 concise bullet points summarizing the month's performance. Highlight what's working, what declined, and 1-2 actionable recommendations. Be specific with numbers. No headers, just bullet points starting with •",
-          messages: [{ role: "user", content: `Analyze this month's data for ${org?.name ?? "the client"} (${periodLabel}):\n${dataSnapshot}` }],
-        });
-        const text = response.content.find((b) => b.type === "text");
-        reportData.aiInsights = text?.text ?? undefined;
-      } catch (err) {
-        console.error("[report-gen] AI insights failed:", err);
-        reportData.aiInsights = "Insights could not be generated.";
+      // Auto-resolve {{goals_html}} if present in template
+      if (slide.htmlTemplate.includes("{{goals_html}}")) {
+        const goalsHtml = kpis.map((k) => {
+          const pct = k.cachedValue !== null && k.targetValue > 0
+            ? Math.min(100, (k.cachedValue / k.targetValue) * 100)
+            : 0;
+          const color = pct >= 90 ? "#00A352" : pct >= 60 ? "#F59E0B" : "#EF4444";
+          const status = pct >= 90 ? "On track" : pct >= 60 ? "At risk" : "Off track";
+          return `<div class="card" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;font-weight:500;">${k.name}</span>
+              <span style="font-size:10px;color:${color};">${status}</span>
+            </div>
+            <div style="font-size:24px;font-weight:600;" class="tabular">${k.cachedValue?.toLocaleString() ?? "—"} <span style="font-size:12px;color:#888;">/ ${k.targetValue.toLocaleString()}</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct.toFixed(0)}%;background:${color};"></div></div>
+            <div style="text-align:right;font-size:10px;color:${color};" class="tabular">${pct.toFixed(0)}%</div>
+          </div>`;
+        }).join("\n");
+        resolved["goals_html"] = goalsHtml;
       }
+
+      // Auto-resolve {{insights}} if present
+      if (slide.htmlTemplate.includes("{{insights}}") && !resolved["insights"]) {
+        try {
+          const anthropic = new Anthropic();
+          const snapshot = JSON.stringify({
+            goals: kpis.map((k) => ({ name: k.name, value: k.cachedValue, target: k.targetValue })),
+            manualMetrics: manualMetrics.map((m) => ({ name: m.name, latest: m.entries[0] })),
+          });
+          const resp = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 400,
+            system: "You are a marketing analyst. Write 4-5 concise HTML bullet points (<ul><li>...</li></ul>) summarizing the month's performance. Be specific with numbers. Use <span style=\"color:#00A352\"> for positive and <span style=\"color:#EF4444\"> for negative highlights.",
+            messages: [{ role: "user", content: `Data for ${org?.name} (${periodLabel}):\n${snapshot}` }],
+          });
+          const text = resp.content.find((b) => b.type === "text");
+          resolved["insights"] = text?.text ?? "No insights available.";
+        } catch {
+          resolved["insights"] = "Insights could not be generated.";
+        }
+      }
+
+      const filledHtml = fillTemplate(slide.htmlTemplate, slide.dataBindings || [], resolved);
+      filledPages.push(filledHtml);
     }
 
-    // Generate the PPTX
-    const buffer = await generateReport(slides, reportData);
+    const pdf = await renderPdf(filledPages);
 
-    const filename = `${org?.name ?? "Report"} — ${periodLabel}.pptx`.replace(/[^a-zA-Z0-9 —.]/g, "");
+    const filename = `${org?.name ?? "Report"} - ${periodLabel}.pdf`.replace(/[^a-zA-Z0-9 \-.]/g, "");
 
-    return new NextResponse(buffer, {
+    return new NextResponse(pdf, {
       status: 200,
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });

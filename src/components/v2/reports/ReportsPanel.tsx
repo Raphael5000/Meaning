@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2, FileDown, GripVertical, ChevronLeft } from "lucide-react";
+import {
+  Plus, Trash2, FileDown, ChevronLeft, Upload, Wand2,
+  GripVertical, Image as ImageIcon, Type,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Page, PageBody, PageHeader } from "../layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { SLIDE_TYPES, type SlideType, type SlideDefinition } from "@/lib/report-types";
+import { STARTER_SLIDES, type SlideDefinition, type DataBinding } from "@/lib/report-types";
 
 /* ──────────────── Types ──────────────── */
 
@@ -31,24 +34,8 @@ interface ReportsPanelProps {
   orgId: string | null;
 }
 
-/* ──────────────── Helpers ──────────────── */
-
 function newSlideId() {
   return `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function defaultConfig(type: SlideType): SlideDefinition["config"] {
-  switch (type) {
-    case "title": return { subtitle: "" };
-    case "scorecard-row": return { metrics: [] };
-    case "channel-table": return { sourceType: "GOOGLE_ADS", metrics: [], compare: "MoM" };
-    case "goals-grid": return {};
-    case "bar-chart": return { manualMetricIds: [] };
-    case "line-chart": return { manualMetricIds: [] };
-    case "campaign-table": return { sourceType: "GOOGLE_ADS", limit: 10 };
-    case "ai-insights": return {};
-    default: return {};
-  }
 }
 
 function getCurrentPeriod(): string {
@@ -56,7 +43,7 @@ function getCurrentPeriod(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/* ──────────────── Component ──────────────── */
+/* ──────────────── Main Component ──────────────── */
 
 export default function ReportsPanel({ orgId }: ReportsPanelProps) {
   const [templates, setTemplates] = React.useState<ReportTemplate[]>([]);
@@ -85,16 +72,10 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
     if (!createName.trim()) return;
     setCreating(true);
     try {
-      const defaultSlides: SlideDefinition[] = [
-        { id: newSlideId(), type: "title", title: "Monthly Report", config: { subtitle: "" } },
-        { id: newSlideId(), type: "scorecard-row", title: "Executive Summary", config: { metrics: [] } },
-        { id: newSlideId(), type: "goals-grid", title: "Goal Progress", config: {} },
-        { id: newSlideId(), type: "ai-insights", title: "Insights & Recommendations", config: {} },
-      ];
       const res = await fetch("/api/reports/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: createName.trim(), slides: defaultSlides }),
+        body: JSON.stringify({ name: createName.trim(), slides: [] }),
       });
       if (!res.ok) throw new Error();
       const created = (await res.json()) as ReportTemplate;
@@ -102,7 +83,6 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
       setCreateOpen(false);
       setCreateName("");
       setActiveTemplate(created);
-      toast.success("Template created.");
     } catch {
       toast.error("Could not create template.");
     } finally {
@@ -116,7 +96,7 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
     try {
       await fetch(`/api/reports/templates/${id}`, { method: "DELETE" });
     } catch {
-      toast.error("Could not delete template.");
+      toast.error("Could not delete.");
       await load();
     }
   }
@@ -126,7 +106,7 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
       <TemplateEditor
         template={activeTemplate}
         onBack={() => { setActiveTemplate(null); load(); }}
-        onUpdate={(updated) => setActiveTemplate(updated)}
+        onUpdate={(t) => setActiveTemplate(t)}
       />
     );
   }
@@ -142,14 +122,11 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
           </Button>
         }
       />
-
       <PageBody contained="default" padding="default">
         <div className="mb-6">
-          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">
-            Reports
-          </h1>
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">Reports</h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground max-w-[580px]">
-            Create report templates to generate consistent monthly presentations. Same structure every time, fresh data each month.
+            Build report templates from scratch or by uploading reference screenshots. Generate consistent PDF reports every month.
           </p>
         </div>
 
@@ -178,19 +155,16 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
                 <div>
                   <div className="text-[13px] font-medium text-foreground">{t.name}</div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {(t.slides as SlideDefinition[]).length} slides · Updated {new Date(t.updatedAt).toLocaleDateString()}
+                    {(t.slides as SlideDefinition[]).length} slides
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100"
-                    onClick={(e) => { e.stopPropagation(); deleteTemplate(t.id); }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
+                <Button
+                  size="sm" variant="ghost"
+                  className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); deleteTemplate(t.id); }}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
               </div>
             ))}
           </div>
@@ -200,16 +174,9 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <form onSubmit={(e) => { e.preventDefault(); createTemplate(); }}>
-            <DialogHeader>
-              <DialogTitle>New report template</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>New report template</DialogTitle></DialogHeader>
             <div className="mt-4">
-              <Input
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="e.g. Monthly Client Report"
-                autoFocus
-              />
+              <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Monthly Client Report" autoFocus />
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -226,84 +193,129 @@ export default function ReportsPanel({ orgId }: ReportsPanelProps) {
 
 /* ──────────────── Template Editor ──────────────── */
 
-interface TemplateEditorProps {
+function TemplateEditor({ template, onBack, onUpdate }: {
   template: ReportTemplate;
   onBack: () => void;
   onUpdate: (t: ReportTemplate) => void;
-}
-
-function TemplateEditor({ template, onBack, onUpdate }: TemplateEditorProps) {
+}) {
   const [slides, setSlides] = React.useState<SlideDefinition[]>(template.slides);
-  const [saving, setSaving] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
-  const [addSlideOpen, setAddSlideOpen] = React.useState(false);
-  const [genPeriod, setGenPeriod] = React.useState(getCurrentPeriod());
+  const [addMode, setAddMode] = React.useState<null | "image" | "prompt" | "starter">(null);
+  const [genPrompt, setGenPrompt] = React.useState("");
+  const [genImage, setGenImage] = React.useState<string | null>(null);
+  const [genLoading, setGenLoading] = React.useState(false);
   const [genOpen, setGenOpen] = React.useState(false);
+  const [genPeriod, setGenPeriod] = React.useState(getCurrentPeriod());
 
-  const dirty = React.useRef(false);
-
-  async function save(newSlides: SlideDefinition[]) {
-    setSaving(true);
+  async function saveSlides(newSlides: SlideDefinition[]) {
+    setSlides(newSlides);
     try {
       const res = await fetch(`/api/reports/templates/${template.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slides: newSlides }),
       });
-      if (!res.ok) throw new Error();
-      const updated = (await res.json()) as ReportTemplate;
-      onUpdate(updated);
-      dirty.current = false;
+      if (res.ok) {
+        const updated = (await res.json()) as ReportTemplate;
+        onUpdate(updated);
+      }
     } catch {
-      toast.error("Could not save template.");
-    } finally {
-      setSaving(false);
+      toast.error("Could not save.");
     }
   }
 
-  function updateSlides(newSlides: SlideDefinition[]) {
-    setSlides(newSlides);
-    dirty.current = true;
-    // Auto-save after short delay
-    const timeout = setTimeout(() => save(newSlides), 800);
-    return () => clearTimeout(timeout);
-  }
-
-  function addSlide(type: SlideType) {
-    const meta = SLIDE_TYPES.find((s) => s.type === type);
-    const newSlide: SlideDefinition = {
-      id: newSlideId(),
-      type,
-      title: meta?.label ?? type,
-      config: defaultConfig(type),
-    };
-    const newSlides = [...slides, newSlide];
-    setSlides(newSlides);
-    save(newSlides);
-    setAddSlideOpen(false);
-  }
-
   function removeSlide(id: string) {
-    const newSlides = slides.filter((s) => s.id !== id);
-    setSlides(newSlides);
-    save(newSlides);
+    saveSlides(slides.filter((s) => s.id !== id));
   }
 
-  function moveSlide(index: number, direction: -1 | 1) {
-    const target = index + direction;
+  function moveSlide(index: number, dir: -1 | 1) {
+    const target = index + dir;
     if (target < 0 || target >= slides.length) return;
-    const newSlides = [...slides];
-    [newSlides[index], newSlides[target]] = [newSlides[target], newSlides[index]];
-    setSlides(newSlides);
-    save(newSlides);
+    const arr = [...slides];
+    [arr[index], arr[target]] = [arr[target], arr[index]];
+    saveSlides(arr);
   }
 
-  function updateSlideTitle(id: string, title: string) {
-    const newSlides = slides.map((s) => s.id === id ? { ...s, title } : s);
-    updateSlides(newSlides);
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setGenImage(reader.result as string);
+    reader.readAsDataURL(file);
   }
 
-  async function generatePptx() {
+  async function generateSlide() {
+    setGenLoading(true);
+    try {
+      const res = await fetch("/api/reports/generate-slide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referenceImage: genImage || undefined,
+          prompt: genPrompt || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || "Failed to generate slide");
+      }
+      const data = (await res.json()) as {
+        title: string;
+        htmlTemplate: string;
+        dataBindings: DataBinding[];
+      };
+
+      const newSlide: SlideDefinition = {
+        id: newSlideId(),
+        title: data.title,
+        htmlTemplate: data.htmlTemplate,
+        dataBindings: data.dataBindings,
+        referenceImage: genImage || undefined,
+      };
+
+      await saveSlides([...slides, newSlide]);
+      setAddMode(null);
+      setGenPrompt("");
+      setGenImage(null);
+      toast.success("Slide added.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not generate slide.");
+    } finally {
+      setGenLoading(false);
+    }
+  }
+
+  async function addStarterSlide(prompt: string, label: string) {
+    setGenLoading(true);
+    try {
+      const res = await fetch("/api/reports/generate-slide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = (await res.json()) as {
+        title: string;
+        htmlTemplate: string;
+        dataBindings: DataBinding[];
+      };
+      const newSlide: SlideDefinition = {
+        id: newSlideId(),
+        title: data.title || label,
+        htmlTemplate: data.htmlTemplate,
+        dataBindings: data.dataBindings,
+      };
+      await saveSlides([...slides, newSlide]);
+      setAddMode(null);
+      toast.success("Slide added.");
+    } catch {
+      toast.error("Could not generate slide.");
+    } finally {
+      setGenLoading(false);
+    }
+  }
+
+  async function generatePdf() {
     setGenerating(true);
     try {
       const res = await fetch("/api/reports/generate", {
@@ -319,7 +331,7 @@ function TemplateEditor({ template, onBack, onUpdate }: TemplateEditorProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${template.name} — ${genPeriod}.pptx`;
+      a.download = `${template.name} - ${genPeriod}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       setGenOpen(false);
@@ -331,8 +343,6 @@ function TemplateEditor({ template, onBack, onUpdate }: TemplateEditorProps) {
     }
   }
 
-  const slideTypeMeta = (type: string) => SLIDE_TYPES.find((s) => s.type === type);
-
   return (
     <Page className="meaning-v2">
       <PageHeader
@@ -340,146 +350,186 @@ function TemplateEditor({ template, onBack, onUpdate }: TemplateEditorProps) {
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={onBack}>
-              <ChevronLeft className="size-3" />
-              Back
+              <ChevronLeft className="size-3" /> Back
             </Button>
-            <Button size="sm" onClick={() => setGenOpen(true)}>
-              <FileDown className="size-3" />
-              Generate
+            <Button size="sm" onClick={() => setGenOpen(true)} disabled={slides.length === 0}>
+              <FileDown className="size-3" /> Generate PDF
             </Button>
           </div>
         }
       />
-
       <PageBody contained="default" padding="default">
         <div className="mb-6">
-          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">
-            {template.name}
-          </h1>
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-foreground">{template.name}</h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
-            {slides.length} slides · Drag to reorder, click to configure
+            {slides.length} slide{slides.length !== 1 ? "s" : ""}. Add slides from a reference image, a description, or starter templates.
           </p>
         </div>
 
         {/* Slide list */}
-        <div className="space-y-2">
-          {slides.map((slide, i) => {
-            const meta = slideTypeMeta(slide.type);
-            return (
-              <div
-                key={slide.id}
-                className="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
-              >
+        <div className="space-y-3">
+          {slides.map((slide, i) => (
+            <div key={slide.id} className="group rounded-lg border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
                 <div className="flex flex-col gap-0.5">
-                  <button
-                    type="button"
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    onClick={() => moveSlide(i, -1)}
-                    disabled={i === 0}
-                  >
+                  <button type="button" className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30" onClick={() => moveSlide(i, -1)} disabled={i === 0}>
                     <svg width="10" height="6" viewBox="0 0 10 6"><path d="M1 5l4-4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
                   </button>
-                  <button
-                    type="button"
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    onClick={() => moveSlide(i, 1)}
-                    disabled={i === slides.length - 1}
-                  >
+                  <button type="button" className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30" onClick={() => moveSlide(i, 1)} disabled={i === slides.length - 1}>
                     <svg width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
                   </button>
                 </div>
-
-                <span className="text-[11px] font-medium text-muted-foreground tabular-nums w-5">
-                  {i + 1}
-                </span>
-
+                <span className="text-[11px] font-medium text-muted-foreground tabular-nums w-5">{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <Input
-                    value={slide.title}
-                    onChange={(e) => updateSlideTitle(slide.id, e.target.value)}
-                    className="h-7 border-0 bg-transparent p-0 text-[13px] font-medium shadow-none focus-visible:ring-0"
-                  />
+                  <div className="text-[13px] font-medium text-foreground truncate">{slide.title}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    {meta?.description ?? slide.type}
+                    {slide.dataBindings?.length ?? 0} data bindings
+                    {slide.referenceImage && " · From reference image"}
                   </div>
                 </div>
-
-                <Badge variant="secondary" className="text-[10px] shrink-0">
-                  {meta?.label ?? slide.type}
-                </Badge>
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100"
-                  onClick={() => removeSlide(slide.id)}
-                >
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100" onClick={() => removeSlide(slide.id)}>
                   <Trash2 className="size-3" />
                 </Button>
               </div>
-            );
-          })}
 
-          {/* Add slide */}
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-4 text-[12.5px] text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-            onClick={() => setAddSlideOpen(true)}
-          >
-            <Plus className="size-4" />
-            Add slide
-          </button>
+              {/* Mini preview */}
+              {slide.htmlTemplate && (
+                <div className="border-t border-border bg-[#0A0A0A] px-2 py-2">
+                  <div
+                    className="pointer-events-none origin-top-left overflow-hidden rounded"
+                    style={{ width: 256, height: 144, transform: "scale(1)", position: "relative" }}
+                  >
+                    <iframe
+                      srcDoc={`<!DOCTYPE html><html><head><style>*{box-sizing:border-box;margin:0;padding:0;}body{width:1280px;height:720px;transform:scale(0.2);transform-origin:top left;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#fff;background:#0A0A0A;padding:48px 56px;}.text-muted{color:#888}.text-green{color:#00A352}.text-red{color:#EF4444}.text-amber{color:#F59E0B}.bg-surface{background:#141414}.card{background:#141414;border:1px solid #2A2A2A;border-radius:8px;padding:20px;}.progress-bar{height:6px;border-radius:999px;background:#2A2A2A;overflow:hidden}.progress-fill{height:100%;border-radius:999px}.tabular{font-variant-numeric:tabular-nums}table{border-collapse:collapse;width:100%}th,td{padding:10px 16px;text-align:left}th{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em}td{font-size:13px;border-top:1px solid #2A2A2A}</style></head><body>${slide.htmlTemplate.replace(/\{\{[^}]+\}\}/g, '<span style="background:#2A2A2A;border-radius:3px;padding:0 4px;font-size:inherit;">···</span>')}</body></html>`}
+                      style={{ width: 1280, height: 720, border: "none", pointerEvents: "none" }}
+                      tabIndex={-1}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {saving && (
-          <p className="mt-3 text-[11px] text-muted-foreground">Saving...</p>
-        )}
+        {/* Add slide controls */}
+        {addMode === null ? (
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-6 text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+              onClick={() => setAddMode("image")}
+            >
+              <Upload className="size-5" />
+              <span className="text-[12px] font-medium">From screenshot</span>
+              <span className="text-[10px] text-muted-foreground">Upload a reference image</span>
+            </button>
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-6 text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+              onClick={() => setAddMode("prompt")}
+            >
+              <Wand2 className="size-5" />
+              <span className="text-[12px] font-medium">From description</span>
+              <span className="text-[10px] text-muted-foreground">Describe what you want</span>
+            </button>
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-6 text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+              onClick={() => setAddMode("starter")}
+            >
+              <Type className="size-5" />
+              <span className="text-[12px] font-medium">Starter template</span>
+              <span className="text-[10px] text-muted-foreground">Pick a pre-built layout</span>
+            </button>
+          </div>
+        ) : addMode === "image" ? (
+          <div className="mt-4 rounded-lg border border-border bg-card p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[13px] font-medium">Add slide from screenshot</h3>
+              <Button size="sm" variant="ghost" onClick={() => { setAddMode(null); setGenImage(null); setGenPrompt(""); }}>Cancel</Button>
+            </div>
+            {genImage ? (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <img src={genImage} alt="Reference" className="w-full max-h-[200px] object-contain bg-black" />
+              </div>
+            ) : (
+              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 transition-colors hover:border-ring">
+                <Upload className="size-6 text-muted-foreground" />
+                <span className="text-[12px] text-muted-foreground">Click to upload or drag & drop</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+            )}
+            <div>
+              <Label className="text-[11px]">Additional instructions (optional)</Label>
+              <Input
+                value={genPrompt}
+                onChange={(e) => setGenPrompt(e.target.value)}
+                placeholder="e.g. Use our actual Google Ads data, show cost in ZAR"
+                className="mt-1"
+              />
+            </div>
+            <Button onClick={generateSlide} disabled={!genImage || genLoading} className="w-full">
+              {genLoading ? "Generating slide..." : "Generate slide from image"}
+            </Button>
+          </div>
+        ) : addMode === "prompt" ? (
+          <div className="mt-4 rounded-lg border border-border bg-card p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[13px] font-medium">Add slide from description</h3>
+              <Button size="sm" variant="ghost" onClick={() => { setAddMode(null); setGenPrompt(""); }}>Cancel</Button>
+            </div>
+            <div>
+              <Label className="text-[11px]">Describe the slide you want</Label>
+              <textarea
+                value={genPrompt}
+                onChange={(e) => setGenPrompt(e.target.value)}
+                placeholder="e.g. A Google Ads performance summary showing impressions, clicks, CTR, CPC, and cost. Compare last month to this month with percentage changes. Include a campaign breakdown table below."
+                className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-[13px] shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <Button onClick={generateSlide} disabled={!genPrompt.trim() || genLoading} className="w-full">
+              {genLoading ? "Generating slide..." : "Generate slide"}
+            </Button>
+          </div>
+        ) : addMode === "starter" ? (
+          <div className="mt-4 rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[13px] font-medium">Pick a starter template</h3>
+              <Button size="sm" variant="ghost" onClick={() => setAddMode(null)}>Cancel</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {STARTER_SLIDES.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  disabled={genLoading}
+                  className="flex flex-col gap-1 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/30 hover:border-ring disabled:opacity-50"
+                  onClick={() => addStarterSlide(s.prompt, s.label)}
+                >
+                  <span className="text-[12px] font-medium text-foreground">{s.label}</span>
+                  <span className="text-[10.5px] text-muted-foreground">{s.description}</span>
+                </button>
+              ))}
+            </div>
+            {genLoading && <p className="text-[11px] text-muted-foreground text-center">Generating slide...</p>}
+          </div>
+        ) : null}
       </PageBody>
 
-      {/* Add slide dialog */}
-      <Dialog open={addSlideOpen} onOpenChange={setAddSlideOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Add a slide</DialogTitle>
-          </DialogHeader>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {SLIDE_TYPES.map((st) => (
-              <button
-                key={st.type}
-                type="button"
-                className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-muted/30 hover:border-ring"
-                onClick={() => addSlide(st.type)}
-              >
-                <span className="text-[12px] font-medium text-foreground">{st.label}</span>
-                <span className="text-[10.5px] text-muted-foreground">{st.description}</span>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Generate dialog */}
+      {/* Generate PDF dialog */}
       <Dialog open={genOpen} onOpenChange={setGenOpen}>
         <DialogContent className="sm:max-w-[380px]">
-          <form onSubmit={(e) => { e.preventDefault(); generatePptx(); }}>
-            <DialogHeader>
-              <DialogTitle>Generate report</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Period</label>
-                <Input
-                  type="month"
-                  value={genPeriod}
-                  onChange={(e) => setGenPeriod(e.target.value)}
-                />
-              </div>
+          <form onSubmit={(e) => { e.preventDefault(); generatePdf(); }}>
+            <DialogHeader><DialogTitle>Generate report</DialogTitle></DialogHeader>
+            <div className="mt-4">
+              <Label className="text-[11px]">Period</Label>
+              <Input type="month" value={genPeriod} onChange={(e) => setGenPeriod(e.target.value)} className="mt-1" />
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setGenOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={generating}>
                 <FileDown className="size-3" />
-                {generating ? "Generating..." : "Download .pptx"}
+                {generating ? "Generating..." : "Download PDF"}
               </Button>
             </DialogFooter>
           </form>
