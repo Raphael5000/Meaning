@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       try {
       const anthropic = new Anthropic();
       const routingResponse = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 200,
         system: `You decide whether a KPI goal matches a MANUAL metric or should use CONNECTED data sources (BigQuery).
 
