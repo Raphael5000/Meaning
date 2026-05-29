@@ -84,13 +84,16 @@ export default function GoalsPanel({ orgId }: GoalsPanelProps) {
     load();
   }, [load, orgId]);
 
-  // Auto-refresh if any non-manual KPIs have no cached value
+  // Auto-refresh once if any non-manual KPIs have no cached value
+  const hasAutoRefreshed = React.useRef(false);
   React.useEffect(() => {
     if (
       !loading &&
+      !hasAutoRefreshed.current &&
       kpis.length > 0 &&
       kpis.some((k) => !k.manualMetricId && k.cachedAt === null)
     ) {
+      hasAutoRefreshed.current = true;
       refreshKpis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
