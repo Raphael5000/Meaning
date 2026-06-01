@@ -35,42 +35,43 @@ interface DashboardGridProps {
 
 /** Fixed sizes per widget type — single source of truth */
 function getFixedSize(widget: Widget, isFullWidth?: boolean): { w: number; h: number } {
-  if (widget.widgetType === "heading") return { w: 12, h: 1 };
-  if (widget.widgetType === "divider") return { w: 12, h: 1 };
-  if (widget.widgetType === "scorecard") return { w: 4, h: 3 };
+  if (widget.widgetType === "heading") return { w: 12, h: 2 };
+  if (widget.widgetType === "divider") return { w: 12, h: 2 };
+  if (widget.widgetType === "scorecard") return { w: 4, h: 4 };
   if (widget.widgetType === "table") {
-    // Auto-size: widget header ~32px + table header ~32px + rows ~36px each, rowHeight=40px margin=8px
-    // Grid item height = h * 40 + (h-1) * 8
+    // Auto-size: widget header ~36px + table header ~32px + rows ~37px each
+    // Grid: h * 20 + (h-1) * 16 = h * 36 - 16
     const dc = widget.displayConfig as Record<string, unknown> | null;
     const data = widget.cachedData ?? dc?.inlineData ?? dc?.data;
     const rowCount = Array.isArray(data) ? data.length : 5;
-    const contentPx = 32 + 32 + rowCount * 36;
-    // Solve: h * 40 + (h-1) * 8 >= contentPx → h * 48 - 8 >= contentPx → h >= (contentPx + 8) / 48
-    const h = Math.max(3, Math.min(16, Math.ceil((contentPx + 8) / 48)));
-    return { w: 12, h };
+    const contentPx = 36 + 32 + rowCount * 37;
+    const h = Math.max(4, Math.min(30, Math.ceil((contentPx + 16) / 36)));
+    // Tables default to full width; toggle makes them half
+    const w = isFullWidth ? 6 : 12;
+    return { w, h };
   }
-  if (widget.widgetType === "generating") return { w: 6, h: 8 };
+  if (widget.widgetType === "generating") return { w: 6, h: 10 };
   if (widget.widgetType === "chart" && widget.displayConfig) {
     const config = widget.displayConfig as Record<string, unknown>;
     const series = config.series;
     const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
     const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
-    if (chartType === "sankey" || chartType === "map") return { w: 12, h: 10 };
-    if (isFullWidth) return { w: 12, h: 10 };
-    if (chartType === "pie") return { w: 6, h: 8 };
-    return { w: 6, h: 8 };
+    if (chartType === "sankey" || chartType === "map") return { w: 12, h: 12 };
+    if (isFullWidth) return { w: 12, h: 12 };
+    if (chartType === "pie") return { w: 6, h: 10 };
+    return { w: 6, h: 10 };
   }
-  return { w: 6, h: 8 };
+  return { w: 6, h: 10 };
 }
 
-/** Chart types that support full-width toggle */
+/** Widget types that support width toggle */
 function canToggleWidth(widget: Widget): boolean {
+  if (widget.widgetType === "table") return true;
   if (widget.widgetType !== "chart" || !widget.displayConfig) return false;
   const config = widget.displayConfig as Record<string, unknown>;
   const series = config.series;
   const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
   const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
-  // Sankey/map are already full width
   return chartType !== "sankey" && chartType !== "map";
 }
 
@@ -186,7 +187,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
           layouts={allLayouts}
           breakpoints={{ lg: 1200, md: 768, sm: 0 }}
           cols={{ lg: 12, md: 12, sm: 12 }}
-          rowHeight={40}
+          rowHeight={20}
           width={width}
           margin={[16, 16] as const}
           containerPadding={[0, 0] as const}

@@ -58,13 +58,11 @@ echarts.use([
 
 export const ACCENT_PALETTE = [
   "#10a37f",
-  "#6366f1",
-  "#3b82f6",
-  "#f97316",
-  "#8b5cf6",
-  "#06b6d4",
-  "#ec4899",
-  "#84cc16",
+  "#e5e7eb",
+  "#9ca3af",
+  "#10a37f99",
+  "#e5e7eb99",
+  "#9ca3af99",
 ];
 
 /** Vibrant palette specifically for sankey diagrams – matches the neon-on-dark design reference */

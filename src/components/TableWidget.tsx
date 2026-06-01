@@ -99,22 +99,28 @@ export default function TableWidget({ config, data, currencySymbol = "", onUpdat
 
   const baseColumns = useMemo(() => {
     const configColumnsMatch = config.columns && config.columns.length > 0
-      && config.columns.some((c) => dataKeys.has(c.key));
-    if (configColumnsMatch) return config.columns!;
+      && config.columns.filter((c) => dataKeys.has(c.key)).length >= config.columns.length * 0.5;
+    if (configColumnsMatch) return config.columns!.filter((c) => dataKeys.has(c.key));
 
-    // Auto-generate columns: put text/name/label columns first, then numeric
+    // Auto-generate columns: text first, then numeric, then change/delta last
     const allKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
     const textKeys: string[] = [];
     const numKeys: string[] = [];
+    const changeKeys: string[] = [];
+    const changePattern = /change|delta|diff|percent/i;
     for (const key of allKeys) {
-      const isNum = rows.some((r) => {
-        const v = r[key];
-        return typeof v === "number" || (typeof v === "string" && v !== "" && /^-?\d[\d,]*\.?\d*$/.test(v.trim()));
-      });
-      if (isNum) numKeys.push(key);
-      else textKeys.push(key);
+      if (changePattern.test(key)) {
+        changeKeys.push(key);
+      } else {
+        const isNum = rows.some((r) => {
+          const v = r[key];
+          return typeof v === "number" || (typeof v === "string" && v !== "" && /^-?\d[\d,]*\.?\d*$/.test(v.trim()));
+        });
+        if (isNum) numKeys.push(key);
+        else textKeys.push(key);
+      }
     }
-    return [...textKeys, ...numKeys].map((key) => ({
+    return [...textKeys, ...numKeys, ...changeKeys].map((key) => ({
       key,
       label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     }));
@@ -189,7 +195,7 @@ export default function TableWidget({ config, data, currencySymbol = "", onUpdat
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="overflow-hidden">
       <table className="w-full text-xs" style={{ tableLayout: "fixed" }}>
         <thead className="sticky top-0" style={{ background: "var(--table-header-bg)" }}>
           <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
@@ -263,7 +269,10 @@ export default function TableWidget({ config, data, currencySymbol = "", onUpdat
                 const alignRight = ci > 0;
                 let display: string;
 
-                if (typeof val === "number" || (typeof val === "string" && val !== "" && /^-?\d[\d,]*\.?\d*$/.test(val.trim()))) {
+                // Pre-formatted strings with % — display as-is but clean up +- artifacts
+                if (typeof val === "string" && val.includes("%")) {
+                  display = val.replace(/\+-/g, "-").replace(/\+\+/g, "+");
+                } else if (typeof val === "number" || (typeof val === "string" && val !== "" && /^-?\d[\d,]*\.?\d*$/.test(val.trim()))) {
                   const num = typeof val === "number" ? val : parseFloat(val.replace(/,/g, ""));
                   const k = col.key.toLowerCase();
                   const isMoney = MONEY_COLUMNS.test(col.key);
@@ -278,8 +287,6 @@ export default function TableWidget({ config, data, currencySymbol = "", onUpdat
                   } else {
                     display = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                   }
-                } else if (typeof val === "string" && val.includes("%")) {
-                  display = val;
                 } else {
                   const s = String(val ?? "");
                   display = s.replace(/^https?:\/\//, "").replace(/\/$/, "") || s;

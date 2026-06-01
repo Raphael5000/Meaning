@@ -938,8 +938,14 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
                     onClick={() => { setMenuOpen(false); onToggleWidth(); }}
                     className="menu-btn flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent"
                   >
-                    {isFullWidth ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-                    {isFullWidth ? "Half width" : "Full width"}
+                    {(() => {
+                      // Tables default full width, so toggle = shrink. Charts default half, toggle = expand.
+                      const isWide = widget.widgetType === "table" ? !isFullWidth : isFullWidth;
+                      return <>
+                        {isWide ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                        {isWide ? "Half width" : "Full width"}
+                      </>;
+                    })()}
                   </button>
                 )}
                 <button
