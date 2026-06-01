@@ -363,9 +363,11 @@ export default function DashboardPanelV2({
     }).catch(() => {});
   }
 
+  const [refreshingWidgetId, setRefreshingWidgetId] = React.useState<string | null>(null);
+
   async function handleRefreshWidget(widgetId: string) {
     if (!dashboard) return;
-    setRefreshing(true);
+    setRefreshingWidgetId(widgetId);
     try {
       const res = await fetch(`/api/dashboards/${dashboardId}/refresh`, {
         method: "POST",
@@ -392,7 +394,7 @@ export default function DashboardPanelV2({
         }
       }
     } catch { /* ignore */ }
-    setRefreshing(false);
+    setRefreshingWidgetId(null);
   }
 
   function handleEditWidgetOpen(widgetId: string, prompt: string) {
@@ -648,6 +650,7 @@ export default function DashboardPanelV2({
             onEditWidget={handleEditWidgetOpen}
             onRefreshWidget={handleRefreshWidget}
             refreshing={refreshing}
+            refreshingWidgetId={refreshingWidgetId}
             kpiTargets={kpiTargets}
           />
         )}
@@ -668,6 +671,7 @@ export default function DashboardPanelV2({
         submitLabel={editWidgetId ? "Save changes" : "Generate widget"}
         onAddSimple={(type) => handleAddSimpleWidget(type)}
       />
+
 
       {/* Chat dock — absolute overlay with soft scrim so content keeps full width */}
       {chatOpen && (

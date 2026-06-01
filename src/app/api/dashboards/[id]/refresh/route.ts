@@ -175,6 +175,7 @@ export async function POST(
     dateRange?: string;
     dateFrom?: string | null;
     dateTo?: string | null;
+    widgetIds?: string[];
   };
 
   try {
@@ -203,10 +204,16 @@ export async function POST(
     const mailchimpListId = orgDataSources.find((ds) => ds.type === "MAILCHIMP" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
+    const ahrefsOrgId = orgDataSources.find((ds) => ds.type === "AHREFS" && connectedStatuses.includes(ds.status)) ? dashboard.orgId : null;
+
+    // Optionally filter to specific widgets
+    const widgetsToRefresh = body.widgetIds?.length
+      ? dashboard.widgets.filter((w) => body.widgetIds!.includes(w.id))
+      : dashboard.widgets;
 
     // Refresh each widget in parallel
     const results = await Promise.all(
-      dashboard.widgets.map(async (widget) => {
+      widgetsToRefresh.map(async (widget) => {
         const queryConfig = widget.queryConfig as { tool?: string; input?: Record<string, unknown> } | null;
         if (!queryConfig?.tool || !queryConfig?.input) {
           return { widgetId: widget.id, error: "No query config", rows: null };
@@ -221,7 +228,7 @@ export async function POST(
             const { sql, params } = buildAnalyticsSQL(input);
             console.log(`[dashboard-refresh] Widget ${widget.id}: dates=${startDate}→${endDate}, SQL=${sql.slice(0, 200)}`);
             console.log(`[dashboard-refresh] Params:`, JSON.stringify(params));
-            const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+            const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId);
             rows = result.rows;
           } else if (queryConfig.tool === "query_manual_metrics") {
             // Manual metrics don't need refresh — data is user-entered
@@ -286,17 +293,8 @@ export async function POST(
           console.error(`[dashboard-refresh] Widget ${widget.id} failed:`, err);
           const errMsg = err instanceof Error ? err.message : "Query failed";
 
-          // If the error is a missing dataset, mark the DataSource as ERROR
-          // so the UI can show a meaningful banner instead of silent "no data".
-          if (errMsg.includes("Not found") && ga4Ds) {
-            prisma.dataSource.update({
-              where: { id: ga4Ds.id },
-              data: {
-                status: "ERROR",
-                lastSyncError: `BigQuery dataset not found. Check that GA4 BigQuery export is active and linked to the correct project.`,
-              },
-            }).catch((e) => console.error("[dashboard-refresh] Failed to update DataSource status:", e));
-          }
+          // Log the error but don't mark data sources as disconnected —
+          // individual widget query failures shouldn't affect the whole connection.
 
           return { widgetId: widget.id, error: errMsg, rows: null };
         }

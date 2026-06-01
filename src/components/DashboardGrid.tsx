@@ -29,6 +29,7 @@ interface DashboardGridProps {
   onEditWidget: (widgetId: string, prompt: string) => void;
   onRefreshWidget?: (widgetId: string) => void;
   refreshing?: boolean;
+  refreshingWidgetId?: string | null;
   kpiTargets?: { name: string; targetValue: number; targetDirection: string; cachedValue: number | null; displayFormat: string }[];
 }
 
@@ -73,7 +74,7 @@ function canToggleWidth(widget: Widget): boolean {
   return chartType !== "sankey" && chartType !== "map";
 }
 
-export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, onRefreshWidget, refreshing, kpiTargets }: DashboardGridProps) {
+export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, onRefreshWidget, refreshing, refreshingWidgetId, kpiTargets }: DashboardGridProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -204,7 +205,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
                   dashboardId={dashboardId}
                   onDelete={() => onDeleteWidget(widget.id)}
                   onEdit={(prompt) => onEditWidget(widget.id, prompt)}
-                  refreshing={refreshing}
+                  refreshing={refreshing || refreshingWidgetId === widget.id}
                   kpiTargets={(widget.displayConfig as Record<string, unknown> | null)?._includeGoal ? kpiTargets : undefined}
                   canToggleWidth={canToggleWidth(widget)}
                   isFullWidth={fullWidthIds.has(widget.id)}

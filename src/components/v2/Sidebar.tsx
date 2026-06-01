@@ -126,12 +126,6 @@ function CollapsedContent({
           active={activeRoute === "goals"}
         />
         <IconBtn
-          icon={<I.FileDown />}
-          label="Reports"
-          onClick={onOpenReports}
-          active={activeRoute === "reports"}
-        />
-        <IconBtn
           icon={<I.Plug />}
           label="Connections"
           onClick={onOpenConnections}
@@ -322,12 +316,6 @@ function ExpandedContent({
           label="Goals"
           active={activeRoute === "goals"}
           onClick={onOpenGoals}
-        />
-        <NavLink
-          icon={<I.FileDown size={14} />}
-          label="Reports"
-          active={activeRoute === "reports"}
-          onClick={onOpenReports}
         />
         <NavLink
           icon={<I.Plug size={14} />}

@@ -62,7 +62,13 @@ function detectCurrencySymbol(widget: Widget): string {
  * Produces clean, properly configured ECharts options.
  */
 function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown, kpiTargets?: KpiTarget[]): Record<string, unknown> {
-  if (!Array.isArray(cachedData) || cachedData.length === 0) {
+  // If displayConfig already has embedded series data, use it directly (cross-source charts)
+  const configSeries = (displayConfig.series as Array<Record<string, unknown>> | undefined);
+  const hasEmbeddedData = Array.isArray(configSeries) && configSeries.some(
+    (s) => Array.isArray(s.data) && s.data.length > 0 && s.data.some((v: unknown) => v !== null && v !== 0)
+  );
+
+  if (hasEmbeddedData || !Array.isArray(cachedData) || cachedData.length === 0) {
     // Still remove the title — it's shown in the widget header
     const fallback = { ...displayConfig };
     delete fallback.title;

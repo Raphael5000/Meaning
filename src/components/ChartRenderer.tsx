@@ -59,10 +59,12 @@ echarts.use([
 export const ACCENT_PALETTE = [
   "#10a37f",
   "#6366f1",
-  "#f59e0b",
-  "#ef4444",
+  "#3b82f6",
+  "#f97316",
   "#8b5cf6",
+  "#06b6d4",
   "#ec4899",
+  "#84cc16",
 ];
 
 /** Vibrant palette specifically for sankey diagrams – matches the neon-on-dark design reference */
@@ -301,7 +303,7 @@ function applySankeyTheme(
   };
 }
 
-/** Apply Robinhood-style glass gradient to bar series */
+/** Apply clean, modern bar styling */
 function applyGlassBarStyle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   series: any[],
@@ -312,49 +314,19 @@ function applyGlassBarStyle(
   return series.map((s, idx) => {
     if (s.type !== "bar") return s;
     const baseColor = palette[idx % palette.length];
-    // Parse hex to RGB
     const r = parseInt(baseColor.slice(1, 3), 16);
     const g = parseInt(baseColor.slice(3, 5), 16);
     const b = parseInt(baseColor.slice(5, 7), 16);
-    // Brighter tint for left-edge highlight
-    const lr = Math.min(255, r + 60);
-    const lg = Math.min(255, g + 60);
-    const lb = Math.min(255, b + 60);
     return {
       ...s,
       itemStyle: {
-        color: {
-          type: "linear",
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: `rgba(${lr},${lg},${lb},0.95)` },
-            { offset: 0.4, color: `rgba(${r},${g},${b},0.85)` },
-            { offset: 0.7, color: `rgba(${r},${g},${b},0.75)` },
-            { offset: 1, color: `rgba(${r},${g},${b},0.65)` },
-          ],
-        },
-        shadowBlur: 12,
-        shadowColor: `rgba(${r},${g},${b},0.2)`,
-        shadowOffsetY: 4,
-        borderColor: `rgba(${lr},${lg},${lb},${isDark ? 0.15 : 0.2})`,
-        borderWidth: 0.5,
+        color: `rgba(${r},${g},${b},${isDark ? 0.85 : 0.8})`,
         ...(s.itemStyle as Record<string, unknown> | undefined),
-        borderRadius: (s.itemStyle as Record<string, unknown> | undefined)?.borderRadius ?? [4, 4, 0, 0],
+        borderRadius: (s.itemStyle as Record<string, unknown> | undefined)?.borderRadius ?? [3, 3, 0, 0],
       },
       emphasis: {
         itemStyle: {
-          color: {
-            type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: `rgba(${lr},${lg},${lb},1)` },
-              { offset: 0.4, color: `rgba(${r},${g},${b},0.9)` },
-              { offset: 0.7, color: `rgba(${r},${g},${b},0.8)` },
-              { offset: 1, color: `rgba(${r},${g},${b},0.7)` },
-            ],
-          },
-          shadowBlur: 20,
-          shadowColor: `rgba(${r},${g},${b},0.4)`,
+          color: baseColor,
         },
         ...(s.emphasis as Record<string, unknown> | undefined),
       },
@@ -459,6 +431,17 @@ function applyTheme(
           },
         };
       }
+      if (type === "line") {
+        return {
+          ...s,
+          symbol: s.symbol ?? "none",
+          lineStyle: { width: 2.5, ...(s.lineStyle as Record<string, unknown> | undefined) },
+          emphasis: {
+            lineStyle: { width: 3 },
+            ...(s.emphasis as Record<string, unknown> | undefined),
+          },
+        };
+      }
       if (type === "funnel" || type === "treemap") {
         return {
           ...s,
@@ -526,7 +509,10 @@ function mergeAxisStyle(
     axisLabel: {
       ...(axis.axisLabel as Record<string, unknown> | undefined),
       color: textColor,
+      fontSize: 11,
     },
+    axisTick: { show: false, ...(axis.axisTick as Record<string, unknown> | undefined) },
+    axisPointer: { label: { show: false }, ...(axis.axisPointer as Record<string, unknown> | undefined) },
     axisLine: {
       ...(axis.axisLine as Record<string, unknown> | undefined),
       lineStyle: {
