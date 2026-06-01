@@ -27,33 +27,71 @@ interface DashboardGridProps {
   onLayoutChange: (layout: LayoutItem[]) => void;
   onDeleteWidget: (widgetId: string) => void;
   onEditWidget: (widgetId: string, prompt: string) => void;
+  onRefreshWidget?: (widgetId: string) => void;
   refreshing?: boolean;
   kpiTargets?: { name: string; targetValue: number; targetDirection: string; cachedValue: number | null; displayFormat: string }[];
 }
 
 /** Fixed sizes per widget type — single source of truth */
-function getFixedSize(widget: Widget): { w: number; h: number } {
-  if (widget.widgetType === "scorecard") return { w: 4, h: 2 };
-  if (widget.widgetType === "table") return { w: 12, h: 4 };
-  if (widget.widgetType === "generating") return { w: 6, h: 4 };
+function getFixedSize(widget: Widget, isFullWidth?: boolean): { w: number; h: number } {
+  if (widget.widgetType === "heading") return { w: 12, h: 1 };
+  if (widget.widgetType === "divider") return { w: 12, h: 1 };
+  if (widget.widgetType === "scorecard") return { w: 4, h: 3 };
+  if (widget.widgetType === "table") {
+    // Auto-size: widget header ~32px + table header ~32px + rows ~36px each, rowHeight=40px margin=8px
+    // Grid item height = h * 40 + (h-1) * 8
+    const dc = widget.displayConfig as Record<string, unknown> | null;
+    const data = widget.cachedData ?? dc?.inlineData ?? dc?.data;
+    const rowCount = Array.isArray(data) ? data.length : 5;
+    const contentPx = 32 + 32 + rowCount * 36;
+    // Solve: h * 40 + (h-1) * 8 >= contentPx → h * 48 - 8 >= contentPx → h >= (contentPx + 8) / 48
+    const h = Math.max(3, Math.min(16, Math.ceil((contentPx + 8) / 48)));
+    return { w: 12, h };
+  }
+  if (widget.widgetType === "generating") return { w: 6, h: 8 };
   if (widget.widgetType === "chart" && widget.displayConfig) {
     const config = widget.displayConfig as Record<string, unknown>;
     const series = config.series;
     const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
     const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
-    if (chartType === "sankey" || chartType === "map") return { w: 12, h: 5 };
-    if (chartType === "pie") return { w: 6, h: 4 };
-    return { w: 6, h: 4 };
+    if (chartType === "sankey" || chartType === "map") return { w: 12, h: 10 };
+    if (isFullWidth) return { w: 12, h: 10 };
+    if (chartType === "pie") return { w: 6, h: 8 };
+    return { w: 6, h: 8 };
   }
-  return { w: 6, h: 4 };
+  return { w: 6, h: 8 };
 }
 
-export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, refreshing, kpiTargets }: DashboardGridProps) {
+/** Chart types that support full-width toggle */
+function canToggleWidth(widget: Widget): boolean {
+  if (widget.widgetType !== "chart" || !widget.displayConfig) return false;
+  const config = widget.displayConfig as Record<string, unknown>;
+  const series = config.series;
+  const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
+  const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
+  // Sankey/map are already full width
+  return chartType !== "sankey" && chartType !== "map";
+}
+
+export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutChange, onDeleteWidget, onEditWidget, onRefreshWidget, refreshing, kpiTargets }: DashboardGridProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [mounted, setMounted] = useState(false);
   const layoutFromProps = useRef(layout);
+
+  // Track which chart widgets are expanded to full width
+  // Derive initial state from layout (w >= 12 for chart widgets = full width)
+  const [fullWidthIds, setFullWidthIds] = useState<Set<string>>(() => {
+    const ids = new Set<string>();
+    for (const item of layout) {
+      if (item.w >= 12) {
+        const widget = widgets.find((w) => w.id === item.i);
+        if (widget && canToggleWidth(widget)) ids.add(item.i);
+      }
+    }
+    return ids;
+  });
 
   useEffect(() => {
     const node = containerRef.current;
@@ -84,7 +122,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
       const enforced = newLayout.map((item) => {
         const widget = widgetMap.get(item.i);
         if (!widget) return { ...item, isResizable: false };
-        const size = getFixedSize(widget);
+        const size = getFixedSize(widget, fullWidthIds.has(item.i));
         return { ...item, w: size.w, h: size.h, isResizable: false };
       });
 
@@ -107,18 +145,33 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
     [onLayoutChange, widgetMap]
   );
 
+  const toggleFullWidth = useCallback((widgetId: string) => {
+    setFullWidthIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(widgetId)) next.delete(widgetId);
+      else next.add(widgetId);
+      return next;
+    });
+  }, []);
+
   // Normalize layout: enforce fixed sizes per widget type, disable resize
   const normalizedLayout = useMemo(() => {
     return layout.map((item) => {
       const widget = widgetMap.get(item.i);
       if (!widget) return { ...item, isResizable: false };
-      const size = getFixedSize(widget);
+      const size = getFixedSize(widget, fullWidthIds.has(item.i));
       return { ...item, w: size.w, h: size.h, isResizable: false };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, widgets]);
+  }, [layout, widgets, fullWidthIds]);
 
   layoutFromProps.current = normalizedLayout;
+
+  // Persist layout when full-width is toggled
+  useEffect(() => {
+    onLayoutChange(normalizedLayout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullWidthIds]);
 
   // Use the same layout for all breakpoints so sidebar open/close never
   // triggers a breakpoint switch that reflows the grid.
@@ -132,7 +185,7 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
           layouts={allLayouts}
           breakpoints={{ lg: 1200, md: 768, sm: 0 }}
           cols={{ lg: 12, md: 12, sm: 12 }}
-          rowHeight={80}
+          rowHeight={40}
           width={width}
           margin={[16, 16] as const}
           containerPadding={[0, 0] as const}
@@ -152,7 +205,11 @@ export default function DashboardGrid({ layout, widgets, dashboardId, onLayoutCh
                   onDelete={() => onDeleteWidget(widget.id)}
                   onEdit={(prompt) => onEditWidget(widget.id, prompt)}
                   refreshing={refreshing}
-                  kpiTargets={kpiTargets}
+                  kpiTargets={(widget.displayConfig as Record<string, unknown> | null)?._includeGoal ? kpiTargets : undefined}
+                  canToggleWidth={canToggleWidth(widget)}
+                  isFullWidth={fullWidthIds.has(widget.id)}
+                  onToggleWidth={() => toggleFullWidth(widget.id)}
+                  onRefresh={onRefreshWidget ? () => onRefreshWidget(widget.id) : undefined}
                 />
               </div>
             );

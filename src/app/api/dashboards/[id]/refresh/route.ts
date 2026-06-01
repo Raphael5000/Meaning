@@ -223,6 +223,12 @@ export async function POST(
             console.log(`[dashboard-refresh] Params:`, JSON.stringify(params));
             const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
             rows = result.rows;
+          } else if (queryConfig.tool === "query_manual_metrics") {
+            // Manual metrics don't need refresh — data is user-entered
+            return { widgetId: widget.id, rows: null };
+          } else if (!queryConfig.input.sql) {
+            // No SQL to run — skip
+            return { widgetId: widget.id, rows: null };
           } else {
             // For raw SQL tools (ads, linkedin, mailchimp, gsc, msads), substitute date params
             let sql = queryConfig.input.sql as string;
@@ -237,8 +243,10 @@ export async function POST(
             }
 
             // Fallback for legacy widgets with hardcoded dates:
-            // Match any 'YYYY-MM-DD' >= AND <= pattern
-            if (!sqlParams.startDate) {
+            // Only do regex replacement for simple queries (single WHERE range).
+            // Skip complex queries with CASE/UNION that reference multiple date periods.
+            const isComplexDateQuery = /CASE\s+WHEN.*'\d{4}-\d{2}-\d{2}'/i.test(sql) || /UNION/i.test(sql);
+            if (!sqlParams.startDate && !isComplexDateQuery) {
               sql = sql.replace(
                 />=\s*'(\d{4}-\d{2}-\d{2})'/g,
                 `>= '${startDate}'`

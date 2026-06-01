@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil, Sparkles } from "lucide-react";
+import { GripVertical, Trash2, MoreVertical, RefreshCw, Pencil, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import ChartRenderer, { ACCENT_PALETTE } from "./ChartRenderer";
 import ScorecardWidget from "./ScorecardWidget";
 import TableWidget from "./TableWidget";
@@ -32,6 +32,29 @@ interface DashboardWidgetProps {
   onEdit: (prompt: string) => void;
   refreshing?: boolean;
   kpiTargets?: KpiTarget[];
+  canToggleWidth?: boolean;
+  isFullWidth?: boolean;
+  onToggleWidth?: () => void;
+  onRefresh?: () => void;
+}
+
+/** Detect currency symbol from data values (e.g. "R19.79" → "R") */
+function detectCurrencySymbol(widget: Widget): string {
+  const dc = widget.displayConfig as Record<string, unknown> | null;
+  // Check both cachedData and inlineData for string values with currency prefixes
+  const sources = [widget.cachedData, dc?.inlineData].filter(Boolean) as Record<string, unknown>[][];
+  for (const data of sources) {
+    if (!Array.isArray(data)) continue;
+    for (const row of data) {
+      for (const val of Object.values(row)) {
+        if (typeof val === "string") {
+          const m = val.match(/^([R€£$¥₹₦₱₩₺₪฿]|[A-Z]{1,3}\$)\s?[\d,]/);
+          if (m) return m[1];
+        }
+      }
+    }
+  }
+  return "";
 }
 
 /**
@@ -39,7 +62,35 @@ interface DashboardWidgetProps {
  * Produces clean, properly configured ECharts options.
  */
 function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown, kpiTargets?: KpiTarget[]): Record<string, unknown> {
-  if (!Array.isArray(cachedData) || cachedData.length === 0) return displayConfig;
+  if (!Array.isArray(cachedData) || cachedData.length === 0) {
+    // Still remove the title — it's shown in the widget header
+    const fallback = { ...displayConfig };
+    delete fallback.title;
+    // Ensure legend shows for multi-series charts (data baked into displayConfig)
+    const series = fallback.series as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(series) && series.length > 1) {
+      fallback.legend = {
+        show: true,
+        top: 4,
+        right: 8,
+        bottom: undefined,
+        left: undefined,
+        orient: "horizontal",
+        type: "scroll",
+        textStyle: { fontSize: 11 },
+        itemWidth: 10,
+        itemHeight: 10,
+        itemGap: 12,
+        ...(fallback.legend as Record<string, unknown> | undefined),
+      };
+      // Ensure grid leaves room for legend at the top
+      fallback.grid = {
+        ...(fallback.grid as Record<string, unknown> | undefined),
+        top: 32,
+      };
+    }
+    return fallback;
+  }
 
   // Unwrap BigQuery value objects: {value: "2025-12-23"} → "2025-12-23"
   const rows = (cachedData as Record<string, unknown>[]).map((row) => {
@@ -302,10 +353,26 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
       containLabel: true,
     };
 
-    // Disable ECharts legend — multi-series gets a table legend in the widget
-    option.legend = { show: false };
-    // Show table legend for multi-series OR when a KPI target line is present
-    if (series.length > 1 || option._kpiTargetLegend) {
+    // Show ECharts built-in legend for multi-series charts
+    if (series.length > 1) {
+      option.legend = {
+        show: true,
+        top: 4,
+        right: 8,
+        bottom: undefined,
+        left: undefined,
+        orient: "horizontal" as const,
+        type: "scroll" as const,
+        textStyle: { fontSize: 11 },
+        itemWidth: 10,
+        itemHeight: 10,
+        itemGap: 12,
+      };
+    } else {
+      option.legend = { show: false };
+    }
+    // Store KPI target for custom legend entry
+    if (option._kpiTargetLegend) {
       option._barLegend = series.map((s, i) => ({
         name: s.name as string || `Series ${i + 1}`,
         total: (s.data as number[]).reduce((sum: number, v: number) => sum + (v || 0), 0),
@@ -655,7 +722,7 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   );
 }
 
-export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing, kpiTargets }: DashboardWidgetProps) {
+export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing, kpiTargets, canToggleWidth, isFullWidth, onToggleWidth, onRefresh }: DashboardWidgetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(widget.title || widget.prompt);
@@ -664,7 +731,8 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
 
   function saveTitle() {
     const newTitle = titleDraft.trim();
-    if (!newTitle || newTitle === widget.title) {
+    const isLayoutWidget = widget.widgetType === "heading" || widget.widgetType === "divider";
+    if ((!newTitle && !isLayoutWidget) || newTitle === widget.title) {
       setTitleDraft(widget.title || widget.prompt);
       setEditingTitle(false);
       return;
@@ -679,12 +747,112 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
     }).catch(() => {});
   }
 
+  // ── Heading widget ──
+  if (widget.widgetType === "heading") {
+    const text = widget.title || titleDraft || "Section Title";
+    return (
+      <div className="group flex h-full w-full items-center gap-2 px-1">
+        <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveTitle();
+              if (e.key === "Escape") { setTitleDraft(text); setEditingTitle(false); }
+            }}
+            className="flex-1 rounded border border-border bg-transparent px-1 py-0 text-sm font-semibold text-foreground outline-none focus:border-[var(--accent)]"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setTitleDraft(text); setEditingTitle(true); }}
+            className="flex-1 text-left text-sm font-semibold text-foreground hover:underline"
+          >
+            {titleDraft || text}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
+  // ── Divider widget ──
+  if (widget.widgetType === "divider") {
+    const text = widget.title || titleDraft || "";
+    return (
+      <div className="group relative flex h-full w-full items-center">
+        {/* Full-width line + centered text */}
+        <div className="flex w-full items-center gap-3">
+          <div className="h-px flex-1" style={{ background: "var(--border-color, rgba(128,128,128,0.2))" }} />
+          {(text || editingTitle) && (
+            editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") { setTitleDraft(text); setEditingTitle(false); }
+                }}
+                className="w-40 rounded border border-border bg-transparent px-2 py-0 text-center text-[11px] font-medium text-muted-foreground outline-none focus:border-[var(--accent)]"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setTitleDraft(text); setEditingTitle(true); }}
+                className="shrink-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
+              >
+                {text}
+              </button>
+            )
+          )}
+          <div className="h-px flex-1" style={{ background: "var(--border-color, rgba(128,128,128,0.2))" }} />
+        </div>
+        {/* Controls overlay — only visible on hover */}
+        <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "var(--v2-bg, var(--bg-primary, #fff))", paddingLeft: 4 }}>
+          <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+          {!text && !editingTitle && (
+            <button
+              type="button"
+              onClick={() => { setTitleDraft(""); setEditingTitle(true); }}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="Add label"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="widget-glass flex h-full w-full flex-col overflow-hidden rounded-xl"
     >
       {/* Header */}
-      <div className="flex items-center gap-1 border-b px-3 py-2" style={{ borderColor: "rgba(128,128,128,0.15)" }}>
+      <div className={`flex items-center gap-1 border-b px-3 ${widget.widgetType === "scorecard" ? "py-1" : "py-2"}`} style={{ borderColor: "rgba(128,128,128,0.15)" }}>
         <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
@@ -711,6 +879,16 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
         )}
         {(refreshing || widget.widgetType === "generating") && (
           <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+        )}
+        {widget.widgetType !== "generating" && onRefresh && !refreshing && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+            title="Refresh data"
+          >
+            <RefreshCw className="h-3 w-3" />
+          </button>
         )}
         {widget.widgetType !== "generating" && <div>
           <button
@@ -748,6 +926,16 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
                   <Pencil className="h-3 w-3" />
                   Edit
                 </button>
+                {canToggleWidth && onToggleWidth && (
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); onToggleWidth(); }}
+                    className="menu-btn flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+                  >
+                    {isFullWidth ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                    {isFullWidth ? "Half width" : "Full width"}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setMenuOpen(false); onDelete(); }}
@@ -812,6 +1000,14 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
           <TableWidget
             config={widget.displayConfig as { columns?: Array<{ key: string; label: string }> }}
             data={widget.cachedData}
+            currencySymbol={detectCurrencySymbol(widget)}
+            onUpdateColumns={(cols) => {
+              fetch(`/api/dashboards/${dashboardId}/widgets/${widget.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ displayConfig: { ...(widget.displayConfig as object), columns: cols } }),
+              }).catch(() => {});
+            }}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

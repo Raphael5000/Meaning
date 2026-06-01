@@ -24,7 +24,7 @@ export async function GET() {
   const metrics = await prisma.manualMetric.findMany({
     where: { orgId },
     include: {
-      entries: { orderBy: { period: "desc" }, take: 12 },
+      entries: { orderBy: { period: "desc" } },
       kpis: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },

@@ -140,7 +140,7 @@ export default function ManualDataView({ orgId, onBack }: ManualDataViewProps) {
       const data = (await res.json()) as ManualMetric[];
       setMetrics(Array.isArray(data) ? data : []);
     } catch {
-      setMetrics([]);
+      // Don't clear metrics on reload failure — keep showing what we have
     } finally {
       setLoading(false);
     }

@@ -136,7 +136,7 @@ function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchi
   };
   const symbol = currencySymbols[displayCurrency] || displayCurrency;
 
-  const adsTables = hasAds ? "\n  - campaign_performance, keyword_performance, click_attribution, account_info (Google Ads)" : "";
+  const adsTables = hasAds ? "\n  - campaign_performance: stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost, conversions, conversions_value (Google Ads — ALWAYS use 'cost' column, NOT 'cost_micros')\n  - keyword_performance: stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost, conversions (Google Ads)\n  - click_attribution, account_info (Google Ads)" : "";
   const linkedInTables = hasLinkedIn ? "\n  - post_performance, follower_stats, follower_demographics, page_stats, org_info (LinkedIn)" : "";
   const mailchimpTables = hasMailchimp ? "\n  - campaign_reports, audience_stats, audience_growth, mc_account_info (Mailchimp)" : "";
   const gscTables = hasGsc ? "\n  - search_performance, url_inspection, site_info (Google Search Console)" : "";
@@ -148,7 +148,7 @@ Today's date is ${today}.
 
 CRITICAL RULES:
 1. THINK before querying. Interpret the user's intent — e.g. "top blog posts" means filter for pages with /blog/ in the URL path, "landing pages" means the first page in a session, "product pages" means pages with /product/ in the path. Use your knowledge of common website URL patterns to build smart filters.
-2. Be FAST — minimize tool calls. All table schemas are listed below so DO NOT call get_available_fields. Most widgets need just 1 query. For scorecards with comparison, use 1 query with a CASE expression or UNION instead of 2 separate queries. Maximum 3 tool rounds.
+2. Be FAST — minimize tool calls. All table schemas are listed below so DO NOT call get_available_fields. Most widgets need just 1 query. For scorecards with comparison, use 1 query with a CASE expression or UNION instead of 2 separate queries. When combining BigQuery data with manual metrics, you may need multiple tool calls — that's fine. Maximum 5 tool rounds.
 3. For filtering by page type (blog, product, etc.), use LIKE filters on page_location: WHERE page_location LIKE '%/blog/%' for blog posts. Always use the path pattern, not page_title.
 4. NEVER fabricate data. Only use numbers from the tool response.
 5. Default date range is last 28 days unless specified.
@@ -214,8 +214,14 @@ Supported chart types (use the right type for the question):
 - **heatmap**: Time patterns (sessions by day/hour). SQL: x category col, y category col, value col.
 - **treemap**: Hierarchical breakdown (traffic by source). SQL: name col + value col.
 
-For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE[[/scorecard]]:
-[[scorecard]]12,847.00|Total Users|+12.3%[[/scorecard]]
+For SCORECARD widgets — use [[scorecard]]VALUE|LABEL|CHANGE|SENTIMENT[[/scorecard]]:
+The 4th field SENTIMENT is MANDATORY and must be "up_is_good" or "down_is_good". Think about what the metric means to a human:
+- up_is_good: sessions, users, clicks, impressions, revenue, conversions, leads, followers, engagement — MORE is better
+- down_is_good: cost per click, cost per lead, bounce rate, CPA, CPM, spend, churn rate — LESS is better
+Examples:
+[[scorecard]]12,847|Total Users|+12.3%|up_is_good[[/scorecard]]
+[[scorecard]]${symbol}23.50|Cost per Click|-15.2%|down_is_good[[/scorecard]]
+For monetary values, ALWAYS prefix with the currency symbol (${symbol}): [[scorecard]]${symbol}1,234.56|Cost per Lead|+8.2%|down_is_good[[/scorecard]]
 The CHANGE is MANDATORY. Include a comparison vs the previous period using a SINGLE query with CASE expressions, e.g.: SELECT SUM(CASE WHEN date >= current_start THEN value ELSE 0 END) as current, SUM(CASE WHEN date >= prev_start AND date < current_start THEN value ELSE 0 END) as previous FROM table WHERE date >= prev_start. Compute percentage change: ((current - previous) / NULLIF(previous, 0) * 100). Format as +X% or -X%. If no previous data, use +0%.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
@@ -229,7 +235,7 @@ Do NOT include any explanatory text. ONLY output the widget block.`;
 // ---------------------------------------------------------------------------
 
 const CHART_REGEX = /\[\[chart\]\]([\s\S]*?)\[\[\/chart\]\]/i;
-const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+?)(?:\|([^[\]]*)?)?\[\[\/scorecard\]\]/i;
+const SCORECARD_REGEX = /\[\[scorecard\]\]([^|[\]]+)\|([^|[\]]+?)(?:\|([^|[\]]*?))?(?:\|([^[\]]*?))?\[\[\/scorecard\]\]/i;
 const TABLE_REGEX = /\[\[table\]\]([\s\S]*?)\[\[\/table\]\]/i;
 
 interface ParsedWidget {
@@ -285,9 +291,15 @@ function parseWidgetResponse(text: string, prompt: string): ParsedWidget | null 
   // Try scorecard
   const scorecardMatch = text.match(SCORECARD_REGEX);
   if (scorecardMatch) {
+    const sentiment = scorecardMatch[4]?.trim();
     return {
       widgetType: "scorecard",
-      displayConfig: { label: scorecardMatch[2].trim(), value: scorecardMatch[1].trim(), change: scorecardMatch[3]?.trim() || undefined },
+      displayConfig: {
+        label: scorecardMatch[2].trim(),
+        value: scorecardMatch[1].trim(),
+        change: scorecardMatch[3]?.trim() || undefined,
+        sentiment: sentiment === "down_is_good" ? "down_is_good" : "up_is_good",
+      },
       title: scorecardMatch[2].trim(),
     };
   }
@@ -330,7 +342,7 @@ export async function POST(
   }
 
   const { id: dashboardId } = await params;
-  const body = (await request.json()) as { prompt: string };
+  const body = (await request.json()) as { prompt: string; includeGoal?: boolean };
 
   if (!body.prompt) {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });
@@ -428,7 +440,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
     let capturedQueryConfig: { tool: string; input: unknown } | null = null;
     let capturedData: unknown = null;
 
-    while (response.stop_reason === "tool_use" && toolRound < 3) {
+    while (response.stop_reason === "tool_use" && toolRound < 5) {
       toolRound++;
       const assistantContent = response.content;
       const toolUseBlocks = assistantContent.filter(
@@ -617,6 +629,11 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
         { error: "Failed to generate widget.", raw: rawText.slice(0, 500) || "(empty response — check API credits)" },
         { status: 422 }
       );
+    }
+
+    // Store includeGoal flag in displayConfig so it persists with the widget
+    if (body.includeGoal) {
+      (parsed.displayConfig as Record<string, unknown>)._includeGoal = true;
     }
 
     // Create the widget

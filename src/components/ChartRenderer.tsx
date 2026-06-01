@@ -323,16 +323,14 @@ function applyGlassBarStyle(
     return {
       ...s,
       itemStyle: {
-        borderRadius: [4, 4, 0, 0],
         color: {
           type: "linear",
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: `rgba(${lr},${lg},${lb},0.9)` },
-            { offset: 0.3, color: `rgba(${r},${g},${b},0.65)` },
-            { offset: 0.6, color: `rgba(${r},${g},${b},0.35)` },
-            { offset: 0.85, color: `rgba(${r},${g},${b},0.1)` },
-            { offset: 1, color: `rgba(${r},${g},${b},0)` },
+            { offset: 0, color: `rgba(${lr},${lg},${lb},0.95)` },
+            { offset: 0.4, color: `rgba(${r},${g},${b},0.85)` },
+            { offset: 0.7, color: `rgba(${r},${g},${b},0.75)` },
+            { offset: 1, color: `rgba(${r},${g},${b},0.65)` },
           ],
         },
         shadowBlur: 12,
@@ -350,9 +348,9 @@ function applyGlassBarStyle(
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
               { offset: 0, color: `rgba(${lr},${lg},${lb},1)` },
-              { offset: 0.35, color: `rgba(${r},${g},${b},0.8)` },
-              { offset: 0.7, color: `rgba(${r},${g},${b},0.4)` },
-              { offset: 1, color: `rgba(${r},${g},${b},0.1)` },
+              { offset: 0.4, color: `rgba(${r},${g},${b},0.9)` },
+              { offset: 0.7, color: `rgba(${r},${g},${b},0.8)` },
+              { offset: 1, color: `rgba(${r},${g},${b},0.7)` },
             ],
           },
           shadowBlur: 20,
@@ -477,7 +475,9 @@ function applyTheme(
     const hasMultiBarLegend = !hasPie && extractBarLegendData(themed, ACCENT_PALETTE) !== null;
 
     // Hide default legend and left-align title when we render a custom table
-    if (hasPie || hasMultiBarLegend) {
+    // But respect explicit legend.show = true set by the caller (e.g. dashboard widgets)
+    const callerLegendShow = (option.legend as Record<string, unknown> | undefined)?.show;
+    if (hasPie || (hasMultiBarLegend && callerLegendShow !== true)) {
       (themed.legend as Record<string, unknown>).show = false;
       (themed.title as Record<string, unknown>).left = "4%";
       (themed.title as Record<string, unknown>).top = 8;
@@ -522,6 +522,7 @@ function mergeAxisStyle(
 ): Record<string, unknown> {
   return {
     ...axis,
+    name: undefined,
     axisLabel: {
       ...(axis.axisLabel as Record<string, unknown> | undefined),
       color: textColor,

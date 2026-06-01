@@ -41,8 +41,8 @@ function getBigQueryAlertSystemPrompt(
   const today = new Date().toISOString().split("T")[0];
 
   const adsTablesPrompt = hasAds ? `
-  - campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost_micros, cost, conversions, conversions_value)
-  - keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost_micros, cost, conversions)
+  - campaign_performance: Daily Google Ads campaign metrics (stats_date, campaign_id, campaign_name, campaign_status, impressions, clicks, cost, conversions, conversions_value) — ALWAYS use 'cost' (already in currency units), NEVER use 'cost_micros'
+  - keyword_performance: Daily keyword/ad-group metrics (stats_date, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_text, match_type, impressions, clicks, cost, conversions) — use 'cost' not 'cost_micros'
   - click_attribution: Per-click data with gclid (click_date, gclid, campaign_id, campaign_name, ad_group_id, keyword_text)
   - account_info: Account metadata (customer_id, currency_code, descriptive_name, last_synced_at)` : "";
 

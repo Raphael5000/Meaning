@@ -105,7 +105,8 @@ const CHART_TYPES: ChartTypeDef[] = [
 interface AddWidgetDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (args: { prompt: string; chartType: ChartTypeId }) => void;
+  onSubmit: (args: { prompt: string; chartType: ChartTypeId; includeGoal?: boolean }) => void;
+  onAddSimple?: (type: "heading" | "divider") => void;
   initialPrompt?: string;
   defaultChart?: ChartTypeId;
   examples?: string[];
@@ -135,15 +136,18 @@ export function AddWidgetDialog({
   sourceCount,
   title = "Describe a new widget",
   submitLabel = "Generate widget",
+  onAddSimple,
 }: AddWidgetDialogProps) {
   const [prompt, setPrompt] = React.useState(initialPrompt);
   const [selected, setSelected] = React.useState<ChartTypeId>(defaultChart);
+  const [includeGoal, setIncludeGoal] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
   React.useEffect(() => {
     if (open) {
       setPrompt(initialPrompt);
       setSelected(defaultChart);
+      setIncludeGoal(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [open, initialPrompt, defaultChart]);
@@ -153,12 +157,12 @@ export function AddWidgetDialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       else if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && prompt.trim() && !busy) {
-        onSubmit({ prompt: prompt.trim(), chartType: selected });
+        onSubmit({ prompt: prompt.trim(), chartType: selected, includeGoal });
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, prompt, selected, busy, onSubmit, onClose]);
+  }, [open, prompt, selected, includeGoal, busy, onSubmit, onClose]);
 
   if (!open) return null;
 
@@ -322,6 +326,89 @@ export function AddWidgetDialog({
           </div>
         </div>
 
+        {/* Goal overlay toggle */}
+        <div style={{ padding: "10px 16px 0" }}>
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              fontSize: 12,
+              color: "var(--v2-ink-muted)",
+              fontFamily: "var(--v2-font-sans)",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeGoal}
+              onChange={(e) => setIncludeGoal(e.target.checked)}
+              style={{
+                width: 14,
+                height: 14,
+                accentColor: "var(--v2-brand)",
+                cursor: "pointer",
+              }}
+            />
+            Include goal target line
+          </label>
+        </div>
+
+        {/* Layout elements */}
+        {onAddSimple && (
+          <div style={{ padding: "10px 16px 0", display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="kicker" style={{ marginRight: 4 }}>Layout</span>
+            <button
+              type="button"
+              onClick={() => { onAddSimple("heading"); onClose(); }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid var(--v2-line)",
+                background: "var(--v2-surface)",
+                color: "var(--v2-ink-muted)",
+                fontSize: 12,
+                fontWeight: 500,
+                fontFamily: "var(--v2-font-sans)",
+                cursor: "pointer",
+                transition: "all 120ms var(--v2-ease)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--v2-line-strong)"; e.currentTarget.style.color = "var(--v2-ink)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--v2-line)"; e.currentTarget.style.color = "var(--v2-ink-muted)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h10" /></svg>
+              Heading
+            </button>
+            <button
+              type="button"
+              onClick={() => { onAddSimple("divider"); onClose(); }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid var(--v2-line)",
+                background: "var(--v2-surface)",
+                color: "var(--v2-ink-muted)",
+                fontSize: 12,
+                fontWeight: 500,
+                fontFamily: "var(--v2-font-sans)",
+                cursor: "pointer",
+                transition: "all 120ms var(--v2-ease)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--v2-line-strong)"; e.currentTarget.style.color = "var(--v2-ink)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--v2-line)"; e.currentTarget.style.color = "var(--v2-ink-muted)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18" /></svg>
+              Divider
+            </button>
+          </div>
+        )}
+
         {/* Footer controls */}
         <div
           style={{
@@ -368,7 +455,7 @@ export function AddWidgetDialog({
               disabled={busy || !prompt.trim()}
               icon={busy ? undefined : <I.Sparkle size={12} />}
               onClick={() =>
-                onSubmit({ prompt: prompt.trim(), chartType: selected })
+                onSubmit({ prompt: prompt.trim(), chartType: selected, includeGoal })
               }
             >
               {busy ? "Generating…" : submitLabel}

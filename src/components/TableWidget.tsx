@@ -6,6 +6,8 @@ import Image from "next/image";
 interface TableWidgetProps {
   config: { columns?: Array<{ key: string; label: string }> };
   data: unknown;
+  currencySymbol?: string;
+  onUpdateColumns?: (columns: Array<{ key: string; label: string }>) => void;
 }
 
 // Platform icon mapping — matches source/channel values to SVG icons
@@ -78,9 +80,15 @@ function unwrapRow(row: Record<string, unknown>): Record<string, unknown> {
 
 type SortDir = "asc" | "desc";
 
-export default function TableWidget({ config, data }: TableWidgetProps) {
+// Columns that represent monetary values
+const MONEY_COLUMNS = /^(cost|spend|revenue|cpc|cpa|cpm|cpv|cpl|budget|price|amount|total_cost|total_spend|conversions_value)/i;
+
+export default function TableWidget({ config, data, currencySymbol = "", onUpdateColumns }: TableWidgetProps) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [editingCol, setEditingCol] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>({});
 
   const rows = useMemo(
     () => (Array.isArray(data) ? (data as Record<string, unknown>[]).map(unwrapRow) : []),
@@ -89,13 +97,34 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
 
   const dataKeys = useMemo(() => (rows.length > 0 ? new Set(Object.keys(rows[0])) : new Set<string>()), [rows]);
 
-  const columns = useMemo(() => {
+  const baseColumns = useMemo(() => {
     const configColumnsMatch = config.columns && config.columns.length > 0
       && config.columns.some((c) => dataKeys.has(c.key));
-    return configColumnsMatch
-      ? config.columns!
-      : (rows.length > 0 ? Object.keys(rows[0]) : []).map((key) => ({ key, label: key.replace(/_/g, " ") }));
+    if (configColumnsMatch) return config.columns!;
+
+    // Auto-generate columns: put text/name/label columns first, then numeric
+    const allKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
+    const textKeys: string[] = [];
+    const numKeys: string[] = [];
+    for (const key of allKeys) {
+      const isNum = rows.some((r) => {
+        const v = r[key];
+        return typeof v === "number" || (typeof v === "string" && v !== "" && /^-?\d[\d,]*\.?\d*$/.test(v.trim()));
+      });
+      if (isNum) numKeys.push(key);
+      else textKeys.push(key);
+    }
+    return [...textKeys, ...numKeys].map((key) => ({
+      key,
+      label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }));
   }, [config.columns, dataKeys, rows]);
+
+  // Apply local label overrides on top of base columns
+  const columns = useMemo(() =>
+    baseColumns.map((c) => labelOverrides[c.key] ? { ...c, label: labelOverrides[c.key] } : c),
+    [baseColumns, labelOverrides]
+  );
 
   const numericCols = useMemo(() => {
     const s = new Set<string>();
@@ -109,6 +138,19 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
     }
     return s;
   }, [columns, rows]);
+
+  // Detect change/percent columns for color coding
+  const changeCols = useMemo(() => {
+    const s = new Set<string>();
+    for (const col of columns) {
+      const k = col.key.toLowerCase();
+      if (k.includes("change") || k.includes("delta") || k.includes("diff") ||
+          (k.includes("percent") && !k.includes("ctr") && !k.includes("rate"))) {
+        s.add(col.key);
+      }
+    }
+    return s;
+  }, [columns]);
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return rows;
@@ -148,33 +190,61 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
 
   return (
     <div className="h-full overflow-auto">
-      <table className="w-full text-xs">
+      <table className="w-full text-xs" style={{ tableLayout: "fixed" }}>
         <thead className="sticky top-0" style={{ background: "var(--table-header-bg)" }}>
           <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
-            {columns.map((col) => (
+            {columns.map((col, ci) => (
               <th
                 key={col.key}
-                onClick={() => handleSort(col.key)}
-                className={`cursor-pointer select-none px-3 py-2 font-semibold text-muted-foreground capitalize transition-colors hover:text-foreground ${numericCols.has(col.key) ? "text-right" : "text-left"}`}
+                className={`select-none px-3 py-2 font-semibold text-muted-foreground capitalize ${ci === 0 ? "text-left" : "text-right"}`}
               >
-                <span className={`inline-flex items-center gap-1 ${numericCols.has(col.key) ? "flex-row-reverse" : ""}`}>
-                  {col.label}
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ opacity: sortKey === col.key ? 0.7 : 0.25 }}
+                {editingCol === col.key ? (
+                  <input
+                    autoFocus
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={() => {
+                      const trimmed = editDraft.trim();
+                      if (trimmed) {
+                        setLabelOverrides((prev) => ({ ...prev, [col.key]: trimmed }));
+                        if (onUpdateColumns) {
+                          const updated = columns.map((c) => c.key === col.key ? { ...c, label: trimmed } : c);
+                          onUpdateColumns(updated);
+                        }
+                      }
+                      setEditingCol(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      if (e.key === "Escape") setEditingCol(null);
+                    }}
+                    className={`w-full rounded border border-border bg-transparent px-1 py-0 text-xs font-semibold text-foreground outline-none focus:border-[var(--accent)] ${ci === 0 ? "text-left" : "text-right"}`}
+                  />
+                ) : (
+                  <span
+                    className={`inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-foreground ${ci === 0 ? "" : "flex-row-reverse"}`}
+                    onClick={() => handleSort(col.key)}
+                    onDoubleClick={() => { setEditingCol(col.key); setEditDraft(col.label); }}
+                    title="Click to sort, double-click to rename"
                   >
-                    {sortKey === col.key && sortDir === "asc"
-                      ? <polyline points="18 15 12 9 6 15" />
-                      : <polyline points="6 9 12 15 18 9" />}
-                  </svg>
-                </span>
+                    {col.label}
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ opacity: sortKey === col.key ? 0.7 : 0.25 }}
+                    >
+                      {sortKey === col.key && sortDir === "asc"
+                        ? <polyline points="18 15 12 9 6 15" />
+                        : <polyline points="6 9 12 15 18 9" />}
+                    </svg>
+                  </span>
+                )}
               </th>
             ))}
           </tr>
@@ -186,16 +256,41 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
               className="border-b transition-colors last:border-0 hover:bg-accent/5"
               style={{ borderColor: "var(--border-color)" }}
             >
-              {columns.map((col) => {
+              {columns.map((col, ci) => {
                 const val = row[col.key];
                 const isNum = numericCols.has(col.key);
+                const isChange = changeCols.has(col.key);
+                const alignRight = ci > 0;
                 let display: string;
 
-                if (typeof val === "number") {
-                  display = val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                if (typeof val === "number" || (typeof val === "string" && val !== "" && /^-?\d[\d,]*\.?\d*$/.test(val.trim()))) {
+                  const num = typeof val === "number" ? val : parseFloat(val.replace(/,/g, ""));
+                  const k = col.key.toLowerCase();
+                  const isMoney = MONEY_COLUMNS.test(col.key);
+                  if (k.includes("percent") || k.includes("change") || k.includes("delta")) {
+                    display = `${num > 0 ? "+" : ""}${num.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+                  } else if (k.includes("ctr") || k.includes("rate")) {
+                    display = `${num.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
+                  } else if (isMoney) {
+                    display = `${currencySymbol}${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  } else if (Number.isInteger(num)) {
+                    display = num.toLocaleString("en-US");
+                  } else {
+                    display = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  }
+                } else if (typeof val === "string" && val.includes("%")) {
+                  display = val;
                 } else {
                   const s = String(val ?? "");
                   display = s.replace(/^https?:\/\//, "").replace(/\/$/, "") || s;
+                }
+
+                // Determine color for change columns
+                let changeColor = "";
+                if (isChange) {
+                  const numVal = typeof val === "number" ? val : parseFloat(String(val ?? "").replace(/[^0-9.\-]/g, ""));
+                  if (!isNaN(numVal) && numVal > 0) changeColor = "text-emerald-600";
+                  else if (!isNaN(numVal) && numVal < 0) changeColor = "text-red-500";
                 }
 
                 // Check if this cell should show a platform icon
@@ -205,7 +300,7 @@ export default function TableWidget({ config, data }: TableWidgetProps) {
                 return (
                   <td
                     key={col.key}
-                    className={`px-3 py-2.5 text-foreground ${isNum ? "text-right font-medium tabular-nums" : "text-left"}`}
+                    className={`px-3 py-2.5 ${isChange ? `font-semibold ${changeColor || "text-muted-foreground"}` : "text-foreground"} ${alignRight ? "text-right tabular-nums" : "text-left"} ${isNum ? "font-medium" : ""}`}
                     title={typeof val === "string" ? val : undefined}
                   >
                     {icon ? (

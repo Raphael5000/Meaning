@@ -232,8 +232,8 @@ export default function DashboardPanelV2({
     refreshWidgets(dateRange, dateFrom, dateTo);
   }
 
-  async function handleAddWidget(args: { prompt: string; chartType: ChartTypeId }) {
-    const { prompt, chartType } = args;
+  async function handleAddWidget(args: { prompt: string; chartType: ChartTypeId; includeGoal?: boolean }) {
+    const { prompt, chartType, includeGoal } = args;
     if (!dashboard) return;
     setWidgetError(null);
     // Close the dialog immediately so the user can see the in-flight placeholder
@@ -295,7 +295,7 @@ export default function DashboardPanelV2({
       const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, chartType }),
+        body: JSON.stringify({ prompt, chartType, includeGoal }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -363,10 +363,58 @@ export default function DashboardPanelV2({
     }).catch(() => {});
   }
 
+  async function handleRefreshWidget(widgetId: string) {
+    if (!dashboard) return;
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/dashboards/${dashboardId}/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateRange: dashboard.dateRange || "28d",
+          dateFrom: dashboard.dateFrom,
+          dateTo: dashboard.dateTo,
+          widgetIds: [widgetId],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results) {
+          setDashboard((d) => {
+            if (!d) return d;
+            const widgets = d.widgets.map((w) => {
+              const result = data.results.find((r: { widgetId: string; rows: unknown }) => r.widgetId === w.id);
+              if (result?.rows) return { ...w, cachedData: result.rows, cachedAt: new Date().toISOString() };
+              return w;
+            });
+            return { ...d, widgets };
+          });
+        }
+      }
+    } catch { /* ignore */ }
+    setRefreshing(false);
+  }
+
   function handleEditWidgetOpen(widgetId: string, prompt: string) {
     setEditWidgetId(widgetId);
     setEditPrompt(prompt);
     setAddWidgetOpen(true);
+  }
+
+  async function handleAddSimpleWidget(widgetType: "heading" | "divider") {
+    if (!dashboard) return;
+    try {
+      const res = await fetch(`/api/dashboards/${dashboardId}/widgets/simple`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ widgetType }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setDashboard((d) =>
+        d ? { ...d, widgets: [...d.widgets, data.widget], layout: data.layout } : d
+      );
+    } catch { /* ignore */ }
   }
 
   // ---- render ----
@@ -598,6 +646,7 @@ export default function DashboardPanelV2({
             onLayoutChange={handleLayoutChange}
             onDeleteWidget={handleDeleteWidget}
             onEditWidget={handleEditWidgetOpen}
+            onRefreshWidget={handleRefreshWidget}
             refreshing={refreshing}
             kpiTargets={kpiTargets}
           />
@@ -617,6 +666,7 @@ export default function DashboardPanelV2({
         error={widgetError}
         title={editWidgetId ? "Edit widget" : "Describe a new widget"}
         submitLabel={editWidgetId ? "Save changes" : "Generate widget"}
+        onAddSimple={(type) => handleAddSimpleWidget(type)}
       />
 
       {/* Chat dock — absolute overlay with soft scrim so content keeps full width */}

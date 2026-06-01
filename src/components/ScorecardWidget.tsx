@@ -11,7 +11,7 @@ interface KpiTarget {
 }
 
 interface ScorecardWidgetProps {
-  config: { label?: string; value?: string; change?: string; format?: string };
+  config: { label?: string; value?: string; change?: string; format?: string; sentiment?: "up_is_good" | "down_is_good" };
   data: unknown;
   kpiTargets?: KpiTarget[];
   widgetTitle?: string;
@@ -24,14 +24,17 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
   if (Array.isArray(data) && data.length > 0) {
     const row = data[0] as Record<string, unknown>;
     const keys = Object.keys(row);
-    for (const key of keys) {
-      let v = row[key];
+    // Skip comparison/metadata keys — prefer "current" keys, then first non-comparison numeric
+    const skipPatterns = /^(prev|previous|prior|change|percent|delta|diff)/i;
+    const currentKey = keys.find((k) => /^current/i.test(k));
+    const primaryKey = currentKey || keys.find((k) => !skipPatterns.test(k));
+    if (primaryKey) {
+      let v = row[primaryKey];
       if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
         v = (v as Record<string, unknown>).value;
       }
       if (typeof v === "number") {
         value = v;
-        break;
       }
     }
   }
@@ -40,17 +43,29 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
     value = config.value;
   }
 
+  // Detect currency prefix from the AI-generated config.value (e.g. "R1,234.56" → "R")
+  const currencyPrefix = config.value?.match(/^([A-Z]{1,3}\$?|[R€£¥₹₦₱₩₺₪฿])\s?/)?.[1] ?? "";
+
   // Smart formatting: no decimals for whole numbers, 2 decimals for fractional
-  const formatted = typeof value === "number"
-    ? Number.isInteger(value)
-      ? value.toLocaleString()
-      : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : value;
+  let formatted: string;
+  if (typeof value === "number") {
+    const numStr = Number.isInteger(value)
+      ? value.toLocaleString("en-US")
+      : value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    formatted = currencyPrefix ? `${currencyPrefix}${numStr}` : numStr;
+  } else {
+    formatted = value;
+  }
 
   const change = config.change;
   const isPositive = change?.startsWith("+");
   const isNegative = change?.startsWith("-");
   const changeText = change?.replace(/^[+-]/, "");
+
+  // Determine if the change is good or bad based on sentiment
+  const downIsGood = config.sentiment === "down_is_good";
+  const isGood = downIsGood ? isNegative : isPositive;
+  const isBad = downIsGood ? isPositive : isNegative;
 
   // Match KPI target to this scorecard using word overlap + synonyms
   const matchedKpi = kpiTargets?.find((kpi) => {
@@ -96,12 +111,7 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
     : 0;
 
   return (
-    <div className="flex h-full flex-col items-start justify-center gap-1.5 px-2">
-      {config.label && (
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {config.label}
-        </p>
-      )}
+    <div className="flex h-full flex-col items-start justify-center gap-0.5 px-2">
       <div className="flex items-baseline gap-2">
         <p className="text-4xl font-bold tracking-tight text-foreground">
           {formatted}
@@ -115,16 +125,16 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
       <div className="flex items-center gap-2">
         {change && (
           <div className="flex items-center gap-1.5">
-            {isPositive ? (
+            {isGood ? (
               <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5">
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                {isPositive ? <TrendingUp className="h-3 w-3 text-emerald-500" /> : <TrendingDown className="h-3 w-3 text-emerald-500" />}
                 <span className="text-xs font-semibold text-emerald-500">
                   {changeText}
                 </span>
               </div>
-            ) : isNegative ? (
+            ) : isBad ? (
               <div className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5">
-                <TrendingDown className="h-3 w-3 text-red-500" />
+                {isPositive ? <TrendingUp className="h-3 w-3 text-red-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
                 <span className="text-xs font-semibold text-red-500">
                   {changeText}
                 </span>
@@ -151,7 +161,7 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
         )}
       </div>
       {hasKpi && (
-        <div className="w-full mt-0.5">
+        <div className="w-full">
           <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
             <div
               className={`h-full rounded-full ${onTrack ? "bg-emerald-500/70" : "bg-red-500/70"}`}
