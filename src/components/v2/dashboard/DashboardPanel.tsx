@@ -213,25 +213,6 @@ export default function DashboardPanelV2({
     }).catch(() => {});
   }
 
-  function handleDateRangeChange(
-    dateRange: string,
-    dateFrom?: string | null,
-    dateTo?: string | null,
-  ) {
-    if (!dashboard) return;
-    setDashboard((d) =>
-      d
-        ? { ...d, dateRange, dateFrom: dateFrom ?? null, dateTo: dateTo ?? null }
-        : d,
-    );
-    fetch(`/api/dashboards/${dashboardId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dateRange, dateFrom, dateTo }),
-    }).catch(() => {});
-    refreshWidgets(dateRange, dateFrom, dateTo);
-  }
-
   async function handleAddWidget(args: { prompt: string; chartType: ChartTypeId; includeGoal?: boolean }) {
     const { prompt, chartType, includeGoal } = args;
     if (!dashboard) return;
@@ -484,26 +465,16 @@ export default function DashboardPanelV2({
           setAddWidgetOpen(true);
         }}
         onBack={onClose}
-        dateRange={dashboard.dateRange}
-        dateFrom={dashboard.dateFrom}
-        dateTo={dashboard.dateTo}
-        onDateRangeChange={(v) =>
-          handleDateRangeChange(v.dateRange, v.dateFrom ?? null, v.dateTo ?? null)
+        onRefresh={() =>
+          refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo)
         }
+        refreshing={refreshing}
         editingTitle={editingTitle}
         titleDraft={titleDraft}
         onEditTitle={() => setEditingTitle(true)}
         onTitleDraftChange={setTitleDraft}
         onTitleCommit={saveTitle}
-        trailing={
-          refreshing ? (
-            <span
-              className="pulse-dot"
-              title="Refreshing data…"
-              style={{ marginRight: 6 }}
-            />
-          ) : null
-        }
+        trailing={null}
       />
 
       {/* Connector-error banner — one row per disconnected source */}

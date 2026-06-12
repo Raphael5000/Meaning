@@ -3,8 +3,6 @@
 import * as React from "react";
 import { I } from "../icons";
 import { Btn, Dot, IconBtn } from "../primitives";
-import { DateRangePill, type DateRangeValue } from "./DateRangePill";
-
 interface DashHeaderProps {
   title: string;
   owner?: string;
@@ -13,10 +11,8 @@ interface DashHeaderProps {
   onToggleChat?: () => void;
   onAddWidget?: () => void;
   onBack?: () => void;
-  dateRange?: string;
-  dateFrom?: string | null;
-  dateTo?: string | null;
-  onDateRangeChange?: (v: DateRangeValue) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   /** Optional slot on the far right (e.g. refreshing indicator) */
   trailing?: React.ReactNode;
   onEditTitle?: () => void;
@@ -34,10 +30,8 @@ export function DashHeader({
   onToggleChat,
   onAddWidget,
   onBack,
-  dateRange,
-  dateFrom,
-  dateTo,
-  onDateRangeChange,
+  onRefresh,
+  refreshing = false,
   trailing,
   onEditTitle,
   editingTitle = false,
@@ -173,13 +167,25 @@ export function DashHeader({
       </div>
 
       {trailing}
-      {dateRange && onDateRangeChange && (
-        <DateRangePill
-          dateRange={dateRange}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onChange={onDateRangeChange}
-        />
+      {onRefresh && (
+        <Btn
+          variant="outline"
+          size="sm"
+          icon={
+            <I.Refresh
+              size={13}
+              style={
+                refreshing
+                  ? { animation: "spin 1s linear infinite" }
+                  : undefined
+              }
+            />
+          }
+          onClick={onRefresh}
+          disabled={refreshing}
+        >
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </Btn>
       )}
       {onAddWidget && (
         <Btn
