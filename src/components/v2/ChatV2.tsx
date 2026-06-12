@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import AlertsPanelV2 from "@/components/v2/alerts/AlertsPanelV2";
 import GoalsPanel from "@/components/v2/goals/GoalsPanel";
-import ReportsPanel from "@/components/v2/reports/ReportsPanel";
+
 import ConnectionsV2 from "./connections/ConnectionsV2";
 import SettingsPage from "@/components/v2/settings/SettingsPage";
 import DashboardListPanel from "@/components/v2/dashboard/DashboardListPanel";
@@ -1050,9 +1050,6 @@ export default function ChatV2() {
                 onClose={() => setActivePanel({ kind: "none" })}
                 orgId={activeOrgId}
               />
-            )}
-            {activePanel.kind === "reports" && (
-              <ReportsPanel orgId={activeOrgId} />
             )}
             {(activePanel.kind === "team" ||
               activePanel.kind === "account") && (
