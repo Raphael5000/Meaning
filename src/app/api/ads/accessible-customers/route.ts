@@ -53,7 +53,7 @@ export async function GET() {
     }
 
     const res = await fetch(
-      "https://googleads.googleapis.com/v20/customers:listAccessibleCustomers",
+      "https://googleads.googleapis.com/v19/customers:listAccessibleCustomers",
       { headers }
     );
 
@@ -102,7 +102,7 @@ export async function GET() {
             queryHeaders["login-customer-id"] = loginCustomerId.replace(/-/g, "");
           }
           const queryRes = await fetch(
-            `https://googleads.googleapis.com/v20/customers/${cid}/googleAds:searchStream`,
+            `https://googleads.googleapis.com/v19/customers/${cid}/googleAds:searchStream`,
             {
               method: "POST",
               headers: queryHeaders,
