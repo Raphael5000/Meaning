@@ -58,10 +58,10 @@ echarts.use([
 
 export const ACCENT_PALETTE = [
   "#10a37f",
-  "#e5e7eb",
+  "#6b7280",
   "#9ca3af",
   "#10a37f99",
-  "#e5e7eb99",
+  "#6b728099",
   "#9ca3af99",
 ];
 

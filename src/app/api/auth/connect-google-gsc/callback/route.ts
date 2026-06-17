@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
       },
       update: {
         access_token: tokens.access_token as string,
-        refresh_token: (tokens.refresh_token as string) ?? undefined,
+        ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token as string } : {}),
         expires_at: tokens.expires_in
           ? Math.floor(Date.now() / 1000 + (tokens.expires_in as number))
           : undefined,
@@ -156,6 +156,19 @@ export async function GET(req: NextRequest) {
         id_token: tokens.id_token as string,
       },
     });
+
+    // Reactivate DataSources that were DISCONNECTED by a provider reset
+    const reactivated = await prisma.dataSource.updateMany({
+      where: {
+        userId,
+        type: { in: ["GA4_BIGQUERY", "GOOGLE_ADS", "SEARCH_CONSOLE"] },
+        status: "DISCONNECTED",
+      },
+      data: { status: "ACTIVE", updatedAt: new Date() },
+    });
+    if (reactivated.count > 0) {
+      console.log(`[connect-google-gsc] Reactivated ${reactivated.count} DataSource(s) after reconnect`);
+    }
 
     return NextResponse.redirect(
       new URL("/?gsc_connected=true", baseUrl)

@@ -215,7 +215,7 @@ Connected sources: ${connectedSources.length > 0 ? connectedSources.join(", ") :
     // No manual metric match — generate SQL from the natural language description using Claude
     const anthropic = new Anthropic();
     const sqlResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: `You are a BigQuery SQL expert. Generate a single BigQuery SQL query that returns exactly ONE numeric value for the given metric description.
 

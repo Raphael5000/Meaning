@@ -956,7 +956,7 @@ export async function POST(request: NextRequest) {
         ): Promise<Anthropic.Message> {
           send({ type: "round_start" });
           const streamResp = anthropic.messages.stream({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-6",
             max_tokens: 4096,
             system: systemPrompt,
             ...(withTools ? { tools } : {}),
@@ -1254,7 +1254,7 @@ export async function POST(request: NextRequest) {
               { role: "assistant", content: PREFILL },
             ];
             const forced = await anthropic.messages.create({
-              model: "claude-sonnet-4-20250514",
+              model: "claude-sonnet-4-6",
               max_tokens: 4096,
               system: systemPrompt,
               messages: prefillMessages,

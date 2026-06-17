@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       },
       update: {
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? undefined,
+        ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
         expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
         token_type: "Bearer",
         scope: tokens.scope,
@@ -111,12 +111,21 @@ export async function GET(req: NextRequest) {
         provider: "linkedin",
         providerAccountId: linkedinUserId,
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? undefined,
+        refresh_token: tokens.refresh_token,
         expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
         token_type: "Bearer",
         scope: tokens.scope,
       },
     });
+
+    // Reactivate DataSources that were DISCONNECTED by a provider reset
+    const reactivated = await prisma.dataSource.updateMany({
+      where: { userId, type: "LINKEDIN", status: "DISCONNECTED" },
+      data: { status: "ACTIVE", updatedAt: new Date() },
+    });
+    if (reactivated.count > 0) {
+      console.log(`[connect-linkedin] Reactivated ${reactivated.count} DataSource(s) after reconnect`);
+    }
 
     return NextResponse.redirect(
       new URL("/?linkedin_connected=true", baseUrl)

@@ -213,7 +213,7 @@ export default function DashboardPanelV2({
     }).catch(() => {});
   }
 
-  async function handleAddWidget(args: { prompt: string; chartType: ChartTypeId; includeGoal?: boolean }) {
+  async function handleAddWidget(args: { prompt: string; chartType: ChartTypeId; includeGoal?: boolean }, posOverride?: { x: number; y: number }) {
     const { prompt, chartType, includeGoal } = args;
     if (!dashboard) return;
     setWidgetError(null);
@@ -256,8 +256,8 @@ export default function DashboardPanelV2({
     );
     const placeholderLayout: LayoutItem = {
       i: tempId,
-      x: 0,
-      y: maxBottom,
+      x: posOverride?.x ?? 0,
+      y: posOverride?.y ?? maxBottom,
       ...size,
     };
     setDashboard((d) =>
@@ -276,7 +276,7 @@ export default function DashboardPanelV2({
       const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, chartType, includeGoal }),
+        body: JSON.stringify({ prompt, chartType, includeGoal, ...(posOverride ? { positionOverride: posOverride } : {}) }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -322,10 +322,13 @@ export default function DashboardPanelV2({
 
   async function handleEditSubmit(args: { prompt: string; chartType: ChartTypeId }) {
     if (!editWidgetId) return handleAddWidget(args);
+    // Preserve the old widget's position so the replacement stays in place
+    const oldPos = dashboard?.layout.find((l) => l.i === editWidgetId);
     await handleDeleteWidget(editWidgetId);
+    const pos = oldPos ? { x: oldPos.x, y: oldPos.y } : undefined;
     setEditWidgetId(null);
     setEditPrompt("");
-    return handleAddWidget(args);
+    return handleAddWidget(args, pos);
   }
 
   async function handleDeleteWidget(widgetId: string) {

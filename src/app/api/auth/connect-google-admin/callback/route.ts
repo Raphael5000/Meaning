@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
       },
       update: {
         access_token: tokens.access_token as string,
-        refresh_token: (tokens.refresh_token as string) ?? undefined,
+        ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token as string } : {}),
         expires_at: tokens.expires_in
           ? Math.floor(Date.now() / 1000 + (tokens.expires_in as number))
           : undefined,
@@ -163,6 +163,19 @@ export async function GET(req: NextRequest) {
     // linkedin, mailchimp, ms-ads). The legacy /connect-analytics page is
     // not the modern flow and was the source of "lands on /pricing after
     // connecting" bugs.
+    // Reactivate DataSources that were DISCONNECTED by a provider reset
+    const reactivated = await prisma.dataSource.updateMany({
+      where: {
+        userId,
+        type: { in: ["GA4_BIGQUERY", "GOOGLE_ADS", "SEARCH_CONSOLE"] },
+        status: "DISCONNECTED",
+      },
+      data: { status: "ACTIVE", updatedAt: new Date() },
+    });
+    if (reactivated.count > 0) {
+      console.log(`[connect-google-admin] Reactivated ${reactivated.count} DataSource(s) after reconnect`);
+    }
+
     return NextResponse.redirect(
       new URL("/?ga_admin_connected=true", baseUrl)
     );

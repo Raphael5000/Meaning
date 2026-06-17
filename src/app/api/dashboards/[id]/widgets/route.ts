@@ -343,7 +343,7 @@ export async function POST(
   }
 
   const { id: dashboardId } = await params;
-  const body = (await request.json()) as { prompt: string; includeGoal?: boolean };
+  const body = (await request.json()) as { prompt: string; includeGoal?: boolean; positionOverride?: { x: number; y: number } };
 
   if (!body.prompt) {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });
@@ -429,7 +429,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
 
     // Call Claude with tools
     let response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: systemPrompt,
       tools,
@@ -557,7 +557,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
       conversationMessages.push({ role: "user", content: toolResults });
 
       response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 4096,
         system: systemPrompt,
         tools,
@@ -582,7 +582,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
       conversationMessages.push({ role: "assistant", content: assistantContent });
       conversationMessages.push({ role: "user", content: emptyResults });
       response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 4096,
         system: systemPrompt,
         messages: conversationMessages,
@@ -687,19 +687,23 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
     }
 
     const size = getWidgetSize(parsed.widgetType, parsed.displayConfig);
-    const maxBottom = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
 
-    // Try to place side-by-side if there's room on the last row
-    let x = 0;
-    const lastRowY = layout.length > 0 ? Math.max(...layout.map((item) => item.y)) : 0;
-    const lastRowItems = layout.filter((item) => item.y === lastRowY);
-    const lastRowRight = lastRowItems.reduce((max, item) => Math.max(max, item.x + item.w), 0);
-    if (lastRowRight + size.w <= 12) {
-      // Fits next to existing widgets on the same row
-      x = lastRowRight;
-      layout.push({ i: widget.id, x, y: lastRowY, w: size.w, h: size.h });
+    if (body.positionOverride) {
+      // Edit/regenerate: place at the same position as the old widget
+      layout.push({ i: widget.id, x: body.positionOverride.x, y: body.positionOverride.y, w: size.w, h: size.h });
     } else {
-      layout.push({ i: widget.id, x: 0, y: maxBottom, w: size.w, h: size.h });
+      const maxBottom = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+      // Try to place side-by-side if there's room on the last row
+      let x = 0;
+      const lastRowY = layout.length > 0 ? Math.max(...layout.map((item) => item.y)) : 0;
+      const lastRowItems = layout.filter((item) => item.y === lastRowY);
+      const lastRowRight = lastRowItems.reduce((max, item) => Math.max(max, item.x + item.w), 0);
+      if (lastRowRight + size.w <= 12) {
+        x = lastRowRight;
+        layout.push({ i: widget.id, x, y: lastRowY, w: size.w, h: size.h });
+      } else {
+        layout.push({ i: widget.id, x: 0, y: maxBottom, w: size.w, h: size.h });
+      }
     }
 
     await prisma.dashboard.update({

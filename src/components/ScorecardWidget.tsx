@@ -18,30 +18,10 @@ interface ScorecardWidgetProps {
 }
 
 export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle }: ScorecardWidgetProps) {
-  // Extract value: prefer live cached data over stale AI-generated config.value
-  let value: string | number = "—";
-
-  if (Array.isArray(data) && data.length > 0) {
-    const row = data[0] as Record<string, unknown>;
-    const keys = Object.keys(row);
-    // Skip comparison/metadata keys — prefer "current" keys, then first non-comparison numeric
-    const skipPatterns = /^(prev|previous|prior|change|percent|delta|diff)/i;
-    const currentKey = keys.find((k) => /^current/i.test(k));
-    const primaryKey = currentKey || keys.find((k) => !skipPatterns.test(k));
-    if (primaryKey) {
-      let v = row[primaryKey];
-      if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
-        v = (v as Record<string, unknown>).value;
-      }
-      if (typeof v === "number") {
-        value = v;
-      }
-    }
-  }
-
-  if (value === "—" && config.value) {
-    value = config.value;
-  }
+  // Use the AI-generated config.value as the source of truth for scorecards.
+  // The AI may post-process query results (e.g. divide spend by lead count),
+  // so raw cachedData from BigQuery can be wrong.
+  let value: string | number = config.value || "—";
 
   // Detect currency prefix from the AI-generated config.value (e.g. "R1,234.56" → "R")
   const currencyPrefix = config.value?.match(/^([A-Z]{1,3}\$?|[R€£¥₹₦₱₩₺₪฿])\s?/)?.[1] ?? "";

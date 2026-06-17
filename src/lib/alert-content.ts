@@ -527,7 +527,7 @@ export async function generateAlertContent(
   console.log(`[alert-content] Starting generation for property ${propertyId}, type=${alertType}, freq=${frequency}, bigquery=${usesBigQuery}, ads=${hasAds}, msads=${hasMsAds}, linkedin=${hasLinkedIn}, mailchimp=${hasMailchimp}, gsc=${hasGsc}`);
 
   let response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 4096,
     system: systemPrompt,
     tools,
@@ -580,7 +580,7 @@ export async function generateAlertContent(
     messages.push({ role: "user", content: toolResults });
 
     response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: systemPrompt,
       tools,
@@ -617,7 +617,7 @@ export async function generateAlertContent(
       content: "You have exhausted your tool call budget. Produce the final HTML email report NOW using only the data already gathered in this conversation. Do not call any more tools. If some data is missing, note that in the report rather than trying to fetch it.",
     });
     response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: systemPrompt,
       messages,
