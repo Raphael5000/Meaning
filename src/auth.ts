@@ -79,8 +79,60 @@ const sameSiteOpts = {
   ...(cookieDomain && { domain: cookieDomain }),
 };
 
+// Wrap the PrismaAdapter to prevent re-login from overwriting broad-scope
+// Google tokens with narrow login-only tokens. The default adapter's
+// linkAccount upserts the entire Account record, replacing the refresh_token
+// obtained from connect-google-ads (with adwords+analytics+webmasters scopes)
+// with a new refresh_token that only has "openid email profile" scopes.
+// This breaks all GSC/Ads syncs silently.
+const baseAdapter = PrismaAdapter(prisma);
+const protectedAdapter: typeof baseAdapter = {
+  ...baseAdapter,
+  // @ts-expect-error — return type mismatch between void and AdapterAccount; functionally correct
+  async linkAccount(account: Parameters<NonNullable<typeof baseAdapter.linkAccount>>[0]) {
+    if (account.provider === "google") {
+      // Check if we already have a broad-scope refresh_token for this account
+      const existing = await prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider: "google",
+            providerAccountId: account.providerAccountId,
+          },
+        },
+        select: { refresh_token: true, scope: true },
+      });
+
+      if (existing?.refresh_token && existing.scope?.includes("adwords")) {
+        // We have a broad-scope token — don't let the login overwrite it.
+        // Only update access_token and expires_at (which are useful to refresh).
+        // Keep the existing refresh_token and scope intact.
+        console.log("[auth] Protecting broad-scope Google tokens from login overwrite");
+        await prisma.account.update({
+          where: {
+            provider_providerAccountId: {
+              provider: "google",
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          data: {
+            access_token: account.access_token,
+            expires_at: account.expires_at,
+            id_token: account.id_token,
+            token_type: account.token_type,
+            session_state: account.session_state as string | undefined,
+            // Deliberately NOT updating: refresh_token, scope
+          },
+        });
+        return;
+      }
+    }
+    // For all other providers or first-time Google links, use default behavior
+    return baseAdapter.linkAccount!(account);
+  },
+};
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: protectedAdapter,
   session: { strategy: "jwt" },
   trustHost: true,
   pages: {
@@ -167,14 +219,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         console.error("[auth] createUser org auto-creation failed:", err);
       }
     },
-    // Preserve elevated scopes on re-login. The PrismaAdapter overwrites the
-    // Account record with the narrow login scope ("openid email profile"),
-    // wiping the broader scope granted by /api/auth/connect-google-ads.
-    // This event fires after the adapter write, so we restore the stored scope.
+    // Preserve elevated tokens on re-login. The PrismaAdapter overwrites the
+    // entire Account record with the narrow login tokens ("openid email profile"),
+    // wiping the broader-scoped refresh_token from /api/auth/connect-google-ads.
+    // We snapshot the broad tokens BEFORE the adapter write (linkAccount),
+    // then restore them here AFTER.
     async signIn({ account: signInAccount }) {
-      // ── Google: preserve elevated scopes on re-login ──
-      if (signInAccount?.provider === "google" && signInAccount.scope) {
+      // ── Google: preserve elevated tokens + scope on re-login ──
+      if (signInAccount?.provider === "google") {
         try {
+          // The adapter has already overwritten tokens by now.
+          // Read the account to see if we have a stashed broad refresh_token
+          // from a previous connect flow. If the adapter just wiped it with a
+          // narrow-scope token, restore the broad one.
           const existing = await prisma.account.findUnique({
             where: {
               provider_providerAccountId: {
@@ -182,16 +239,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 providerAccountId: signInAccount.providerAccountId,
               },
             },
-            select: { id: true, scope: true, refresh_token: true },
+            select: { id: true, scope: true, refresh_token: true, access_token: true },
           });
-          if (
-            existing &&
-            existing.refresh_token &&
-            existing.scope &&
-            !existing.scope.includes("adwords")
-          ) {
-            const broadScope =
-              "openid email profile https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/analytics.edit https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/webmasters.readonly";
+          if (!existing) return;
+
+          // The login flow only grants "openid email profile".
+          // If the scope on the account includes elevated scopes (analytics, adwords, webmasters),
+          // the adapter just overwrote the broad refresh_token with a narrow one.
+          // The narrow refresh_token CANNOT produce elevated access tokens.
+          // We need to detect this and restore the broad token.
+          //
+          // Strategy: The PrismaAdapter's linkAccount sets refresh_token to
+          // whatever Google returned for this login. If the account previously
+          // had elevated scope, the login just broke it. We can't recover the
+          // old refresh_token here because the adapter already overwrote it.
+          //
+          // So instead, we store the scope string so the next connect flow
+          // knows to re-request. But the REAL fix is: don't let the adapter
+          // overwrite refresh_token at all if we already have one with broad scopes.
+          // That's handled below in the adapter override.
+
+          // Always ensure the scope field reflects what we WANT, even if the
+          // actual token is narrow. This helps the connect-google callbacks
+          // and the JWT callback know the account needs reconnection.
+          const broadScope =
+            "openid email profile https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/analytics.edit https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/webmasters.readonly";
+          if (existing.scope !== broadScope) {
             await prisma.account.update({
               where: { id: existing.id },
               data: { scope: broadScope },
