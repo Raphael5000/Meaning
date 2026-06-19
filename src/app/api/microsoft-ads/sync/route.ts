@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const dataSources = await prisma.dataSource.findMany({
-    where: { type: "MICROSOFT_ADS", status: { in: ["ACTIVE", "BACKFILLING"] } },
+    where: { type: "MICROSOFT_ADS", status: { in: ["ACTIVE", "BACKFILLING", "ERROR"] } },
     select: { id: true, type: true, userId: true, propertyId: true, adsCustomerId: true },
   });
 

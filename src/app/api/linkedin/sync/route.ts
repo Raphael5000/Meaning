@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   const dataSources = await prisma.dataSource.findMany({
-    where: { type: "LINKEDIN", status: { in: ["ACTIVE", "BACKFILLING"] } },
+    where: { type: "LINKEDIN", status: { in: ["ACTIVE", "BACKFILLING", "ERROR"] } },
     select: { id: true, type: true, userId: true, propertyId: true },
   });
 

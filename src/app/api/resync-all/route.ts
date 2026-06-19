@@ -6,6 +6,9 @@ import { syncLinkedInData } from "@/lib/linkedin-transfer";
 import { syncMailchimpData } from "@/lib/mailchimp-transfer";
 import { syncMicrosoftAdsData } from "@/lib/microsoft-ads-transfer";
 import { syncAhrefsData } from "@/lib/ahrefs-transfer";
+import { syncAttioData } from "@/lib/attio-transfer";
+import { syncHubSpotData } from "@/lib/hubspot-transfer";
+import { syncRedditData } from "@/lib/reddit-transfer";
 import { syncWithRetry, getSyncDateRange } from "@/lib/sync-utils";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   const dataSources = await prisma.dataSource.findMany({
     where: { ...typeCondition, status: { in: statusFilter } },
-    select: { id: true, type: true, userId: true, propertyId: true, adsCustomerId: true },
+    select: { id: true, type: true, userId: true, propertyId: true, adsCustomerId: true, orgId: true },
   });
 
   if (dataSources.length === 0) {
@@ -90,6 +93,12 @@ export async function POST(req: NextRequest) {
           return syncMicrosoftAdsData(ds.userId, ds.propertyId, ds.adsCustomerId || ds.propertyId, start, end);
         case "AHREFS":
           return syncAhrefsData(ds.userId, ds.propertyId);
+        case "ATTIO":
+          return syncAttioData(ds.userId, ds.propertyId);
+        case "HUBSPOT":
+          return syncHubSpotData(ds.userId, ds.propertyId);
+        case "REDDIT":
+          return syncRedditData(ds.propertyId, ds.orgId || ds.userId);
         default:
           return Promise.resolve();
       }

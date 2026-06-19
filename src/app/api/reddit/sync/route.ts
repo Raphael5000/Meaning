@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncRedditData } from "@/lib/reddit-transfer";
+import { syncWithRetry } from "@/lib/sync-utils";
+import { sendSyncFailureEmail } from "@/lib/resend";
 
 export const dynamic = "force-dynamic";
 
@@ -13,38 +15,43 @@ export async function POST(request: NextRequest) {
   }
 
   const dataSources = await prisma.dataSource.findMany({
-    where: { type: "REDDIT", status: { in: ["ACTIVE", "BACKFILLING"] } },
+    where: { type: "REDDIT", status: { in: ["ACTIVE", "BACKFILLING", "ERROR"] } },
     select: { id: true, type: true, userId: true, propertyId: true, orgId: true },
   });
 
   if (dataSources.length === 0) {
-    return NextResponse.json({ synced: 0, failed: 0, message: "No REDDIT sources" });
+    return NextResponse.json({ synced: 0, failed: 0, total: 0, message: "No REDDIT sources" });
   }
 
   let synced = 0;
   let failed = 0;
+  const errors: Array<{ propertyId: string; error: string }> = [];
 
   for (const ds of dataSources) {
-    try {
-      const orgId = ds.orgId ?? ds.userId;
-      console.log(`[reddit/sync] Syncing r/${ds.propertyId} for org ${orgId}`);
-      await syncRedditData(ds.propertyId, orgId);
-      await prisma.dataSource.update({
-        where: { id: ds.id },
-        data: { status: "ACTIVE", lastSyncedAt: new Date(), lastSyncError: null },
-      });
+    const orgId = ds.orgId ?? ds.userId;
+    const result = await syncWithRetry(
+      ds,
+      () => syncRedditData(ds.propertyId, orgId),
+      `reddit-sync r/${ds.propertyId}`,
+    );
+    if (result.success) {
       synced++;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[reddit/sync] Failed r/${ds.propertyId}:`, msg);
-      await prisma.dataSource.update({
-        where: { id: ds.id },
-        data: { status: "ERROR", lastSyncError: msg.slice(0, 500) },
-      }).catch(() => {});
+    } else {
       failed++;
+      errors.push({ propertyId: ds.propertyId, error: result.error || "Unknown error" });
     }
   }
 
-  console.log(`[reddit/sync] Done: ${synced} synced, ${failed} failed`);
-  return NextResponse.json({ synced, failed });
+  if (failed > 0) {
+    await sendSyncFailureEmail({
+      connectorType: "REDDIT",
+      failedCount: failed,
+      totalCount: dataSources.length,
+      errors,
+    }).catch((err) => {
+      console.error(`[sync-batch] Failed to send alert email:`, err);
+    });
+  }
+
+  return NextResponse.json({ synced, failed, total: dataSources.length });
 }
