@@ -440,6 +440,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
     const conversationMessages: Anthropic.MessageParam[] = [{ role: "user", content: body.prompt }];
     let toolRound = 0;
     let capturedQueryConfig: { tool: string; input: unknown } | null = null;
+    const allQueryConfigs: { tool: string; input: unknown }[] = [];
     let capturedData: unknown = null;
 
     while (response.stop_reason === "tool_use" && toolRound < 5) {
@@ -464,6 +465,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
               const input = toolUse.input as unknown as QueryAnalyticsInput;
               const { sql, params } = buildAnalyticsSQL(input);
               result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+              allQueryConfigs.push({ tool: "query_analytics", input: toolUse.input });
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_analytics", input: toolUse.input };
                 capturedData = (result as { rows: unknown }).rows;
@@ -479,6 +481,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
               const input = toolUse.input as { sql: string; description?: string };
               console.log(`[widget-gen] SQL (${toolUse.name}):`, input.sql);
               result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId);
+              allQueryConfigs.push({ tool: toolUse.name, input: toolUse.input });
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: toolUse.name, input: toolUse.input };
                 capturedData = (result as { rows: unknown }).rows;
@@ -529,6 +532,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
               result = { rows };
               // Don't set capturedData — the AI embeds data directly in the
               // ECharts config for manual metrics, so we skip auto-population.
+              allQueryConfigs.push({ tool: "query_manual_metrics", input: toolUse.input });
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_manual_metrics", input: toolUse.input };
               }
@@ -645,7 +649,10 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
         dashboardId,
         prompt: body.prompt,
         widgetType: parsed.widgetType,
-        queryConfig: (capturedQueryConfig ?? {}) as object,
+        queryConfig: {
+          ...(capturedQueryConfig ?? {}),
+          ...(allQueryConfigs.length > 1 ? { allQueries: allQueryConfigs } : {}),
+        } as object,
         displayConfig: parsed.displayConfig as object,
         cachedData: capturedData
           ? (capturedData as object)

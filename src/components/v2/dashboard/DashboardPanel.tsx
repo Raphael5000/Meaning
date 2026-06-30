@@ -117,6 +117,7 @@ export default function DashboardPanelV2({
           widgetId: string;
           rows: unknown;
           error?: string;
+          displayConfig?: unknown;
         }>;
         setDashboard((d) => {
           if (!d) return d;
@@ -132,6 +133,8 @@ export default function DashboardPanelV2({
                 cachedData: r.rows,
                 cachedAt: new Date().toISOString(),
                 lastError: null,
+                // Apply updated displayConfig (e.g. scorecard value) if returned
+                ...(r.displayConfig ? { displayConfig: r.displayConfig } : {}),
               };
             }
             return w;
@@ -369,8 +372,13 @@ export default function DashboardPanelV2({
           setDashboard((d) => {
             if (!d) return d;
             const widgets = d.widgets.map((w) => {
-              const result = data.results.find((r: { widgetId: string; rows: unknown }) => r.widgetId === w.id);
-              if (result?.rows) return { ...w, cachedData: result.rows, cachedAt: new Date().toISOString() };
+              const result = data.results.find((r: { widgetId: string; rows: unknown; displayConfig?: unknown }) => r.widgetId === w.id);
+              if (result?.rows) return {
+                ...w,
+                cachedData: result.rows,
+                cachedAt: new Date().toISOString(),
+                ...(result.displayConfig ? { displayConfig: result.displayConfig } : {}),
+              };
               return w;
             });
             return { ...d, widgets };

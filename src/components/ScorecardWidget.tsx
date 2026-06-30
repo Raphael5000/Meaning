@@ -18,9 +18,9 @@ interface ScorecardWidgetProps {
 }
 
 export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle }: ScorecardWidgetProps) {
-  // Use the AI-generated config.value as the source of truth for scorecards.
-  // The AI may post-process query results (e.g. divide spend by lead count),
-  // so raw cachedData from BigQuery can be wrong.
+  // Always use config.value — the refresh endpoint updates displayConfig.value
+  // server-side for manual-metrics scorecards. BQ-backed scorecards keep their
+  // AI-computed value (e.g. spend/leads) which can't be derived from raw cachedData.
   let value: string | number = config.value || "—";
 
   // Detect currency prefix from the AI-generated config.value (e.g. "R1,234.56" → "R")

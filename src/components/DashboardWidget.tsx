@@ -62,13 +62,73 @@ function detectCurrencySymbol(widget: Widget): string {
  * Produces clean, properly configured ECharts options.
  */
 function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unknown, kpiTargets?: KpiTarget[]): Record<string, unknown> {
-  // If displayConfig already has embedded series data, use it directly (cross-source charts)
   const configSeries = (displayConfig.series as Array<Record<string, unknown>> | undefined);
-  const hasEmbeddedData = Array.isArray(configSeries) && configSeries.some(
-    (s) => Array.isArray(s.data) && s.data.length > 0 && s.data.some((v: unknown) => v !== null && v !== 0)
-  );
 
-  if (hasEmbeddedData || !Array.isArray(cachedData) || cachedData.length === 0) {
+  // Prefer cachedData (fresh from refresh) over embedded displayConfig data.
+  // Exception: when the AI split flat data into multiple series at creation time
+  // (e.g. "2025 vs 2026" from a single Leads column), the embedded series are
+  // more accurate because cachedData rows can't naturally produce multiple series
+  // (they only have 1 metric column). Fall back to embedded data in that case.
+  const cachedRows = Array.isArray(cachedData) ? cachedData as Record<string, unknown>[] : [];
+  const cachedMetricCols = cachedRows.length > 0
+    ? Object.values(cachedRows[0]).filter((v) => typeof v === "number").length
+    : 0;
+  const embeddedSeriesCount = Array.isArray(configSeries)
+    ? configSeries.filter((s) => Array.isArray(s.data) && s.data.length > 0 && s.data.some((v: unknown) => v !== null && v !== 0)).length
+    : 0;
+  // Only treat as AI-split when series names look like years (e.g. "2025", "2026").
+  // Multi-metric charts (e.g. Sessions, Impressions, Leads) should still go through
+  // the in-place update path so matching series get refreshed.
+  const seriesNames = (configSeries ?? []).map((s) => String(s.name ?? ""));
+  const aiSplitData = embeddedSeriesCount > 1 && cachedMetricCols <= 1
+    && seriesNames.every((n) => /^20\d{2}$/.test(n));
+
+  // When displayConfig has multiple series with embedded data, update them
+  // in-place from cachedData rather than rebuilding (which can swap series order).
+  if (cachedRows.length > 0 && embeddedSeriesCount > 1 && !aiSplitData) {
+    const option = JSON.parse(JSON.stringify(displayConfig)) as Record<string, unknown>;
+    delete option.title;
+    const series = option.series as Array<Record<string, unknown>>;
+    // Find dimension key (first string column)
+    const dimKey = Object.keys(cachedRows[0]).find((k) => typeof cachedRows[0][k] === "string") || Object.keys(cachedRows[0])[0];
+    // Build lookup: dimension value → row
+    const rowMap = new Map(cachedRows.map((r) => [String(r[dimKey] ?? ""), r]));
+    // Get xAxis categories
+    const xData = (option.xAxis as Record<string, unknown>)?.data as string[] | undefined;
+    const categories = xData ?? cachedRows.map((r) => String(r[dimKey] ?? ""));
+
+    for (const s of series) {
+      const seriesName = (s.name as string ?? "").toLowerCase().replace(/\s+/g, "_");
+      // Find matching metric column by name
+      const metricKey = Object.keys(cachedRows[0]).find((k) => {
+        const kNorm = k.toLowerCase().replace(/\s+/g, "_");
+        return kNorm === seriesName || kNorm.includes(seriesName) || seriesName.includes(kNorm);
+      });
+      if (metricKey) {
+        s.data = categories.map((cat) => {
+          const row = rowMap.get(cat);
+          return row ? Number(row[metricKey]) ?? 0 : null;
+        });
+      }
+    }
+    // Update xAxis if needed
+    if (xData && cachedRows.length > 0) {
+      (option.xAxis as Record<string, unknown>).data = categories;
+    }
+    // Ensure legend
+    if (series.length > 1) {
+      option.legend = {
+        show: true, top: 4, right: 8, bottom: undefined, left: undefined,
+        orient: "horizontal", type: "scroll",
+        textStyle: { fontSize: 11 }, itemWidth: 10, itemHeight: 10, itemGap: 12,
+        ...(option.legend as Record<string, unknown> | undefined),
+      };
+      option.grid = { ...(option.grid as Record<string, unknown> | undefined), top: 32 };
+    }
+    return option;
+  }
+
+  if (cachedRows.length === 0 || aiSplitData) {
     // Still remove the title — it's shown in the widget header
     const fallback = { ...displayConfig };
     delete fallback.title;
@@ -119,6 +179,13 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
   if (!series || series.length === 0) return option;
 
   const chartType = series[0].type as string;
+
+  // Preserve original per-series colors from displayConfig so colors stay
+  // stable across refreshes (the AI may assign explicit colors on creation).
+  const originalSeriesColors: (string | undefined)[] = (configSeries ?? []).map((s) => {
+    const style = s.itemStyle as Record<string, unknown> | undefined;
+    return (style?.color as string) ?? (s.color as string) ?? undefined;
+  });
 
   // Remove title — it's shown in the widget header
   delete option.title;
@@ -271,16 +338,19 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
 
     for (let i = 0; i < series.length && i < metricKeys.length; i++) {
       series[i].data = filledRows.map((r) => Number(r[metricKeys[i]] ?? 0));
+      // Carry forward the original color so charts don't shift colors on refresh
+      const origColor = originalSeriesColors[i];
       if (chartType === "line") {
         series[i].smooth = true;
         series[i].symbol = "circle";
         series[i].symbolSize = 4;
         series[i].areaStyle = { opacity: 0.06 };
         series[i].lineStyle = { width: 2 };
+        if (origColor) series[i].itemStyle = { ...(series[i].itemStyle as Record<string, unknown> | undefined), color: origColor };
       }
       if (chartType === "bar") {
         series[i].barMaxWidth = 36;
-        series[i].itemStyle = { borderRadius: [3, 3, 0, 0] };
+        series[i].itemStyle = { borderRadius: [3, 3, 0, 0], ...(origColor ? { color: origColor } : {}) };
       }
     }
 
