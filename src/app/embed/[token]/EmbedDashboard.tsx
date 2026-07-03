@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   ResponsiveGridLayout,
+  verticalCompactor,
   type LayoutItem,
 } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -31,6 +32,31 @@ interface Props {
   dashboards: Dashboard[];
 }
 
+/** Fixed sizes per widget type — mirrors DashboardGrid.getFixedSize */
+function getFixedSize(widget: Widget): { w: number; h: number } {
+  if (widget.widgetType === "heading") return { w: 12, h: 2 };
+  if (widget.widgetType === "divider") return { w: 12, h: 2 };
+  if (widget.widgetType === "scorecard") return { w: 4, h: 4 };
+  if (widget.widgetType === "table") {
+    const dc = widget.displayConfig as Record<string, unknown> | null;
+    const data = widget.cachedData ?? dc?.inlineData ?? dc?.data;
+    const rowCount = Array.isArray(data) ? data.length : 5;
+    const contentPx = 36 + 32 + rowCount * 37;
+    const h = Math.max(4, Math.min(30, Math.ceil((contentPx + 16) / 36)));
+    return { w: 12, h };
+  }
+  if (widget.widgetType === "chart" && widget.displayConfig) {
+    const config = widget.displayConfig as Record<string, unknown>;
+    const series = config.series;
+    const seriesArr = Array.isArray(series) ? series : series ? [series] : [];
+    const chartType = (seriesArr[0] as Record<string, unknown>)?.type as string | undefined;
+    if (chartType === "sankey" || chartType === "map") return { w: 12, h: 12 };
+    if (chartType === "pie") return { w: 6, h: 10 };
+    return { w: 6, h: 10 };
+  }
+  return { w: 6, h: 10 };
+}
+
 export function EmbedDashboard({ dashboards }: Props) {
   const [activeId, setActiveId] = useState(dashboards[0]?.id);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +83,23 @@ export function EmbedDashboard({ dashboards }: Props) {
     return () => ro.disconnect();
   }, [mounted]);
 
-  const layout = (active.layout as LayoutItem[]) || [];
+  const widgetMap = useMemo(
+    () => new Map(active.widgets.map((w) => [w.id, w])),
+    [active.widgets]
+  );
+
+  // Normalize layout: enforce fixed sizes per widget type (mirrors DashboardGrid)
+  const normalizedLayout = useMemo(() => {
+    const rawLayout = (active.layout as LayoutItem[]) || [];
+    return rawLayout.map((item) => {
+      const widget = widgetMap.get(item.i);
+      if (!widget) return { ...item, isResizable: false };
+      const size = getFixedSize(widget);
+      return { ...item, w: size.w, h: size.h, isResizable: false };
+    });
+  }, [active.layout, widgetMap]);
+
+  const allLayouts = { lg: normalizedLayout, md: normalizedLayout, sm: normalizedLayout };
 
   return (
     <div
@@ -94,28 +136,34 @@ export function EmbedDashboard({ dashboards }: Props) {
       <div className="p-4">
         {mounted && width > 0 && (
           <ResponsiveGridLayout
-            className="layout"
-            layouts={{ lg: layout, md: layout, sm: layout }}
-            breakpoints={{ lg: 900, md: 600, sm: 0 }}
-            cols={{ lg: 12, md: 6, sm: 1 }}
-            rowHeight={80}
-            width={width - 32}
-            isDraggable={false}
-            isResizable={false}
+            className="dashboard-grid"
+            layouts={allLayouts}
+            breakpoints={{ lg: 1200, md: 768, sm: 0 }}
+            cols={{ lg: 12, md: 12, sm: 12 }}
+            rowHeight={20}
+            width={width}
+            dragConfig={{ enabled: false }}
+            resizeConfig={{ enabled: false }}
             containerPadding={[0, 0]}
-            margin={[12, 12]}
+            margin={[16, 16]}
+            compactor={verticalCompactor}
           >
-            {active.widgets.map((widget) => (
-              <div key={widget.id}>
-                <DashboardWidget
-                  widget={{ ...widget, prompt: "" }}
-                  dashboardId={active.id}
-                  onDelete={() => {}}
-                  onEdit={() => {}}
-                  refreshing={false}
-                />
-              </div>
-            ))}
+            {normalizedLayout.map((item) => {
+              const widget = widgetMap.get(item.i);
+              if (!widget) return <div key={item.i} />;
+              return (
+                <div key={item.i}>
+                  <DashboardWidget
+                    widget={{ ...widget, prompt: "" }}
+                    dashboardId={active.id}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                    refreshing={false}
+                    readOnly
+                  />
+                </div>
+              );
+            })}
           </ResponsiveGridLayout>
         )}
       </div>

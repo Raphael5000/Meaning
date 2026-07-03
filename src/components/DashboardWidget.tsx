@@ -36,6 +36,7 @@ interface DashboardWidgetProps {
   isFullWidth?: boolean;
   onToggleWidth?: () => void;
   onRefresh?: () => void;
+  readOnly?: boolean;
 }
 
 /** Detect currency symbol from data values (e.g. "R19.79" → "R") */
@@ -798,7 +799,7 @@ function ResizableChart({ option }: { option: Record<string, unknown> }) {
   );
 }
 
-export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing, kpiTargets, canToggleWidth, isFullWidth, onToggleWidth, onRefresh }: DashboardWidgetProps) {
+export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit, refreshing, kpiTargets, canToggleWidth, isFullWidth, onToggleWidth, onRefresh, readOnly }: DashboardWidgetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(widget.title || widget.prompt);
@@ -828,10 +829,12 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
     const text = widget.title || titleDraft || "Section Title";
     return (
       <div className="group flex h-full w-full items-center gap-2 px-1">
-        <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
-          <GripVertical className="h-3.5 w-3.5" />
-        </div>
-        {editingTitle ? (
+        {!readOnly && (
+          <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+        )}
+        {editingTitle && !readOnly ? (
           <input
             autoFocus
             value={titleDraft}
@@ -844,21 +847,19 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
             className="flex-1 rounded border border-border bg-transparent px-1 py-0 text-sm font-semibold text-foreground outline-none focus:border-[var(--accent)]"
           />
         ) : (
+          <span className="flex-1 text-left text-sm font-semibold text-foreground">
+            {titleDraft || text}
+          </span>
+        )}
+        {!readOnly && (
           <button
             type="button"
-            onClick={() => { setTitleDraft(text); setEditingTitle(true); }}
-            className="flex-1 text-left text-sm font-semibold text-foreground hover:underline"
+            onClick={onDelete}
+            className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
           >
-            {titleDraft || text}
+            <Trash2 className="h-3 w-3" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={onDelete}
-          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-        >
-          <Trash2 className="h-3 w-3" />
-        </button>
       </div>
     );
   }
@@ -897,28 +898,30 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
           <div className="h-px flex-1" style={{ background: "var(--border-color, rgba(128,128,128,0.2))" }} />
         </div>
         {/* Controls overlay — only visible on hover */}
-        <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "var(--v2-bg, var(--bg-primary, #fff))", paddingLeft: 4 }}>
-          <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
-            <GripVertical className="h-3.5 w-3.5" />
-          </div>
-          {!text && !editingTitle && (
+        {!readOnly && (
+          <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "var(--v2-bg, var(--bg-primary, #fff))", paddingLeft: 4 }}>
+            <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
+              <GripVertical className="h-3.5 w-3.5" />
+            </div>
+            {!text && !editingTitle && (
+              <button
+                type="button"
+                onClick={() => { setTitleDraft(""); setEditingTitle(true); }}
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                title="Add label"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => { setTitleDraft(""); setEditingTitle(true); }}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="Add label"
+              onClick={onDelete}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
             >
-              <Pencil className="h-3 w-3" />
+              <Trash2 className="h-3 w-3" />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -929,10 +932,12 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
     >
       {/* Header */}
       <div className={`flex items-center gap-1 border-b px-3 ${widget.widgetType === "scorecard" ? "py-1" : "py-2"}`} style={{ borderColor: "rgba(128,128,128,0.15)" }}>
-        <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
-          <GripVertical className="h-3.5 w-3.5" />
-        </div>
-        {editingTitle ? (
+        {!readOnly && (
+          <div className="widget-drag-handle flex cursor-grab items-center text-muted-foreground active:cursor-grabbing">
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+        )}
+        {editingTitle && !readOnly ? (
           <input
             autoFocus
             value={titleDraft}
@@ -945,18 +950,14 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
             className="flex-1 truncate rounded border border-border bg-transparent px-1 py-0 text-xs font-medium text-foreground outline-none focus:border-[var(--accent)]"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditingTitle(true)}
-            className="flex-1 truncate text-left text-xs font-medium text-foreground hover:underline"
-          >
+          <span className="flex-1 truncate text-left text-xs font-medium text-foreground">
             {titleDraft}
-          </button>
+          </span>
         )}
         {(refreshing || widget.widgetType === "generating") && (
           <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
         )}
-        {widget.widgetType !== "generating" && onRefresh && !refreshing && (
+        {!readOnly && widget.widgetType !== "generating" && onRefresh && !refreshing && (
           <button
             type="button"
             onClick={onRefresh}
@@ -966,7 +967,7 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
             <RefreshCw className="h-3 w-3" />
           </button>
         )}
-        {widget.widgetType !== "generating" && <div>
+        {!readOnly && widget.widgetType !== "generating" && <div>
           <button
             ref={menuBtnRef}
             type="button"
@@ -1083,7 +1084,7 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
             config={widget.displayConfig as { columns?: Array<{ key: string; label: string }> }}
             data={widget.cachedData}
             currencySymbol={detectCurrencySymbol(widget)}
-            onUpdateColumns={(cols) => {
+            onUpdateColumns={readOnly ? undefined : (cols) => {
               fetch(`/api/dashboards/${dashboardId}/widgets/${widget.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
