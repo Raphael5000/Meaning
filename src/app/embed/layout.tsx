@@ -1,7 +1,7 @@
 import "../globals.css";
 import "../tokens-v2.css";
 import { Martel, Inter, JetBrains_Mono } from "next/font/google";
-import { EmbedThemeEnforcer } from "./EmbedThemeEnforcer";
+import { EmbedThemeProvider } from "./EmbedThemeProvider";
 
 const martel = Martel({
   subsets: ["latin"],
@@ -29,8 +29,9 @@ export default function EmbedLayout({
 }) {
   return (
     <div className={`meaning-v2 ${martel.variable} ${inter.variable} ${mono.variable}`}>
-      <EmbedThemeEnforcer />
-      {children}
+      <EmbedThemeProvider>
+        {children}
+      </EmbedThemeProvider>
     </div>
   );
 }

@@ -133,7 +133,7 @@ export function EmbedDashboard({ dashboards }: Props) {
       )}
 
       {/* Grid */}
-      <div className="p-4">
+      <div style={{ padding: "18px 24px" }}>
         {mounted && width > 0 && (
           <ResponsiveGridLayout
             className="dashboard-grid"
