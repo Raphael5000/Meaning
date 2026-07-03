@@ -34,7 +34,12 @@ function getSystemTheme(): "light" | "dark" {
     : "light";
 }
 
+function isEmbedRoute() {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/embed/");
+}
+
 function applyTheme(theme: Theme) {
+  if (isEmbedRoute()) return; // Embed has its own theme provider
   const resolved = theme === "system" ? getSystemTheme() : theme;
   document.documentElement.classList.toggle("dark", resolved === "dark");
 }
