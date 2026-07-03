@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { ThemeContext } from "@/components/ThemeProvider";
 
 type ResolvedTheme = "light" | "dark";
+
+function getInitialTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "light";
+  const param = new URLSearchParams(window.location.search).get("theme");
+  if (param === "dark" || param === "light") return param;
+  return "light";
+}
 
 /**
  * Lightweight theme provider for the embed iframe.
@@ -12,13 +19,12 @@ type ResolvedTheme = "light" | "dark";
  * ChartRenderer expects via useTheme().
  */
 export function EmbedThemeProvider({ children }: { children: React.ReactNode }) {
-  const [resolved, setResolved] = useState<ResolvedTheme>(() => {
-    if (typeof window === "undefined") return "light";
-    return (new URLSearchParams(window.location.search).get("theme") as ResolvedTheme) || "light";
-  });
+  const [resolved, setResolved] = useState<ResolvedTheme>(getInitialTheme);
 
-  // Apply theme class to html element
-  useEffect(() => {
+  // Apply theme class synchronously before paint to prevent flash.
+  // The root layout's inline script may have set .dark from localStorage —
+  // we must override it immediately based on the ?theme= param.
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", resolved === "dark");
   }, [resolved]);
 

@@ -93,7 +93,7 @@ export default function RootLayout({
         {/* Prevent flash of wrong theme */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme")||"dark";var d=t==="system"?window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light":t;if(d==="dark")document.documentElement.classList.add("dark")}catch(e){}})();`,
+            __html: `(function(){try{var e=window.location.pathname.startsWith("/embed/");if(e){var p=new URLSearchParams(window.location.search).get("theme");if(p!=="dark")document.documentElement.classList.remove("dark");else document.documentElement.classList.add("dark");return}var t=localStorage.getItem("theme")||"dark";var d=t==="system"?window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light":t;if(d==="dark")document.documentElement.classList.add("dark")}catch(e){}})();`,
           }}
         />
         {/* Google Tag Manager */}
