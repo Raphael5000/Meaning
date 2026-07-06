@@ -367,13 +367,10 @@ export async function syncAttioData(
   try {
     const records = await fetchAllRecords(apiKey, "deals");
 
-    // Debug: log raw channel value from first deal that has one
-    for (const r of records) {
-      const values = (r.values || {}) as Record<string, unknown>;
-      if (values.channel) {
-        console.log(`[attio-sync] Raw channel value:`, JSON.stringify(values.channel));
-        break;
-      }
+    // Debug: log all attribute keys from first deal
+    if (records.length > 0) {
+      const firstValues = (records[0].values || {}) as Record<string, unknown>;
+      console.log(`[attio-sync] Deal attribute keys (${Object.keys(firstValues).length}): ${Object.keys(firstValues).join(", ")}`);
     }
 
     // Build lookup for record-reference attributes (e.g. Channel)
