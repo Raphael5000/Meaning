@@ -2076,13 +2076,15 @@ function AttioConnectForm({
     e.preventDefault();
     setBusy(true);
     try {
+      const wsId = workspaceName.trim() || "default";
+
       // Step 1: Connect API key if not already connected
       if (!keyConnected) {
         if (!apiKey.trim()) { onError("API key is required"); setBusy(false); return; }
         const res = await fetch("/api/auth/connect-attio", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: apiKey.trim() }),
+          body: JSON.stringify({ apiKey: apiKey.trim(), workspaceId: wsId }),
         });
         const data = await res.json();
         if (!res.ok) { onError(data.error || "Invalid API key"); setBusy(false); return; }
@@ -2090,7 +2092,6 @@ function AttioConnectForm({
       }
 
       // Step 2: Enable export with workspace name as identifier
-      const wsId = workspaceName.trim() || "default";
       const res = await fetch("/api/attio/enable-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2120,38 +2121,26 @@ function AttioConnectForm({
     );
   }
 
-  // Step 1: API key input
-  if (!keyConnected) {
-    return (
-      <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
-        <p className="mb-3 text-[13px] text-muted-foreground">
-          Paste your Attio API key. Generate one in{" "}
-          <a href="https://app.attio.com" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-2">
-            Attio → Settings → Developers
-          </a>
-        </p>
-        <label className="mb-1 block text-[12px] font-medium text-foreground">API Key</label>
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Attio API key" className={inputClass} required />
-        <div className="mt-4">
-          <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
-            {busy ? "Validating…" : "Connect"}
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
-  // Step 2: Workspace name + connect
+  // Single form: API key + workspace name together
   return (
     <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
       <p className="mb-3 text-[13px] text-muted-foreground">
-        Attio account connected. Enter a name for this workspace (or leave blank for default).
+        Paste your Attio API key. Generate one in{" "}
+        <a href="https://app.attio.com" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-2">
+          Attio → Settings → Developers
+        </a>
       </p>
-      <label className="mb-1 block text-[12px] font-medium text-foreground">Workspace Name <span className="text-muted-foreground">(optional)</span></label>
-      <input type="text" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="e.g. Sales CRM" className={inputClass} />
+      {!keyConnected && (
+        <>
+          <label className="mb-1 block text-[12px] font-medium text-foreground">API Key</label>
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Attio API key" className={inputClass} required />
+        </>
+      )}
+      <label className="mb-1 mt-3 block text-[12px] font-medium text-foreground">Workspace Name <span className="text-muted-foreground">(optional)</span></label>
+      <input type="text" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="e.g. Magix, Hivory" className={inputClass} />
       <div className="mt-4">
-        <Button type="submit" size="sm" disabled={busy}>
-          {busy ? "Connecting…" : "Connect workspace"}
+        <Button type="submit" size="sm" disabled={busy || (!keyConnected && !apiKey.trim())}>
+          {busy ? "Connecting…" : "Connect"}
         </Button>
       </div>
     </form>

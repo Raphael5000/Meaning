@@ -286,8 +286,8 @@ export async function syncAttioData(
   userId: string,
   workspaceId: string,
 ): Promise<AttioSyncResult> {
-  const apiKey = await getAttioApiKey(userId);
-  if (!apiKey) throw new Error(`No Attio API key for user ${userId}`);
+  const apiKey = await getAttioApiKey(userId, workspaceId);
+  if (!apiKey) throw new Error(`No Attio API key for user ${userId}, workspace ${workspaceId}`);
 
   const { prisma } = await import("@/lib/prisma");
   const ds = await prisma.dataSource.findFirst({

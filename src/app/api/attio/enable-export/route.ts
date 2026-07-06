@@ -18,14 +18,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const token = await getAttioApiKey(userId);
-  if (!token) {
-    return NextResponse.json(
-      { error: "No Attio account connected. Please add your API key first." },
-      { status: 400 }
-    );
-  }
-
   let body: { workspaceId?: string; orgId?: string };
   try {
     body = await req.json();
@@ -36,6 +28,14 @@ export async function POST(req: NextRequest) {
   const workspaceId = body.workspaceId?.trim();
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace ID is required" }, { status: 400 });
+  }
+
+  const token = await getAttioApiKey(userId, workspaceId);
+  if (!token) {
+    return NextResponse.json(
+      { error: "No Attio account connected. Please add your API key first." },
+      { status: 400 }
+    );
   }
 
   try {
