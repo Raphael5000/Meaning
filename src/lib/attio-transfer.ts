@@ -91,6 +91,7 @@ const TABLE_SCHEMAS: Record<
       { name: "value", type: "FLOAT64" },
       { name: "currency", type: "STRING" },
       { name: "owner", type: "STRING" },
+      { name: "channel", type: "STRING" },
       { name: "created_at", type: "TIMESTAMP" },
       { name: "web_url", type: "STRING" },
     ],
@@ -143,21 +144,29 @@ export async function ensureAttioTables(datasetId: string): Promise<void> {
   for (const [tableName, schema] of Object.entries(TABLE_SCHEMAS)) {
     const table = dataset.table(tableName);
     const [exists] = await table.exists();
-    if (exists) continue;
 
-    const options: Record<string, unknown> = {
-      schema: { fields: schema.fields },
-    };
-
-    if (schema.partition) {
-      options.timePartitioning = {
-        type: "DAY",
-        field: schema.partition,
+    if (!exists) {
+      const options: Record<string, unknown> = {
+        schema: { fields: schema.fields },
       };
+      if (schema.partition) {
+        options.timePartitioning = { type: "DAY", field: schema.partition };
+      }
+      await table.create(options);
+      console.log(`[attio-transfer] Created table: ${datasetId}.${tableName}`);
+      continue;
     }
 
-    await table.create(options);
-    console.log(`[attio-transfer] Created table: ${datasetId}.${tableName}`);
+    // Add any missing columns to existing tables
+    const [meta] = await table.getMetadata();
+    const existingFields = (meta.schema?.fields ?? []) as { name: string }[];
+    const existingNames = new Set(existingFields.map((f) => f.name));
+    const missing = schema.fields.filter((f) => !existingNames.has(f.name));
+    if (missing.length > 0) {
+      meta.schema.fields = [...existingFields, ...missing];
+      await table.setMetadata(meta);
+      console.log(`[attio-transfer] Added columns to ${datasetId}.${tableName}: ${missing.map((f) => f.name).join(", ")}`);
+    }
   }
 }
 
@@ -357,10 +366,51 @@ export async function syncAttioData(
   let dealsRows: Record<string, unknown>[] = [];
   try {
     const records = await fetchAllRecords(apiKey, "deals");
+
+    // Build lookup for record-reference attributes (e.g. Channel)
+    // Collect all referenced record IDs grouped by target object
+    const refLookups = new Map<string, Map<string, string>>(); // objectSlug → recordId → name
+    const refsToResolve = new Map<string, Set<string>>(); // objectSlug → Set<recordId>
+    for (const r of records) {
+      const values = (r.values || {}) as Record<string, unknown>;
+      const channelArr = values.channel as Array<Record<string, unknown>> | undefined;
+      if (channelArr?.[0]?.target_object && channelArr[0].target_record_id) {
+        const obj = String(channelArr[0].target_object);
+        const rid = String(channelArr[0].target_record_id);
+        if (!refsToResolve.has(obj)) refsToResolve.set(obj, new Set());
+        refsToResolve.get(obj)!.add(rid);
+      }
+    }
+    // Fetch referenced records to get their names
+    for (const [objSlug, ids] of refsToResolve) {
+      const nameMap = new Map<string, string>();
+      try {
+        const refRecords = await fetchAllRecords(apiKey, objSlug);
+        for (const rr of refRecords) {
+          const rid = (rr.id as Record<string, string>)?.record_id;
+          const vals = (rr.values || {}) as Record<string, unknown>;
+          if (rid) nameMap.set(rid, extractValue(vals, "name") || rid);
+        }
+      } catch {
+        // If we can't resolve, fall back to IDs
+      }
+      refLookups.set(objSlug, nameMap);
+    }
+
     dealsRows = records.map((r) => {
       const values = (r.values || {}) as Record<string, unknown>;
       const id = r.id as Record<string, string>;
       const money = extractCurrency(values, "deal_value");
+
+      // Resolve channel record reference to name
+      let channel = "";
+      const channelArr = values.channel as Array<Record<string, unknown>> | undefined;
+      if (channelArr?.[0]?.target_record_id) {
+        const obj = String(channelArr[0].target_object ?? "");
+        const rid = String(channelArr[0].target_record_id);
+        channel = refLookups.get(obj)?.get(rid) ?? rid;
+      }
+
       return {
         snapshot_date: today,
         record_id: id?.record_id ?? "",
@@ -369,6 +419,7 @@ export async function syncAttioData(
         value: money.value,
         currency: money.currency,
         owner: extractValue(values, "owner"),
+        channel,
         created_at: r.created_at ?? null,
         web_url: r.web_url ?? "",
       };
