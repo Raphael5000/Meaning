@@ -367,15 +367,12 @@ export async function syncAttioData(
   try {
     const records = await fetchAllRecords(apiKey, "deals");
 
-    // Debug: log attribute keys from first deal to find correct slugs
-    if (records.length > 0) {
-      const firstValues = (records[0].values || {}) as Record<string, unknown>;
-      console.log(`[attio-sync] Deal attribute keys: ${Object.keys(firstValues).join(", ")}`);
-      // Log any key that looks like it could be "channel"
-      for (const [k, v] of Object.entries(firstValues)) {
-        if (k.toLowerCase().includes("channel") || k.toLowerCase().includes("chan")) {
-          console.log(`[attio-sync] Found channel-like key "${k}":`, JSON.stringify(v));
-        }
+    // Debug: log raw channel value from first deal that has one
+    for (const r of records) {
+      const values = (r.values || {}) as Record<string, unknown>;
+      if (values.channel) {
+        console.log(`[attio-sync] Raw channel value:`, JSON.stringify(values.channel));
+        break;
       }
     }
 
