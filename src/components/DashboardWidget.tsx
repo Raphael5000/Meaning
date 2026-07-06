@@ -997,11 +997,19 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
               >
                 <button
                   type="button"
-                  onClick={() => { setMenuOpen(false); onEdit(widget.prompt); }}
+                  onClick={() => { setMenuOpen(false); setTitleDraft(widget.title || widget.prompt); setEditingTitle(true); }}
                   className="menu-btn flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent"
                 >
                   <Pencil className="h-3 w-3" />
-                  Edit
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onEdit(widget.prompt); }}
+                  className="menu-btn flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Edit prompt
                 </button>
                 {canToggleWidth && onToggleWidth && (
                   <button
