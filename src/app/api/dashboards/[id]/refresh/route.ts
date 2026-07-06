@@ -162,10 +162,17 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  const userId = (session as { userId?: string })?.userId;
-  if (!userId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  // Allow either session auth (UI) or Bearer CRON_SECRET (server-to-server)
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  const isCronAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+  if (!isCronAuth) {
+    const session = await auth();
+    const userId = (session as { userId?: string })?.userId;
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
   }
 
   const { id: dashboardId } = await params;
