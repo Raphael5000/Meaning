@@ -3,14 +3,14 @@ import { prisma } from "@/lib/prisma";
 /**
  * Get a valid Attio API key for a user + workspace.
  * Each workspace has its own Account record (providerAccountId = attio_{userId}_{workspaceId}).
- * Falls back to the legacy single-key format (attio_{userId}) for existing connections.
+ * Falls back to the legacy single-key format (attio_{userId}) only when no workspaceId is given.
  */
 export async function getAttioApiKey(
   userId: string,
   workspaceId?: string,
 ): Promise<string | null> {
   try {
-    // Try workspace-scoped key first
+    // Workspace-scoped key
     if (workspaceId) {
       const scoped = await prisma.account.findUnique({
         where: {
@@ -21,10 +21,10 @@ export async function getAttioApiKey(
         },
         select: { access_token: true },
       });
-      if (scoped?.access_token) return scoped.access_token;
+      return scoped?.access_token ?? null;
     }
 
-    // Fall back to legacy single-key format
+    // No workspace specified — try legacy single-key format
     const legacy = await prisma.account.findUnique({
       where: {
         provider_providerAccountId: {
@@ -34,9 +34,7 @@ export async function getAttioApiKey(
       },
       select: { access_token: true },
     });
-    if (legacy?.access_token) return legacy.access_token;
-
-    return null;
+    return legacy?.access_token ?? null;
   } catch (err) {
     console.error("[attio-token] DB lookup failed:", err);
     return null;

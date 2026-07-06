@@ -2053,7 +2053,6 @@ function HubSpotConnectForm({
 }
 
 function AttioConnectForm({
-  isAuthed,
   orgId,
   onEnabled,
   onError,
@@ -2065,7 +2064,6 @@ function AttioConnectForm({
 }) {
   const [apiKey, setApiKey] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [keyConnected, setKeyConnected] = React.useState(isAuthed);
   const [workspaceName, setWorkspaceName] = React.useState("");
   const [done, setDone] = React.useState(false);
 
@@ -2074,24 +2072,21 @@ function AttioConnectForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!apiKey.trim()) { onError("API key is required"); return; }
     setBusy(true);
     try {
       const wsId = workspaceName.trim() || "default";
 
-      // Step 1: Connect API key if not already connected
-      if (!keyConnected) {
-        if (!apiKey.trim()) { onError("API key is required"); setBusy(false); return; }
-        const res = await fetch("/api/auth/connect-attio", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: apiKey.trim(), workspaceId: wsId }),
-        });
-        const data = await res.json();
-        if (!res.ok) { onError(data.error || "Invalid API key"); setBusy(false); return; }
-        setKeyConnected(true);
-      }
+      // Save API key scoped to this workspace
+      const keyRes = await fetch("/api/auth/connect-attio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: apiKey.trim(), workspaceId: wsId }),
+      });
+      const keyData = await keyRes.json();
+      if (!keyRes.ok) { onError(keyData.error || "Invalid API key"); setBusy(false); return; }
 
-      // Step 2: Enable export with workspace name as identifier
+      // Enable export with workspace name as identifier
       const res = await fetch("/api/attio/enable-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2121,7 +2116,6 @@ function AttioConnectForm({
     );
   }
 
-  // Single form: API key + workspace name together
   return (
     <form onSubmit={handleSubmit} className="rounded-[10px] border border-border bg-card px-4 py-5">
       <p className="mb-3 text-[13px] text-muted-foreground">
@@ -2130,16 +2124,12 @@ function AttioConnectForm({
           Attio → Settings → Developers
         </a>
       </p>
-      {!keyConnected && (
-        <>
-          <label className="mb-1 block text-[12px] font-medium text-foreground">API Key</label>
-          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Attio API key" className={inputClass} required />
-        </>
-      )}
+      <label className="mb-1 block text-[12px] font-medium text-foreground">API Key</label>
+      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Attio API key" className={inputClass} required />
       <label className="mb-1 mt-3 block text-[12px] font-medium text-foreground">Workspace Name <span className="text-muted-foreground">(optional)</span></label>
       <input type="text" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="e.g. Magix, Hivory" className={inputClass} />
       <div className="mt-4">
-        <Button type="submit" size="sm" disabled={busy || (!keyConnected && !apiKey.trim())}>
+        <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
           {busy ? "Connecting…" : "Connect"}
         </Button>
       </div>
