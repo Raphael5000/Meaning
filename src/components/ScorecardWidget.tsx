@@ -91,57 +91,40 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
     : 0;
 
   return (
-    <div className="flex h-full flex-col items-start justify-center gap-0.5 px-2">
-      <div className="flex items-baseline gap-2">
-        <p className="text-4xl font-bold tracking-tight text-foreground">
-          {formatted}
-        </p>
+    <div className="flex h-full flex-col items-start justify-center gap-1 px-1">
+      <p className="text-[20px] font-semibold tracking-tight text-foreground font-mono leading-tight">
+        {formatted}
         {hasKpi && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-[11px] font-normal text-muted-foreground ml-1">
             / {matchedKpi.targetValue.toLocaleString()}
           </span>
         )}
-      </div>
-      <div className="flex items-center gap-2">
-        {change && (
-          <div className="flex items-center gap-1.5">
-            {isGood ? (
-              <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5">
-                {isPositive ? <TrendingUp className="h-3 w-3 text-emerald-500" /> : <TrendingDown className="h-3 w-3 text-emerald-500" />}
-                <span className="text-xs font-semibold text-emerald-500">
-                  {changeText}
-                </span>
-              </div>
-            ) : isBad ? (
-              <div className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5">
-                {isPositive ? <TrendingUp className="h-3 w-3 text-red-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
-                <span className="text-xs font-semibold text-red-500">
-                  {changeText}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-                <Minus className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {changeText}
-                </span>
-              </div>
-            )}
-            <span className="text-[10px] text-muted-foreground">vs previous period</span>
-          </div>
-        )}
-        {hasKpi && (
-          <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${
-            onTrack ? "bg-emerald-500/10" : "bg-red-500/10"
-          }`}>
-            <span className={`text-xs font-semibold ${onTrack ? "text-emerald-500" : "text-red-500"}`}>
-              {onTrack ? "On track" : "Off track"}
+      </p>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {change && (() => {
+          const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus;
+          const pillClass = isGood
+            ? "bg-emerald-500/10 text-emerald-500"
+            : isBad
+              ? "bg-red-500/10 text-red-500"
+              : "bg-muted text-muted-foreground";
+          return (
+            <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${pillClass}`}>
+              <Icon className="h-2.5 w-2.5" />
+              <span className="text-[10px] font-medium">{changeText}</span>
             </span>
-          </div>
+          );
+        })()}
+        {hasKpi && (
+          <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+            onTrack ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+          }`}>
+            {onTrack ? "On track" : "Off track"}
+          </span>
         )}
       </div>
       {hasKpi && (
-        <div className="w-full">
+        <div className="w-full mt-0.5">
           <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
             <div
               className={`h-full rounded-full ${onTrack ? "bg-emerald-500/70" : "bg-red-500/70"}`}

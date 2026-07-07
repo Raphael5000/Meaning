@@ -247,7 +247,7 @@ export default function DashboardPanelV2({
       !/\bchart\b|\bgraph\b|\btrend\b|\bover time\b/.test(lower);
     const size =
       chartType === "scorecard" || isScorecard
-        ? { w: 4, h: 2 }
+        ? { w: 3, h: 3 }
         : chartType === "sankey" || isSankey
           ? { w: 12, h: 5 }
           : chartType === "table" || isTable

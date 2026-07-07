@@ -1102,7 +1102,7 @@ export default function DashboardWidget({ widget, dashboardId, onDelete, onEdit,
             <ResizableChart option={mergeChartData(widget.displayConfig as Record<string, unknown>, widget.cachedData, kpiTargets)} />
           </div>
         ) : widget.widgetType === "scorecard" ? (
-          <div className="h-full p-3">
+          <div className="h-full p-2">
             <ScorecardWidget
               config={widget.displayConfig as { label?: string; value?: string; change?: string; format?: string }}
               data={widget.cachedData}

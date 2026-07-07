@@ -37,7 +37,7 @@ interface DashboardGridProps {
 function getFixedSize(widget: Widget, isFullWidth?: boolean): { w: number; h: number } {
   if (widget.widgetType === "heading") return { w: 12, h: 2 };
   if (widget.widgetType === "divider") return { w: 12, h: 2 };
-  if (widget.widgetType === "scorecard") return { w: 4, h: 4 };
+  if (widget.widgetType === "scorecard") return { w: 3, h: 3 };
   if (widget.widgetType === "table") {
     // Auto-size: widget header ~36px + table header ~32px + rows ~37px each
     // Grid: h * 20 + (h-1) * 16 = h * 36 - 16
