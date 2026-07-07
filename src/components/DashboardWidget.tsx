@@ -109,6 +109,10 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
     const xData = (option.xAxis as Record<string, unknown>)?.data as string[] | undefined;
     const categories = xData ?? cachedRows.map((r) => String(r[dimKey] ?? ""));
 
+    // Check if rowMap keys match categories — if not (e.g. "2026-07-01" vs "Jul 1"),
+    // fall back to index-based mapping since rows are in the same order as categories.
+    const keysMatch = categories.length > 0 && rowMap.has(categories[0]);
+
     for (const s of series) {
       const seriesName = (s.name as string ?? "").toLowerCase().replace(/\s+/g, "_");
       // Find matching metric column by name
@@ -117,10 +121,18 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
         return kNorm === seriesName || kNorm.includes(seriesName) || seriesName.includes(kNorm);
       });
       if (metricKey) {
-        s.data = categories.map((cat) => {
-          const row = rowMap.get(cat);
-          return row ? Number(row[metricKey]) ?? 0 : null;
-        });
+        if (keysMatch) {
+          s.data = categories.map((cat) => {
+            const row = rowMap.get(cat);
+            return row ? Number(row[metricKey]) ?? 0 : null;
+          });
+        } else {
+          // Index-based: cached rows align with categories by position
+          s.data = categories.map((_, idx) => {
+            const row = cachedRows[idx];
+            return row ? Number(row[metricKey]) ?? 0 : null;
+          });
+        }
       }
     }
     // Update xAxis if needed
