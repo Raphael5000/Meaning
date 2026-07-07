@@ -1,6 +1,6 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { getAttioApiKey } from "@/lib/attio-token";
-import { safeDelete } from "@/lib/bq-helpers";
+import { mergeRows } from "@/lib/bq-helpers";
 
 // ---------------------------------------------------------------------------
 // Client singletons
@@ -478,26 +478,19 @@ export async function syncAttioData(
     `[attio-sync] Fetched: ${peopleRows.length} people, ${companiesRows.length} companies, ${dealsRows.length} deals, ${tasksRowsArr.length} tasks, ${notesRows.length} notes`
   );
 
-  // ── Write to BigQuery ──
-  if (peopleRows.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.people WHERE snapshot_date = '${today}'`, "attio-sync");
-    if (ok) insertTasks.push(dataset.table("people").insert(peopleRows));
-  }
-  if (companiesRows.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.companies WHERE snapshot_date = '${today}'`, "attio-sync");
-    if (ok) insertTasks.push(dataset.table("companies").insert(companiesRows));
-  }
-  if (dealsRows.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.deals WHERE snapshot_date = '${today}'`, "attio-sync");
-    if (ok) insertTasks.push(dataset.table("deals").insert(dealsRows));
-  }
-  if (tasksRowsArr.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.tasks WHERE snapshot_date = '${today}'`, "attio-sync");
-    if (ok) insertTasks.push(dataset.table("tasks").insert(tasksRowsArr));
-  }
-  if (notesRows.length > 0) {
-    const ok = await safeDelete(bq, `DELETE FROM ${fqDataset}.notes WHERE snapshot_date = '${today}'`, "attio-sync");
-    if (ok) insertTasks.push(dataset.table("notes").insert(notesRows));
+  // ── Write to BigQuery (using MERGE to avoid streaming buffer issues) ──
+  const tables: Array<{ name: string; rows: Record<string, unknown>[]; keys: string[] }> = [
+    { name: "people", rows: peopleRows, keys: ["snapshot_date", "record_id"] },
+    { name: "companies", rows: companiesRows, keys: ["snapshot_date", "record_id"] },
+    { name: "deals", rows: dealsRows, keys: ["snapshot_date", "record_id"] },
+    { name: "tasks", rows: tasksRowsArr, keys: ["snapshot_date", "task_id"] },
+    { name: "notes", rows: notesRows, keys: ["snapshot_date", "note_id"] },
+  ];
+
+  for (const { name, rows, keys } of tables) {
+    if (rows.length === 0) continue;
+    const schema = TABLE_SCHEMAS[name].fields;
+    await mergeRows(bq, `${fqDataset}.${name}`, rows, keys, schema, "attio-sync");
   }
 
   // ── Workspace summary ──
@@ -515,8 +508,14 @@ export async function syncAttioData(
     pipeline_currency: pipelineCurrency,
     last_synced_at: new Date().toISOString(),
   };
-  await safeDelete(bq, `DELETE FROM ${fqDataset}.workspace_summary WHERE TRUE`, "attio-sync");
-  insertTasks.push(dataset.table("workspace_summary").insert([summaryRow]));
+  await mergeRows(
+    bq,
+    `${fqDataset}.workspace_summary`,
+    [summaryRow],
+    ["snapshot_date"],
+    TABLE_SCHEMAS.workspace_summary.fields,
+    "attio-sync",
+  );
 
   await Promise.all(insertTasks);
 
