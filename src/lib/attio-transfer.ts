@@ -376,49 +376,10 @@ export async function syncAttioData(
   try {
     const records = await fetchAllRecords(apiKey, "deals");
 
-    // Build lookup for record-reference attributes (e.g. Channel)
-    // Collect all referenced record IDs grouped by target object
-    const refLookups = new Map<string, Map<string, string>>(); // objectSlug → recordId → name
-    const refsToResolve = new Map<string, Set<string>>(); // objectSlug → Set<recordId>
-    for (const r of records) {
-      const values = (r.values || {}) as Record<string, unknown>;
-      const channelArr = values.channel as Array<Record<string, unknown>> | undefined;
-      if (channelArr?.[0]?.target_object && channelArr[0].target_record_id) {
-        const obj = String(channelArr[0].target_object);
-        const rid = String(channelArr[0].target_record_id);
-        if (!refsToResolve.has(obj)) refsToResolve.set(obj, new Set());
-        refsToResolve.get(obj)!.add(rid);
-      }
-    }
-    // Fetch referenced records to get their names
-    for (const [objSlug, ids] of refsToResolve) {
-      const nameMap = new Map<string, string>();
-      try {
-        const refRecords = await fetchAllRecords(apiKey, objSlug);
-        for (const rr of refRecords) {
-          const rid = (rr.id as Record<string, string>)?.record_id;
-          const vals = (rr.values || {}) as Record<string, unknown>;
-          if (rid) nameMap.set(rid, extractValue(vals, "name") || rid);
-        }
-      } catch {
-        // If we can't resolve, fall back to IDs
-      }
-      refLookups.set(objSlug, nameMap);
-    }
-
     dealsRows = records.map((r) => {
       const values = (r.values || {}) as Record<string, unknown>;
       const id = r.id as Record<string, string>;
       const money = extractCurrency(values, "deal_value");
-
-      // Resolve channel record reference to name
-      let channel = "";
-      const channelArr = values.channel as Array<Record<string, unknown>> | undefined;
-      if (channelArr?.[0]?.target_record_id) {
-        const obj = String(channelArr[0].target_object ?? "");
-        const rid = String(channelArr[0].target_record_id);
-        channel = refLookups.get(obj)?.get(rid) ?? rid;
-      }
 
       return {
         snapshot_date: today,
@@ -428,7 +389,7 @@ export async function syncAttioData(
         value: money.value,
         currency: money.currency,
         owner: extractValue(values, "owner"),
-        channel,
+        channel: extractValue(values, "channel"),
         created_at: tsOrNull(r.created_at),
         web_url: r.web_url ?? "",
       };

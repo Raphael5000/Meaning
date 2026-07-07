@@ -254,7 +254,7 @@ export function AddWidgetDialog({
               ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={2}
+              rows={4}
               placeholder="Sessions by channel over the last 30 days, broken down by device…"
               className="no-focus-ring"
               style={{
