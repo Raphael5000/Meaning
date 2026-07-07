@@ -125,7 +125,7 @@ function buildAnalyticsSQL(input: QueryAnalyticsInput): { sql: string; params: R
 // Widget system prompt (shorter, focused on single-widget generation)
 // ---------------------------------------------------------------------------
 
-function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean, hasMsAds: boolean, hasAhrefs: boolean, displayCurrency = "USD", sourceCurrencies: Record<string, string> = {}): string {
+function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchimp: boolean, hasGsc: boolean, hasMsAds: boolean, hasAhrefs: boolean, hasAttio: boolean, displayCurrency = "USD", sourceCurrencies: Record<string, string> = {}): string {
   const today = new Date().toISOString().split("T")[0];
 
   const currencySymbols: Record<string, string> = {
@@ -141,6 +141,7 @@ function getWidgetSystemPrompt(hasAds: boolean, hasLinkedIn: boolean, hasMailchi
   const mailchimpTables = hasMailchimp ? "\n  - campaign_reports, audience_stats, audience_growth, mc_account_info (Mailchimp)" : "";
   const gscTables = hasGsc ? "\n  - search_performance, url_inspection, site_info (Google Search Console)" : "";
   const msAdsTables = hasMsAds ? "\n  - msads_campaign_performance, msads_keyword_performance, msads_search_query_performance, msads_account_info (Microsoft/Bing Ads — use run_microsoft_ads_query tool)" : "";
+  const attioTables = hasAttio ? "\n  - deals: snapshot_date, record_id, name, stage, value, currency, owner, channel, created_at, web_url (Attio CRM — use run_ads_query tool with attio dataset)\n  - people: snapshot_date, record_id, name, email, phone, company, created_at, web_url (Attio CRM)\n  - companies: snapshot_date, record_id, name, domain, description, created_at, web_url (Attio CRM)\n  - tasks: snapshot_date, task_id, content, is_completed, deadline_at, completed_at, assignee, created_at (Attio CRM)\n  - notes: snapshot_date, note_id, title, content_plaintext, parent_object, parent_record_id, created_at (Attio CRM)\n  - workspace_summary: snapshot_date, total_people, total_companies, total_deals, total_tasks, open_tasks, total_notes, pipeline_value, pipeline_currency, last_synced_at (Attio CRM)" : "";
   const ahrefsTables = hasAhrefs ? "\n  - ahrefs_site_metrics: snapshot_date, org_keywords, org_traffic, org_cost, paid_keywords, paid_traffic (Ahrefs — use run_ahrefs_query tool)\n  - ahrefs_domain_rating: snapshot_date, domain_rating (0-100), ahrefs_rank\n  - ahrefs_backlinks_stats: snapshot_date, live_backlinks, all_time_backlinks, live_refdomains, all_time_refdomains\n  - ahrefs_organic_keywords: snapshot_date, keyword, best_position, volume, sum_traffic, cpc, keyword_difficulty (0-100), best_position_url\n  - ahrefs_top_pages: snapshot_date, url, keywords, sum_traffic, value, top_keyword, top_keyword_best_position, ur\n  - ahrefs_referring_domains: snapshot_date, domain, domain_rating, dofollow_links, links_to_target, traffic_domain\n  - ahrefs_site_info: target_domain, country, last_synced_at" : "";
 
   return `You are a data visualization assistant. Your job is to generate a single dashboard widget from a user's natural language request.
@@ -173,7 +174,7 @@ Available tables and their columns:
   - users: first_seen, last_seen, total_sessions, total_pageviews, acquisition_source, acquisition_medium, device_category, geo_country, is_new_user
   - traffic_sources: session_date, source, medium, channel_group, sessions, users, new_users, pageviews, bounce_rate
   - conversions: event_date, event_name, page_location, session_source, session_medium, geo_country
-  - stg_events: event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, session_source, session_medium${adsTables}${msAdsTables}${linkedInTables}${mailchimpTables}${gscTables}${ahrefsTables}
+  - stg_events: event_date, event_timestamp, event_name, user_pseudo_id, ga_session_id, page_location, session_source, session_medium${adsTables}${msAdsTables}${linkedInTables}${mailchimpTables}${gscTables}${ahrefsTables}${attioTables}
 
 IMPORTANT column notes:
 - traffic_sources uses "source" and "medium". sessions/pageviews use "session_source" and "session_medium". Do NOT mix them.
@@ -377,12 +378,13 @@ export async function POST(
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const ahrefsOrgId = orgDataSources.find((ds) => ds.type === "AHREFS" && connectedStatuses.includes(ds.status)) ? dashboard.orgId : null;
+    const attioOrgId = orgDataSources.find((ds) => ds.type === "ATTIO" && connectedStatuses.includes(ds.status)) ? dashboard.orgId : null;
 
     // Fetch source currencies so the AI knows them without querying account_info
     const sourceCurrencies = await getSourceCurrencies(adsCustomerId, msAdsAccountId);
     console.log(`[widget-gen] sourceCurrencies:`, sourceCurrencies);
 
-    let systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, !!ahrefsOrgId, displayCurrency, sourceCurrencies);
+    let systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, !!ahrefsOrgId, !!attioOrgId, displayCurrency, sourceCurrencies);
 
     // Inject manual metrics so the AI knows about user-entered data
     const manualMetrics = await prisma.manualMetric.findMany({
@@ -464,7 +466,7 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
             case "query_analytics": {
               const input = toolUse.input as unknown as QueryAnalyticsInput;
               const { sql, params } = buildAnalyticsSQL(input);
-              result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId);
+              result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId, attioOrgId);
               allQueryConfigs.push({ tool: "query_analytics", input: toolUse.input });
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: "query_analytics", input: toolUse.input };
@@ -477,10 +479,11 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
             case "run_mailchimp_query":
             case "run_gsc_query":
             case "run_microsoft_ads_query":
-            case "run_ahrefs_query": {
+            case "run_ahrefs_query":
+            case "run_attio_query": {
               const input = toolUse.input as { sql: string; description?: string };
               console.log(`[widget-gen] SQL (${toolUse.name}):`, input.sql);
-              result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId);
+              result = await runPropertyQuery(propertyId, input.sql, undefined, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId, attioOrgId);
               allQueryConfigs.push({ tool: toolUse.name, input: toolUse.input });
               if (!capturedQueryConfig) {
                 capturedQueryConfig = { tool: toolUse.name, input: toolUse.input };

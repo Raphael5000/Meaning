@@ -212,6 +212,7 @@ export async function POST(
     const gscSiteUrl = orgDataSources.find((ds) => ds.type === "SEARCH_CONSOLE" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const msAdsAccountId = orgDataSources.find((ds) => ds.type === "MICROSOFT_ADS" && connectedStatuses.includes(ds.status))?.propertyId ?? null;
     const ahrefsOrgId = orgDataSources.find((ds) => ds.type === "AHREFS" && connectedStatuses.includes(ds.status)) ? dashboard.orgId : null;
+    const attioOrgId = orgDataSources.find((ds) => ds.type === "ATTIO" && connectedStatuses.includes(ds.status)) ? dashboard.orgId : null;
 
     // Optionally filter to specific widgets
     const widgetsToRefresh = body.widgetIds?.length
@@ -229,7 +230,7 @@ export async function POST(
         const input = { ...qc.input, startDate, endDate } as QueryAnalyticsInput;
         const { sql, params } = buildAnalyticsSQL(input);
         console.log(`[dashboard-refresh] → query_analytics: dates=${startDate}→${endDate}, SQL=${sql.slice(0, 200)}`);
-        const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId);
+        const result = await runPropertyQuery(propertyId, sql, params, adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId, attioOrgId);
         return { rows: result.rows, tool: qc.tool };
       }
 
@@ -304,7 +305,7 @@ export async function POST(
         propertyId,
         sql,
         Object.keys(sqlParams).length > 0 ? sqlParams : undefined,
-        adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId
+        adsCustomerId, linkedInOrgId, mailchimpListId, gscSiteUrl, msAdsAccountId, ahrefsOrgId, attioOrgId
       );
       return { rows: result.rows, tool: qc.tool };
     }
