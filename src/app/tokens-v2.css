@@ -7,7 +7,7 @@
    v1 app pages keep their existing look.
 
    v1 marketing keeps its own typography, gradients, and shadows. The
-   v2 app surface gets Söhne (loaded globally in globals.css).
+   v2 app surface gets Hanken Grotesk + Geist Mono (loaded via next/font in layout.tsx).
 
    The legacy `--v2-*` aliases are kept for components that haven't been
    migrated to shadcn semantic vars yet. They will be removed once every
@@ -38,12 +38,12 @@
   --ring:                 oklch(0.520 0.012 155);
   --radius:               0.5rem;
 
-  /* Chart categorical scale */
-  --chart-1: #00A352;
-  --chart-2: #1570EF;
-  --chart-3: #B54708;
-  --chart-4: #6941C6;
-  --chart-5: #B42318;
+  /* Chart categorical scale — green → teal → amber → warm gray → red (no blue, no purple) */
+  --chart-1: #00A458;
+  --chart-2: #17876F;
+  --chart-3: #E8A33D;
+  --chart-4: #8C8C8A;
+  --chart-5: #C2452D;
 
   /* === Legacy v2 aliases — bound to the new shadcn semantic vars so
      existing inline-styled components still render correctly while we
@@ -67,8 +67,8 @@
   --v2-pos-bg:       oklch(0.960 0.050 155);
   --v2-neg:          var(--destructive);
   --v2-neg-bg:       oklch(0.955 0.035 25);
-  --v2-info:         #1570EF;
-  --v2-info-bg:      oklch(0.960 0.035 245);
+  --v2-info:         #0E6B5A;
+  --v2-info-bg:      oklch(0.960 0.035 170);
   --v2-warn:         #B54708;
   --v2-warn-bg:      oklch(0.965 0.045 80);
   --v2-accent:       #C4320A;
@@ -76,19 +76,19 @@
   /* Chart palette pinned to the original v2 values so widgets/charts
      keep the user-loved colors. Distinct from --chart-1..5 above (which
      follow the design's reordered palette for any new shadcn-charting). */
-  --v2-c-1:          #00A352;
-  --v2-c-2:          #1570EF;
-  --v2-c-3:          #C4320A;
-  --v2-c-4:          #B54708;
-  --v2-c-5:          #B42318;
-  --v2-c-6:          #6941C6;
+  --v2-c-1:          #00A458;
+  --v2-c-2:          #17876F;
+  --v2-c-3:          #E8A33D;
+  --v2-c-4:          #8C8C8A;
+  --v2-c-5:          #C2452D;
+  --v2-c-6:          #17876F;
 
   /* Motion */
   --v2-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* Typography — Söhne (loaded globally in globals.css) */
-  --v2-font-sans: 'Söhne', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --v2-font-mono: 'Söhne Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  /* Typography — Hanken Grotesk + Geist Mono (loaded via next/font in layout.tsx) */
+  --v2-font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --v2-font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 
   /* Shadows */
   --v2-shadow-card: 0 1px 0 rgba(0,0,0,0.02), 0 0 0 1px var(--border);
@@ -129,10 +129,10 @@ html.dark .meaning-v2,
   --ring:                 oklch(0.640 0.012 155);
 
   --chart-1: #00EE7F;
-  --chart-2: #53B1FD;
-  --chart-3: #FDB022;
-  --chart-4: #B692F6;
-  --chart-5: #F97066;
+  --chart-2: #5FB8A3;
+  --chart-3: #EEC279;
+  --chart-4: #B5B5B2;
+  --chart-5: #E06A52;
 
   /* Legacy v2 aliases — most chain through (--v2-bg → --background etc.).
      These five need explicit dark values because either there's no
@@ -144,19 +144,19 @@ html.dark .meaning-v2,
   --v2-pos:          #32D583;
   --v2-pos-bg:       rgba(50, 213, 131, 0.12);
   --v2-neg-bg:       rgba(249, 112, 102, 0.12);
-  --v2-info:         #53B1FD;
-  --v2-info-bg:      rgba(83, 177, 253, 0.12);
+  --v2-info:         #5FB8A3;
+  --v2-info-bg:      rgba(95, 184, 163, 0.12);
   --v2-warn:         #FEC84B;
   --v2-warn-bg:      rgba(254, 200, 75, 0.12);
   --v2-accent:       #FDB022;
   --v2-accent-bg:    rgba(253, 176, 34, 0.12);
 
   --v2-c-1:          #00EE7F;
-  --v2-c-2:          #53B1FD;
-  --v2-c-3:          #FDB022;
-  --v2-c-4:          #FEC84B;
-  --v2-c-5:          #F97066;
-  --v2-c-6:          #B692F6;
+  --v2-c-2:          #5FB8A3;
+  --v2-c-3:          #EEC279;
+  --v2-c-4:          #B5B5B2;
+  --v2-c-5:          #E06A52;
+  --v2-c-6:          #5FB8A3;
 
   --v2-shadow-card: 0 1px 0 rgba(255,255,255,0.02), 0 0 0 1px var(--v2-line);
   --v2-shadow-pop:  0 24px 60px -18px rgba(0,0,0,0.6), 0 0 0 1px var(--v2-line);

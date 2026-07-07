@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Martel, Inter, JetBrains_Mono } from "next/font/google";
+import { Martel, Hanken_Grotesk, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { JsonLd } from "@/components/JsonLd";
@@ -14,13 +14,13 @@ const martel = Martel({
   display: "swap",
 });
 
-const inter = Inter({
+const hanken = Hanken_Grotesk({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const mono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   display: "swap",
@@ -59,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${martel.variable} ${inter.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${martel.variable} ${hanken.variable} ${mono.variable}`}>
       <head>
         <JsonLd
           data={{

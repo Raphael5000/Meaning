@@ -3,29 +3,10 @@
 @tailwind utilities;
 
 /* ============================================================
-   Söhne — Anthropic-hosted webfonts. Locked for the v2 app shell.
-   v1 marketing pages keep using the existing Martel/Inter stack.
+   Hivory Design System fonts — Hanken Grotesk (sans) + Geist Mono (data).
+   Loaded via next/font/google in layout.tsx and embed/layout.tsx.
+   These @font-face declarations are fallbacks for non-Next contexts.
    ============================================================ */
-@font-face {
-  font-family: 'Söhne';
-  src: url('https://assets.anthropic.com/m/9418ad4dba2c2b35/original/Soehne-Buch.otf') format('opentype');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Söhne';
-  src: url('https://assets.anthropic.com/m/4f8f8d97aaedb3b/original/Soehne-Kraftig.otf') format('opentype');
-  font-weight: 500; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Söhne';
-  src: url('https://assets.anthropic.com/m/49a3a4f4ce5b8b4f/original/Soehne-Halbfett.otf') format('opentype');
-  font-weight: 600; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Söhne Mono';
-  src: url('https://assets.anthropic.com/m/15ec4f3eaa3a59cd/original/SoehneMono-Buch.otf') format('opentype');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
 
 /* ============================================================
    Theme toggle switch — sun/moon with animated thumb
@@ -187,7 +168,7 @@ body {
   overflow-x: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: "Söhne", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -336,7 +317,7 @@ body {
   padding: 0.15em 0.4em;
   border-radius: 4px;
   font-size: 0.875em;
-  font-family: "Söhne Mono", ui-monospace, monospace;
+  font-family: var(--font-mono), ui-monospace, monospace;
 }
 
 .message-content pre {
