@@ -70,7 +70,18 @@ function mergeChartData(displayConfig: Record<string, unknown>, cachedData: unkn
   // (e.g. "2025 vs 2026" from a single Leads column), the embedded series are
   // more accurate because cachedData rows can't naturally produce multiple series
   // (they only have 1 metric column). Fall back to embedded data in that case.
-  const cachedRows = Array.isArray(cachedData) ? cachedData as Record<string, unknown>[] : [];
+  //
+  // BigQuery DATE columns come back as {value: "2026-07-01"} objects — unwrap them.
+  const rawRows = Array.isArray(cachedData) ? cachedData as Record<string, unknown>[] : [];
+  const cachedRows = rawRows.map((row) => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      out[k] = v && typeof v === "object" && "value" in (v as Record<string, unknown>)
+        ? (v as Record<string, unknown>).value
+        : v;
+    }
+    return out;
+  });
   const cachedMetricCols = cachedRows.length > 0
     ? Object.values(cachedRows[0]).filter((v) => typeof v === "number").length
     : 0;
