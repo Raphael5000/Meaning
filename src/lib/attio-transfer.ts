@@ -230,8 +230,11 @@ async function fetchAllRecords(apiKey: string, objectSlug: string): Promise<Reco
 
 /** Convert falsy/invalid timestamp values to null for BigQuery */
 function tsOrNull(val: unknown): string | null {
-  if (!val || typeof val !== "string") return null;
-  return val;
+  if (!val) return null;
+  const str = String(val);
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 // ---------------------------------------------------------------------------
