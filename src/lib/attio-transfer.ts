@@ -228,6 +228,12 @@ async function fetchAllRecords(apiKey: string, objectSlug: string): Promise<Reco
   return all;
 }
 
+/** Convert falsy/invalid timestamp values to null for BigQuery */
+function tsOrNull(val: unknown): string | null {
+  if (!val || typeof val !== "string") return null;
+  return val;
+}
+
 // ---------------------------------------------------------------------------
 // Value extractors — Attio returns nested attribute values
 // ---------------------------------------------------------------------------
@@ -333,7 +339,7 @@ export async function syncAttioData(
         email: extractValue(values, "email_addresses"),
         phone: extractValue(values, "phone_numbers"),
         company: extractValue(values, "company"),
-        created_at: r.created_at ?? null,
+        created_at: tsOrNull(r.created_at),
         web_url: r.web_url ?? "",
       };
     });
@@ -354,7 +360,7 @@ export async function syncAttioData(
         name: extractValue(values, "name"),
         domain: extractValue(values, "domains"),
         description: extractValue(values, "description"),
-        created_at: r.created_at ?? null,
+        created_at: tsOrNull(r.created_at),
         web_url: r.web_url ?? "",
       };
     });
@@ -420,7 +426,7 @@ export async function syncAttioData(
         currency: money.currency,
         owner: extractValue(values, "owner"),
         channel,
-        created_at: r.created_at ?? null,
+        created_at: tsOrNull(r.created_at),
         web_url: r.web_url ?? "",
       };
     });
@@ -442,10 +448,10 @@ export async function syncAttioData(
         task_id: id?.task_id ?? "",
         content: String(t.content_plaintext ?? "").slice(0, 5000),
         is_completed: t.is_completed ?? false,
-        deadline_at: t.deadline_at ?? null,
-        completed_at: t.completed_at ?? null,
+        deadline_at: tsOrNull(t.deadline_at),
+        completed_at: tsOrNull(t.completed_at),
         assignee: assignees?.[0] ? String((assignees[0].id as Record<string, string>)?.workspace_member_id ?? "") : "",
-        created_at: t.created_at ?? null,
+        created_at: tsOrNull(t.created_at),
       };
     });
   } catch (err) {
@@ -467,7 +473,7 @@ export async function syncAttioData(
         content_plaintext: String(n.content_plaintext ?? "").slice(0, 5000),
         parent_object: String(n.parent_object ?? ""),
         parent_record_id: String(n.parent_record_id ?? ""),
-        created_at: n.created_at ?? null,
+        created_at: tsOrNull(n.created_at),
       };
     });
   } catch (err) {
