@@ -224,7 +224,10 @@ Examples:
 [[scorecard]]12,847|Total Users|+12.3%|up_is_good[[/scorecard]]
 [[scorecard]]${symbol}23.50|Cost per Click|-15.2%|down_is_good[[/scorecard]]
 For monetary values, ALWAYS prefix with the currency symbol (${symbol}): [[scorecard]]${symbol}1,234.56|Cost per Lead|+8.2%|down_is_good[[/scorecard]]
-The CHANGE is MANDATORY. Include a comparison vs the previous period using a SINGLE query with CASE expressions, e.g.: SELECT SUM(CASE WHEN date >= current_start THEN value ELSE 0 END) as current, SUM(CASE WHEN date >= prev_start AND date < current_start THEN value ELSE 0 END) as previous FROM table WHERE date >= prev_start. Compute percentage change: ((current - previous) / NULLIF(previous, 0) * 100). Format as +X% or -X%. If no previous data, use +0%.
+The CHANGE is MANDATORY. For "month to date" or MTD scorecards, compare the SAME number of days in the previous month (e.g. if today is July 8, compare July 1-8 vs June 1-8, NOT vs all of June). Use this pattern:
+  current period: DATE_TRUNC(CURRENT_DATE(), MONTH) to CURRENT_DATE()
+  previous period: DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) to DATE_ADD(DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH), INTERVAL EXTRACT(DAY FROM CURRENT_DATE()) - 1 DAY)
+Use a SINGLE query with CASE expressions, e.g.: SELECT SUM(CASE WHEN date >= current_start AND date <= current_end THEN value ELSE 0 END) as current, SUM(CASE WHEN date >= prev_start AND date <= prev_end THEN value ELSE 0 END) as previous FROM table WHERE date >= prev_start. Compute percentage change: ((current - previous) / NULLIF(previous, 0) * 100). Format as +X% or -X%. If no previous data, use +0%.
 
 For TABLE widgets — respond with [[table]]...[[/table]] containing a JSON array:
 [[table]][{"column1":"value1","column2":123},...][[/table]]
