@@ -654,7 +654,9 @@ Example: if the tool returns [{"month":"Jan 2026","Leads":10},{"month":"Feb 2026
         widgetType: parsed.widgetType,
         queryConfig: {
           ...(capturedQueryConfig ?? {}),
-          ...(allQueryConfigs.length > 1 ? { allQueries: allQueryConfigs } : {}),
+          // Only save allQueries for non-scorecard widgets — scorecards use a single
+          // primary query. Saving exploratory queries breaks the refresh merge path.
+          ...(allQueryConfigs.length > 1 && parsed.widgetType !== "scorecard" ? { allQueries: allQueryConfigs } : {}),
         } as object,
         displayConfig: parsed.displayConfig as object,
         cachedData: capturedData

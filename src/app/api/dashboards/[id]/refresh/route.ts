@@ -359,8 +359,13 @@ export async function POST(
         try {
           let rows: unknown;
 
-          // Multi-query widgets: run all queries and merge results
-          if (queryConfig.allQueries && queryConfig.allQueries.length > 1) {
+          // Multi-query widgets: run all queries and merge results.
+          // Scorecards always use the single primary query — allQueries contains
+          // exploratory queries from the AI's generation process that produce
+          // incompatible row shapes and break the merge.
+          const useMultiQuery = queryConfig.allQueries && queryConfig.allQueries.length > 1
+            && widget.widgetType !== "scorecard";
+          if (useMultiQuery) {
             const queryResults = await Promise.all(
               queryConfig.allQueries.map((qc) =>
                 executeQuery(qc, widget.title).catch((err) => {
