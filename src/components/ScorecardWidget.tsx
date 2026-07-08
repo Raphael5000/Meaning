@@ -38,14 +38,16 @@ export default function ScorecardWidget({ config, data, kpiTargets, widgetTitle 
   }
 
   const change = config.change;
-  const isPositive = change?.startsWith("+");
-  const isNegative = change?.startsWith("-");
-  const changeText = change?.replace(/^[+-]/, "");
+  const changeNum = parseFloat(change?.replace(/[^0-9.\-+]/g, "") ?? "");
+  const isZero = change != null && (changeNum === 0 || isNaN(changeNum));
+  const isPositive = !isZero && change?.startsWith("+");
+  const isNegative = !isZero && change?.startsWith("-");
+  const changeText = isZero ? "0%" : change?.replace(/^[+-]/, "");
 
   // Determine if the change is good or bad based on sentiment
   const downIsGood = config.sentiment === "down_is_good";
-  const isGood = downIsGood ? isNegative : isPositive;
-  const isBad = downIsGood ? isPositive : isNegative;
+  const isGood = !isZero && (downIsGood ? isNegative : isPositive);
+  const isBad = !isZero && (downIsGood ? isPositive : isNegative);
 
   // Match KPI target to this scorecard using word overlap + synonyms
   const matchedKpi = kpiTargets?.find((kpi) => {
