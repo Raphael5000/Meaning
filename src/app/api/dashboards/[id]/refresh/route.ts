@@ -279,9 +279,9 @@ export async function POST(
       if (!sqlParams.startDate) {
         sql = sql.replace(
           /DATE_SUB\s*\(\s*CURRENT_DATE\s*\(\s*\)\s*,\s*INTERVAL\s+\d+\s+DAY\s*\)/gi,
-          `'${startDate}'`
+          `DATE('${startDate}')`
         );
-        sql = sql.replace(/CURRENT_DATE\s*\(\s*\)/gi, `'${endDate}'`);
+        sql = sql.replace(/CURRENT_DATE\s*\(\s*\)/gi, `DATE('${endDate}')`);
 
         const yesterday = endDate;
         const todayStr = new Date().toISOString().split("T")[0];
