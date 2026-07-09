@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Page, PageBody, PageHeader } from "../layout";
 import { Button } from "@/components/ui/button";
+import { CreateDashboardDialog } from "./CreateDashboardDialog";
 import {
   Table,
   TableBody,
@@ -81,6 +82,7 @@ export default function DashboardListPanelV2({
   const [dashboards, setDashboards] = React.useState<DashboardSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<{
     id: string;
@@ -101,20 +103,30 @@ export default function DashboardListPanelV2({
     fetchDashboards();
   }, [fetchDashboards]);
 
-  async function handleCreate() {
+  async function handleCreate(dashboardType: "custom" | "monthly" | "yearly" = "custom") {
     if (!orgId) {
       toast.error("Select a team first.");
       return;
     }
     setCreating(true);
+    const titles: Record<string, string> = {
+      custom: "Untitled Dashboard",
+      monthly: "Monthly View",
+      yearly: "Yearly View",
+    };
     try {
       const res = await fetch("/api/dashboards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, title: "Untitled Dashboard" }),
+        body: JSON.stringify({
+          orgId,
+          title: titles[dashboardType],
+          ...(dashboardType !== "custom" ? { dashboardType } : {}),
+        }),
       });
       if (res.ok) {
         const dashboard = await res.json();
+        setCreateDialogOpen(false);
         onOpenDashboard(dashboard.id);
       } else {
         const data = (await res.json().catch(() => ({}))) as {
@@ -168,7 +180,7 @@ export default function DashboardListPanelV2({
           <Button
             size="sm"
             disabled={creating || !orgId}
-            onClick={handleCreate}
+            onClick={() => setCreateDialogOpen(true)}
           >
             <Plus className="size-3.5" />
             {creating ? "Creating…" : "New dashboard"}
@@ -190,7 +202,7 @@ export default function DashboardListPanelV2({
           <DashboardListSkeleton />
         ) : dashboards.length === 0 ? (
           <DashboardListEmpty
-            onCreate={handleCreate}
+            onCreate={() => setCreateDialogOpen(true)}
             creating={creating}
             disabled={!orgId}
           />
@@ -250,6 +262,13 @@ export default function DashboardListPanelV2({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateDashboardDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onCreate={handleCreate}
+        creating={creating}
+      />
     </Page>
   );
 }

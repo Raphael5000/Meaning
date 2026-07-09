@@ -9,6 +9,7 @@ import { DashEmpty } from "./DashEmpty";
 import { AddWidgetDialog, type ChartTypeId } from "./AddWidgetDialog";
 import { MonthPicker } from "./MonthPicker";
 import { YearPicker } from "./YearPicker";
+import { getTemplateWidgets } from "@/lib/dashboard-templates";
 import { I } from "../icons";
 import { Btn } from "../primitives";
 
@@ -194,6 +195,36 @@ export default function DashboardPanelV2({
     hasRefreshedRef.current = true;
     refreshWidgets(dashboard.dateRange, dashboard.dateFrom, dashboard.dateTo, true);
   }, [dashboard, refreshWidgets]);
+
+  // Auto-generate widgets for new template dashboards
+  const autoGenRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!dashboard || autoGenRef.current) return;
+    if (dashboard.widgets.length > 0) return;
+    if (dashboard.dashboardType !== "monthly" && dashboard.dashboardType !== "yearly") return;
+    if (!orgId) return;
+    autoGenRef.current = true;
+
+    // Fetch connected sources, then fire widget prompts in parallel
+    fetch(`/api/user/connections?orgId=${orgId}`)
+      .then((r) => r.json())
+      .then((data: { dataSources?: { type: string; status: string }[] }) => {
+        const sources = (data.dataSources ?? [])
+          .filter((s) => ["ACTIVE", "BACKFILLING", "ERROR"].includes(s.status))
+          .map((s) => s.type);
+        const specs = getTemplateWidgets(
+          dashboard.dashboardType as "monthly" | "yearly",
+          sources,
+        );
+        if (specs.length === 0) return;
+        // Fire all widget creations in parallel
+        for (const spec of specs) {
+          handleAddWidget(spec);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboard, orgId]);
 
   async function saveTitle() {
     if (!dashboard || titleDraft === dashboard.title) {
