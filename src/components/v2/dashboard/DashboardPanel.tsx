@@ -93,6 +93,7 @@ export default function DashboardPanelV2({
     fetch(`/api/dashboards/${dashboardId}`)
       .then((r) => r.json())
       .then((data) => {
+        layoutSetFromServerRef.current = true;
         setDashboard(data);
         setTitleDraft(data.title);
       })
@@ -212,6 +213,7 @@ export default function DashboardPanelV2({
       .then((r) => r.json())
       .then((data) => {
         if (data.widgets && data.layout) {
+          layoutSetFromServerRef.current = true;
           setDashboard((d) =>
             d ? { ...d, widgets: data.widgets, layout: data.layout } : d,
           );
@@ -240,8 +242,19 @@ export default function DashboardPanelV2({
     }).catch(() => {});
   }
 
+  // Track when we've just set the layout from the server (generate, fetch)
+  // to ignore the initial onLayoutChange that react-grid-layout fires on mount.
+  const layoutSetFromServerRef = React.useRef(false);
+
   function handleLayoutChange(newLayout: LayoutItem[]) {
     if (!dashboard) return;
+    // Skip the first RGL onLayoutChange after we set a server-provided layout
+    // — RGL fires this on mount/re-render and may recompact items, overwriting
+    // the carefully positioned layout from the generate endpoint.
+    if (layoutSetFromServerRef.current) {
+      layoutSetFromServerRef.current = false;
+      return;
+    }
     setDashboard((d) => (d ? { ...d, layout: newLayout } : d));
     fetch(`/api/dashboards/${dashboardId}`, {
       method: "PUT",
