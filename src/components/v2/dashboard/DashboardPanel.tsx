@@ -9,7 +9,6 @@ import { DashEmpty } from "./DashEmpty";
 import { AddWidgetDialog, type ChartTypeId } from "./AddWidgetDialog";
 import { MonthPicker } from "./MonthPicker";
 import { YearPicker } from "./YearPicker";
-import { getTemplateWidgets } from "@/lib/dashboard-templates";
 import { I } from "../icons";
 import { Btn } from "../primitives";
 
@@ -198,33 +197,34 @@ export default function DashboardPanelV2({
 
   // Auto-generate widgets for new template dashboards
   const autoGenRef = React.useRef(false);
+  const [generating, setGenerating] = React.useState(false);
   React.useEffect(() => {
     if (!dashboard || autoGenRef.current) return;
     if (dashboard.widgets.length > 0) return;
     if (dashboard.dashboardType !== "monthly" && dashboard.dashboardType !== "yearly") return;
-    if (!orgId) return;
     autoGenRef.current = true;
+    setGenerating(true);
 
-    // Fetch connected sources, then fire widget prompts in parallel
-    fetch(`/api/user/connections?orgId=${orgId}`)
+    fetch(`/api/dashboards/${dashboardId}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
       .then((r) => r.json())
-      .then((data: { dataSources?: { type: string; status: string }[] }) => {
-        const sources = (data.dataSources ?? [])
-          .filter((s) => ["ACTIVE", "BACKFILLING", "ERROR"].includes(s.status))
-          .map((s) => s.type);
-        const specs = getTemplateWidgets(
-          dashboard.dashboardType as "monthly" | "yearly",
-          sources,
-        );
-        if (specs.length === 0) return;
-        // Fire all widget creations in parallel
-        for (const spec of specs) {
-          handleAddWidget(spec);
+      .then((data) => {
+        if (data.widgets && data.layout) {
+          setDashboard((d) =>
+            d ? { ...d, widgets: data.widgets, layout: data.layout } : d,
+          );
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[dashboard-generate] Failed:", err);
+        setWidgetError("Failed to generate dashboard widgets. Try adding widgets manually.");
+        setTimeout(() => setWidgetError(null), 8000);
+      })
+      .finally(() => setGenerating(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboard, orgId]);
+  }, [dashboard, dashboardId]);
 
   async function saveTitle() {
     if (!dashboard || titleDraft === dashboard.title) {
@@ -677,7 +677,33 @@ export default function DashboardPanelV2({
           padding: dashboard.widgets.length === 0 ? 0 : "18px 24px",
         }}
       >
-        {dashboard.widgets.length === 0 ? (
+        {generating ? (
+          <div
+            style={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              color: "var(--v2-ink-muted)",
+              fontSize: 13,
+              padding: 40,
+            }}
+          >
+            <I.Sparkle
+              size={24}
+              style={{
+                color: "var(--v2-brand)",
+                animation: "spin 2s linear infinite",
+              }}
+            />
+            <span style={{ fontWeight: 500, color: "var(--v2-ink)" }}>
+              Generating your dashboard...
+            </span>
+            <span>This may take a minute. We&apos;re building widgets from your connected data.</span>
+          </div>
+        ) : dashboard.widgets.length === 0 ? (
           <DashEmpty
             onCta={() => {
               setEditWidgetId(null);
