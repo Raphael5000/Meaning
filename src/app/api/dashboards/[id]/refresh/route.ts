@@ -297,6 +297,26 @@ export async function POST(
       if (sql.includes("@endDate")) sqlParams.endDate = endDate;
 
       if (!sqlParams.startDate) {
+        // Replace hardcoded date literals (e.g. '2026-07-01') with the
+        // resolved date range. Find GENERATE_DATE_ARRAY('YYYY-MM-DD', 'YYYY-MM-DD')
+        // and replace both dates with startDate/endDate.
+        sql = sql.replace(
+          /GENERATE_DATE_ARRAY\s*\(\s*'(\d{4}-\d{2}-\d{2})'\s*,\s*'(\d{4}-\d{2}-\d{2})'\s*\)/gi,
+          `GENERATE_DATE_ARRAY('${startDate}', '${endDate}')`
+        );
+
+        // Replace DATE_TRUNC(CURRENT_DATE(), MONTH) → start of the target month
+        // This must happen BEFORE the generic CURRENT_DATE() replacement
+        sql = sql.replace(
+          /DATE_TRUNC\s*\(\s*CURRENT_DATE\s*\(\s*\)\s*,\s*MONTH\s*\)/gi,
+          `DATE('${startDate.slice(0, 7)}-01')`
+        );
+        // Replace DATE_TRUNC(CURRENT_DATE(), YEAR) → start of the target year
+        sql = sql.replace(
+          /DATE_TRUNC\s*\(\s*CURRENT_DATE\s*\(\s*\)\s*,\s*YEAR\s*\)/gi,
+          `DATE('${startDate.slice(0, 4)}-01-01')`
+        );
+
         sql = sql.replace(
           /DATE_SUB\s*\(\s*CURRENT_DATE\s*\(\s*\)\s*,\s*INTERVAL\s+\d+\s+DAY\s*\)/gi,
           `DATE('${startDate}')`
@@ -318,6 +338,32 @@ export async function POST(
           new RegExp(`'(${prevYM}-(0[2-9]|1\\d|2[0-7]))'`, "g"),
           `'${prevYM}-${yesterdayDay}'`
         );
+
+        // For monthly/yearly dashboards: MTD/YTD queries often have no upper
+        // date bound — they rely on CURRENT_DATE() being "today" so future
+        // data can't exist. When viewing a past month/year, data after the
+        // period end leaks in. Fix: cap the outermost WHERE with endDate.
+        if (dateRange === "monthly" || dateRange === "yearly") {
+          const dateCol =
+            /campaign_performance|keyword_performance|click_attribution/.test(sql) ? "stats_date" :
+            /search_performance/.test(sql) ? "query_date" :
+            /traffic_sources|sessions/.test(sql) ? "session_date" :
+            /post_performance|follower_stats|page_stats/.test(sql) ? "stats_date" :
+            /campaign_reports|audience/.test(sql) ? "stats_date" :
+            /msads_/.test(sql) ? "stats_date" :
+            /pageviews|conversions|stg_events/.test(sql) ? "event_date" :
+            null;
+          if (dateCol && !sql.includes(`'${endDate}'`)) {
+            // Find the outermost (last) WHERE clause and prepend the date cap.
+            // For CTEs, inner WHEREs come before the outer one, so lastIndexOf
+            // targets the right clause.
+            const whereIdx = sql.lastIndexOf("WHERE");
+            if (whereIdx >= 0) {
+              const insertPoint = whereIdx + 5;
+              sql = sql.slice(0, insertPoint) + ` ${dateCol} <= DATE('${endDate}') AND` + sql.slice(insertPoint);
+            }
+          }
+        }
       }
 
       console.log(`[dashboard-refresh] → final SQL (${widgetTitle}): ${sql.replace(/\n/g, ' ').slice(0, 800)}`);
