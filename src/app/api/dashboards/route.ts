@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         title: true,
+        dashboardType: true,
         dateRange: true,
         sortOrder: true,
         createdAt: true,
@@ -47,20 +48,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = (await request.json()) as { orgId: string; title?: string };
-  const { orgId, title } = body;
+  const body = (await request.json()) as { orgId: string; title?: string; dashboardType?: string };
+  const { orgId, title, dashboardType } = body;
 
   if (!orgId) {
     return NextResponse.json({ error: "orgId is required" }, { status: 400 });
   }
 
   try {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const currentYear = String(now.getFullYear());
+
     const dashboard = await prisma.dashboard.create({
       data: {
         orgId,
         createdBy: userId,
         title: title || "Untitled Dashboard",
         layout: [],
+        ...(dashboardType === "monthly" ? { dashboardType: "monthly", dateRange: "monthly", dateFrom: currentMonth } : {}),
+        ...(dashboardType === "yearly" ? { dashboardType: "yearly", dateRange: "yearly", dateFrom: currentYear } : {}),
       },
     });
 

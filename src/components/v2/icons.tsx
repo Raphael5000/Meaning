@@ -190,6 +190,14 @@ export const I = {
       <path d="M9 15l3 3 3-3" />
     </Base>
   ),
+  Calendar: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </Base>
+  ),
 };
 
 export type IconComponent = React.ComponentType<IconProps>;

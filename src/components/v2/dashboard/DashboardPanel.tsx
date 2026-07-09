@@ -7,6 +7,8 @@ import { DashChatDock } from "./DashChatDock";
 import { DashHeader } from "./DashHeader";
 import { DashEmpty } from "./DashEmpty";
 import { AddWidgetDialog, type ChartTypeId } from "./AddWidgetDialog";
+import { MonthPicker } from "./MonthPicker";
+import { YearPicker } from "./YearPicker";
 import { I } from "../icons";
 import { Btn } from "../primitives";
 
@@ -27,6 +29,7 @@ interface Dashboard {
   id: string;
   title: string;
   layout: LayoutItem[];
+  dashboardType: string;
   dateRange: string;
   dateFrom: string | null;
   dateTo: string | null;
@@ -485,6 +488,35 @@ export default function DashboardPanelV2({
         onEditTitle={() => setEditingTitle(true)}
         onTitleDraftChange={setTitleDraft}
         onTitleCommit={saveTitle}
+        datePicker={
+          dashboard.dashboardType === "monthly" ? (
+            <MonthPicker
+              value={dashboard.dateFrom || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`}
+              onChange={async (val) => {
+                setDashboard((d) => d ? { ...d, dateFrom: val, dateRange: "monthly" } : d);
+                await fetch(`/api/dashboards/${dashboardId}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dateFrom: val, dateRange: "monthly" }),
+                }).catch(() => {});
+                refreshWidgets("monthly", val, null);
+              }}
+            />
+          ) : dashboard.dashboardType === "yearly" ? (
+            <YearPicker
+              value={dashboard.dateFrom || String(new Date().getFullYear())}
+              onChange={async (val) => {
+                setDashboard((d) => d ? { ...d, dateFrom: val, dateRange: "yearly" } : d);
+                await fetch(`/api/dashboards/${dashboardId}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dateFrom: val, dateRange: "yearly" }),
+                }).catch(() => {});
+                refreshWidgets("yearly", val, null);
+              }}
+            />
+          ) : null
+        }
         trailing={null}
       />
 

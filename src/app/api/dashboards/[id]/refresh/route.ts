@@ -13,32 +13,52 @@ export const dynamic = "force-dynamic";
 
 function resolveDateRange(dateRange: string, dateFrom?: string | null, dateTo?: string | null): { startDate: string; endDate: string } {
   const today = new Date();
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() - 1); // yesterday (BQ data lag)
-
-  let startDate = new Date(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1); // BQ data lag
+  const fmt = (d: Date) => d.toISOString().split("T")[0];
 
   switch (dateRange) {
-    case "7d":
-      startDate.setDate(startDate.getDate() - 7);
-      break;
-    case "90d":
-      startDate.setDate(startDate.getDate() - 90);
-      break;
+    case "monthly": {
+      // dateFrom stores "YYYY-MM"
+      const ym = dateFrom || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+      const [y, m] = ym.split("-").map(Number);
+      const startDate = `${y}-${String(m).padStart(2, "0")}-01`;
+      // Last day of month
+      const lastDay = new Date(y, m, 0); // day 0 of next month = last day of this month
+      // Cap at yesterday if this is the current month
+      const endDate = lastDay > yesterday ? fmt(yesterday) : fmt(lastDay);
+      return { startDate, endDate };
+    }
+    case "yearly": {
+      // dateFrom stores "YYYY"
+      const year = dateFrom ? Number(dateFrom) : today.getFullYear();
+      const startDate = `${year}-01-01`;
+      const lastDay = new Date(year, 11, 31);
+      const endDate = lastDay > yesterday ? fmt(yesterday) : fmt(lastDay);
+      return { startDate, endDate };
+    }
+    case "7d": {
+      const s = new Date(today);
+      s.setDate(s.getDate() - 7);
+      return { startDate: fmt(s), endDate: fmt(yesterday) };
+    }
+    case "90d": {
+      const s = new Date(today);
+      s.setDate(s.getDate() - 90);
+      return { startDate: fmt(s), endDate: fmt(yesterday) };
+    }
     case "custom":
       if (dateFrom && dateTo) {
         return { startDate: dateFrom, endDate: dateTo };
       }
       // Fall through to default 28d
-      startDate.setDate(startDate.getDate() - 28);
-      break;
-    default: // "28d"
-      startDate.setDate(startDate.getDate() - 28);
-      break;
+      // eslint-disable-next-line no-fallthrough
+    default: {
+      const s = new Date(today);
+      s.setDate(s.getDate() - 28);
+      return { startDate: fmt(s), endDate: fmt(yesterday) };
+    }
   }
-
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
-  return { startDate: fmt(startDate), endDate: fmt(endDate) };
 }
 
 // ---------------------------------------------------------------------------

@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface DashboardSummary {
   id: string;
   title: string;
+  dashboardType: string;
   dateRange: string;
   sortOrder: number;
   createdAt: string;
@@ -272,6 +273,16 @@ function DashboardRow({
           <span className="truncate text-[13px] font-medium text-foreground">
             {dashboard.title || "Untitled Dashboard"}
           </span>
+          {dashboard.dashboardType === "monthly" && (
+            <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+              Monthly
+            </span>
+          )}
+          {dashboard.dashboardType === "yearly" && (
+            <span className="shrink-0 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-600 dark:bg-purple-950 dark:text-purple-400">
+              Yearly
+            </span>
+          )}
         </div>
       </TableCell>
       <TableCell className="text-[12.5px] tabular-nums text-muted-foreground">

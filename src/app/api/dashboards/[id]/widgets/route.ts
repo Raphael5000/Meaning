@@ -357,7 +357,7 @@ export async function POST(
     // Load the dashboard to get its orgId
     const dashboard = await prisma.dashboard.findUnique({
       where: { id: dashboardId },
-      select: { orgId: true, layout: true },
+      select: { orgId: true, layout: true, dashboardType: true },
     });
     if (!dashboard) {
       return NextResponse.json({ error: "Dashboard not found" }, { status: 404 });
@@ -388,6 +388,23 @@ export async function POST(
     console.log(`[widget-gen] sourceCurrencies:`, sourceCurrencies);
 
     let systemPrompt = getWidgetSystemPrompt(!!adsCustomerId, !!linkedInOrgId, !!mailchimpListId, !!gscSiteUrl, !!msAdsAccountId, !!ahrefsOrgId, !!attioOrgId, displayCurrency, sourceCurrencies);
+
+    // Add dashboard type context so the AI generates appropriately scoped widgets
+    if (dashboard.dashboardType === "monthly") {
+      systemPrompt += `\n\nDASHBOARD TYPE: Monthly View
+This is a monthly dashboard. The date range will be resolved to a single calendar month (1st to last day).
+- Default to month-to-date (MTD) comparisons: compare current month days elapsed vs same number of days in previous month.
+- For scorecards, use MTD vs previous MTD pattern.
+- For charts, show daily breakdown within the month.
+- Use @startDate and @endDate parameters — they will be set to the month boundaries automatically.`;
+    } else if (dashboard.dashboardType === "yearly") {
+      systemPrompt += `\n\nDASHBOARD TYPE: Yearly View
+This is a yearly dashboard. The date range will be resolved to Jan 1 through Dec 31 (or yesterday if current year).
+- Default to year-to-date (YTD) comparisons: compare current year days elapsed vs same number of days in previous year.
+- For scorecards, use YTD vs previous YTD pattern.
+- For charts, show monthly breakdown within the year.
+- Use @startDate and @endDate parameters — they will be set to the year boundaries automatically.`;
+    }
 
     // Inject manual metrics so the AI knows about user-entered data
     const manualMetrics = await prisma.manualMetric.findMany({

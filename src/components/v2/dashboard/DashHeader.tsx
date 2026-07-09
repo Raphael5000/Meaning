@@ -15,6 +15,8 @@ interface DashHeaderProps {
   refreshing?: boolean;
   /** Optional slot on the far right (e.g. refreshing indicator) */
   trailing?: React.ReactNode;
+  /** Date picker slot rendered between trailing and action buttons */
+  datePicker?: React.ReactNode;
   onEditTitle?: () => void;
   editingTitle?: boolean;
   titleDraft?: string;
@@ -33,6 +35,7 @@ export function DashHeader({
   onRefresh,
   refreshing = false,
   trailing,
+  datePicker,
   onEditTitle,
   editingTitle = false,
   titleDraft,
@@ -167,6 +170,7 @@ export function DashHeader({
       </div>
 
       {trailing}
+      {datePicker}
       {onRefresh && (
         <Btn
           variant="outline"

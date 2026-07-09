@@ -376,8 +376,9 @@ model Dashboard {
   createdBy String
   title     String
   layout    Json     @default("[]") // react-grid-layout Layout[] → {i,x,y,w,h}[]
-  dateRange String   @default("28d") // "7d" | "28d" | "90d" | "custom"
-  dateFrom  String?  // YYYY-MM-DD, only when dateRange="custom"
+  dashboardType String @default("custom") // "custom" | "monthly" | "yearly"
+  dateRange String   @default("28d") // "7d" | "28d" | "90d" | "custom" | "monthly" | "yearly"
+  dateFrom  String?  // YYYY-MM-DD (custom), YYYY-MM (monthly), YYYY (yearly)
   dateTo    String?  // YYYY-MM-DD, only when dateRange="custom"
   sortOrder Int      @default(0) // ordering in the dashboard list
 

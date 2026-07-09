@@ -22,6 +22,7 @@ interface Dashboard {
   id: string;
   title: string;
   layout: LayoutItem[];
+  dashboardType: string;
   dateRange: string;
   dateFrom: string | null;
   dateTo: string | null;
