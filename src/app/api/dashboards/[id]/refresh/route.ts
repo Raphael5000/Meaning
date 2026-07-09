@@ -525,15 +525,23 @@ export async function POST(
               const shortMonths = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
               const titleMonthIdx = months.findIndex((m) => title.includes(m));
               const titleShortMonthIdx = titleMonthIdx >= 0 ? titleMonthIdx : shortMonths.findIndex((m) => new RegExp(`\\b${m}\\b`).test(title));
-              const specificMonth = titleMonthIdx >= 0 ? titleMonthIdx : titleShortMonthIdx;
-              const wantsYtd = /\bytd\b/.test(title);
+              let specificMonth = titleMonthIdx >= 0 ? titleMonthIdx : titleShortMonthIdx;
+
+              // For monthly/yearly dashboards, derive the target month from the
+              // resolved date range (startDate) so switching months works.
+              if (specificMonth < 0 && (dateRange === "monthly" || dateRange === "yearly")) {
+                const startMonth = Number(startDate.slice(5, 7)) - 1; // 0-indexed
+                specificMonth = startMonth;
+              }
+
+              const wantsYtd = /\bytd\b/.test(title) || dateRange === "yearly";
               const input = queryConfig.input as { year?: number };
               const titleYearMatch = title.match(/\b(20\d{2})\b/);
-              const year = input.year ?? (titleYearMatch ? Number(titleYearMatch[1]) : new Date().getFullYear());
+              const year = input.year ?? (titleYearMatch ? Number(titleYearMatch[1]) : Number(startDate.slice(0, 4)));
 
               if (rowArr.length === 1) {
                 newValue = Number(firstRow[metricKey]);
-              } else if (specificMonth >= 0) {
+              } else if (specificMonth >= 0 && !wantsYtd) {
                 // Title mentions a specific month → find that month's value
                 const monthLabel = shortMonths[specificMonth].charAt(0).toUpperCase() + shortMonths[specificMonth].slice(1);
                 const matchRow = rowArr.find((r) => {
