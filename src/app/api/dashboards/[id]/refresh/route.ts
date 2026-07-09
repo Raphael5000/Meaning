@@ -539,16 +539,41 @@ export async function POST(
               const titleYearMatch = title.match(/\b(20\d{2})\b/);
               const year = input.year ?? (titleYearMatch ? Number(titleYearMatch[1]) : Number(startDate.slice(0, 4)));
 
+              // Detect multi-metric ratio scorecards (e.g. "Cost per Lead" = spend / leads).
+              // When rows have multiple numeric columns, check if the title implies a ratio.
+              const allMetricKeys = Object.keys(firstRow).filter(
+                (k) => !dimKeys.has(k.toLowerCase()) && typeof firstRow[k] === "number"
+              );
+              const isRatio = allMetricKeys.length > 1 &&
+                /\bcost per\b|\bcpl\b|\bcpa\b|\broas\b|\bper\b/.test(title);
+
+              // Helper: compute value from a single row — handles ratio vs single metric
+              function computeRowValue(row: Record<string, unknown>): number {
+                if (!isRatio || allMetricKeys.length < 2) {
+                  return Number(row[metricKey!]);
+                }
+                // Ratio: find the "cost/spend" column (largest value) and divide
+                // by the sum of the remaining columns (leads/conversions).
+                const values = allMetricKeys.map((k) => ({ key: k, val: Number(row[k]) || 0 }));
+                // Identify cost column by name or by being the largest
+                const costCol = values.find((v) => /cost|spend|budget/i.test(v.key))
+                  ?? values.reduce((a, b) => (a.val >= b.val ? a : b));
+                const denominator = values
+                  .filter((v) => v.key !== costCol.key)
+                  .reduce((sum, v) => sum + v.val, 0);
+                return denominator > 0 ? Math.round((costCol.val / denominator) * 100) / 100 : 0;
+              }
+
               if (rowArr.length === 1) {
-                newValue = Number(firstRow[metricKey]);
+                newValue = computeRowValue(firstRow);
               } else if (specificMonth >= 0 && !wantsYtd) {
-                // Title mentions a specific month → find that month's value
+                // Find target month's row
                 const monthLabel = shortMonths[specificMonth].charAt(0).toUpperCase() + shortMonths[specificMonth].slice(1);
                 const matchRow = rowArr.find((r) => {
                   const m = String(r.month ?? "");
                   return m.startsWith(monthLabel) && m.includes(String(year));
                 });
-                newValue = matchRow ? Number(matchRow[metricKey]) : Number(rowArr[rowArr.length - 1][metricKey]);
+                newValue = matchRow ? computeRowValue(matchRow) : computeRowValue(rowArr[rowArr.length - 1]);
                 // Previous period = previous month (month-over-month comparison)
                 const prevMonthIdx = specificMonth > 0 ? specificMonth - 1 : 11;
                 const prevMonthYear = specificMonth > 0 ? year : year - 1;
@@ -557,26 +582,46 @@ export async function POST(
                   const m = String(r.month ?? "");
                   return m.startsWith(prevMonthLabel) && m.includes(String(prevMonthYear));
                 });
-                if (prevRow) prevValue = Number(prevRow[metricKey]);
+                if (prevRow) prevValue = computeRowValue(prevRow);
               } else if (wantsYtd) {
                 // Sum all months for the target year
                 const yearPrefix = String(year);
-                newValue = rowArr
-                  .filter((r) => String(r.month ?? "").includes(yearPrefix))
-                  .reduce((sum, r) => sum + (Number(r[metricKey]) || 0), 0);
+                const ytdRows = rowArr.filter((r) => String(r.month ?? "").includes(yearPrefix));
+                if (isRatio && allMetricKeys.length >= 2) {
+                  // For ratio metrics, sum numerator and denominator separately
+                  const values = allMetricKeys.map((k) => ({ key: k, val: 0 }));
+                  for (const row of ytdRows) {
+                    for (const v of values) v.val += Number(row[v.key]) || 0;
+                  }
+                  const costCol = values.find((v) => /cost|spend|budget/i.test(v.key))
+                    ?? values.reduce((a, b) => (a.val >= b.val ? a : b));
+                  const denom = values.filter((v) => v.key !== costCol.key).reduce((s, v) => s + v.val, 0);
+                  newValue = denom > 0 ? Math.round((costCol.val / denom) * 100) / 100 : 0;
+                } else {
+                  newValue = ytdRows.reduce((sum, r) => sum + (Number(r[metricKey]) || 0), 0);
+                }
                 // Previous = same months of previous year
                 const prevYearPrefix = String(year - 1);
-                // Only compare same number of months (e.g. Jan-Jun 2025 vs Jan-Jun 2026)
-                const currentYearMonths = rowArr.filter((r) => String(r.month ?? "").includes(yearPrefix));
-                const monthCount = currentYearMonths.length;
+                const monthCount = ytdRows.length;
                 const prevYearRows = rowArr
                   .filter((r) => String(r.month ?? "").includes(prevYearPrefix))
                   .slice(0, monthCount);
                 if (prevYearRows.length > 0) {
-                  prevValue = prevYearRows.reduce((sum, r) => sum + (Number(r[metricKey]) || 0), 0);
+                  if (isRatio && allMetricKeys.length >= 2) {
+                    const values = allMetricKeys.map((k) => ({ key: k, val: 0 }));
+                    for (const row of prevYearRows) {
+                      for (const v of values) v.val += Number(row[v.key]) || 0;
+                    }
+                    const costCol = values.find((v) => /cost|spend|budget/i.test(v.key))
+                      ?? values.reduce((a, b) => (a.val >= b.val ? a : b));
+                    const denom = values.filter((v) => v.key !== costCol.key).reduce((s, v) => s + v.val, 0);
+                    prevValue = denom > 0 ? Math.round((costCol.val / denom) * 100) / 100 : 0;
+                  } else {
+                    prevValue = prevYearRows.reduce((sum, r) => sum + (Number(r[metricKey]) || 0), 0);
+                  }
                 }
               } else {
-                newValue = Number(rowArr[rowArr.length - 1][metricKey]);
+                newValue = computeRowValue(rowArr[rowArr.length - 1]);
               }
 
               // Format value
