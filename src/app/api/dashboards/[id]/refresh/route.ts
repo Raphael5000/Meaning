@@ -539,29 +539,33 @@ export async function POST(
               const titleYearMatch = title.match(/\b(20\d{2})\b/);
               const year = input.year ?? (titleYearMatch ? Number(titleYearMatch[1]) : Number(startDate.slice(0, 4)));
 
-              // Detect multi-metric ratio scorecards (e.g. "Cost per Lead" = spend / leads).
-              // When rows have multiple numeric columns, check if the title implies a ratio.
+              // Detect multi-metric scorecards and determine how to combine them.
               const allMetricKeys = Object.keys(firstRow).filter(
                 (k) => !dimKeys.has(k.toLowerCase()) && typeof firstRow[k] === "number"
               );
               const isRatio = allMetricKeys.length > 1 &&
                 /\bcost per\b|\bcpl\b|\bcpa\b|\broas\b|\bper\b/.test(title);
+              // "Total X" with multiple metrics = sum all columns
+              const isSum = allMetricKeys.length > 1 && !isRatio &&
+                /\btotal\b|\bcombined\b|\ball\b/.test(title);
 
-              // Helper: compute value from a single row — handles ratio vs single metric
+              // Helper: compute value from a single row
               function computeRowValue(row: Record<string, unknown>): number {
-                if (!isRatio || allMetricKeys.length < 2) {
-                  return Number(row[metricKey!]);
+                if (isSum) {
+                  // Sum all metric columns (e.g. Total Leads = Meta Leads + Website Leads)
+                  return allMetricKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
                 }
-                // Ratio: find the "cost/spend" column (largest value) and divide
-                // by the sum of the remaining columns (leads/conversions).
-                const values = allMetricKeys.map((k) => ({ key: k, val: Number(row[k]) || 0 }));
-                // Identify cost column by name or by being the largest
-                const costCol = values.find((v) => /cost|spend|budget/i.test(v.key))
-                  ?? values.reduce((a, b) => (a.val >= b.val ? a : b));
-                const denominator = values
-                  .filter((v) => v.key !== costCol.key)
-                  .reduce((sum, v) => sum + v.val, 0);
-                return denominator > 0 ? Math.round((costCol.val / denominator) * 100) / 100 : 0;
+                if (isRatio) {
+                  // Ratio: cost/spend column divided by sum of remaining columns
+                  const values = allMetricKeys.map((k) => ({ key: k, val: Number(row[k]) || 0 }));
+                  const costCol = values.find((v) => /cost|spend|budget/i.test(v.key))
+                    ?? values.reduce((a, b) => (a.val >= b.val ? a : b));
+                  const denominator = values
+                    .filter((v) => v.key !== costCol.key)
+                    .reduce((sum, v) => sum + v.val, 0);
+                  return denominator > 0 ? Math.round((costCol.val / denominator) * 100) / 100 : 0;
+                }
+                return Number(row[metricKey!]);
               }
 
               if (rowArr.length === 1) {
@@ -670,9 +674,25 @@ export async function POST(
               const newValue = Number(row[currentKey]);
               const origValue = String(dc.value ?? "");
               const currPrefix = origValue.match(/^([A-Z]{1,3}\$?|[R€£¥₹₦₱₩₺₪฿])\s?/)?.[1] ?? "";
-              const formatted = currPrefix
-                ? `${currPrefix}${newValue.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(newValue) ? 0 : 2, maximumFractionDigits: 2 })}`
-                : String(newValue);
+              // Detect duration/time values (column name or label hint)
+              const widgetLabel = String(dc.label ?? widget.title ?? "").toLowerCase();
+              const isDuration = /duration|time|avg.*time|engagement.*time/i.test(currentKey)
+                || /duration|engagement time|avg.*time|time on/i.test(widgetLabel)
+                || /\d+m\s*\d+s|\d+:\d+/.test(origValue);
+              let formatted: string;
+              if (currPrefix) {
+                formatted = `${currPrefix}${newValue.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(newValue) ? 0 : 2, maximumFractionDigits: 2 })}`;
+              } else if (isDuration) {
+                // Format seconds as Xm Ys
+                const totalSec = Math.round(newValue);
+                const mins = Math.floor(totalSec / 60);
+                const secs = totalSec % 60;
+                formatted = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+              } else {
+                formatted = Number.isInteger(newValue)
+                  ? newValue.toLocaleString("en-US")
+                  : newValue.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+              }
 
               let change: string | undefined = dc.change as string | undefined;
               if (prevKey && typeof row[prevKey] === "number" && Number(row[prevKey]) !== 0) {
