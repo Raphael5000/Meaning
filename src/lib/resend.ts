@@ -110,6 +110,60 @@ export async function sendSyncFailureEmail({
   }
 }
 
+export async function sendAhrefsQuotaEmail({
+  used,
+  limit,
+  pct,
+  resetDate,
+  blocked,
+}: {
+  used: number;
+  limit: number;
+  pct: number;
+  resetDate: string | null;
+  blocked: boolean;
+}): Promise<void> {
+  const adminEmail = process.env.ADMIN_ALERT_EMAIL;
+  if (!adminEmail) return; // silently skip if not configured
+
+  const field = (l: string, v: string) => `<tr>
+    <td style="padding:10px 16px 10px 0;vertical-align:top;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#9A9A9A;white-space:nowrap;">${l}</td>
+    <td style="padding:10px 0;font-size:14px;color:#1A1A1A;">${v}</td>
+  </tr>`;
+
+  const accent = blocked ? "#ef4444" : "#f59e0b";
+  const reset = resetDate ? new Date(resetDate).toUTCString() : "unknown";
+
+  const html = meaningEmailShellWithHeader(`
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #E5E4E1;border-bottom:1px solid #E5E4E1;">
+      ${field("Used", `${used.toLocaleString()} of ${limit.toLocaleString()} units (${pct.toFixed(1)}%)`)}
+      ${field("Remaining", `${Math.max(0, limit - used).toLocaleString()} units`)}
+      ${field("Quota resets", reset)}
+      ${field("Status", blocked ? "Syncs paused" : "Syncs running")}
+    </table>
+    <p style="margin:20px 0 0 0;font-size:13px;line-height:1.6;color:#6B6B6B;">
+      ${
+        blocked
+          ? "Ahrefs syncs are paused until the quota resets, to avoid overage. Existing BigQuery data is untouched — dashboards keep working from the last snapshot."
+          : "Ahrefs syncs are still running. They will pause automatically before the cap is reached."
+      }
+    </p>
+  `, accent, blocked ? "Ahrefs Quota Exhausted" : "Ahrefs Quota Warning");
+
+  try {
+    const resend = getResend();
+    await resend.emails.send({
+      from: ALERT_SENDER_EMAIL,
+      to: adminEmail.split(",").map((e) => e.trim()),
+      subject: `[Meaning] Ahrefs API units at ${pct.toFixed(0)}% of monthly cap`,
+      html,
+    });
+    console.log(`[ahrefs-quota] Alert email sent (${pct.toFixed(1)}%)`);
+  } catch (err) {
+    console.error("[ahrefs-quota] Failed to send email:", err);
+  }
+}
+
 export async function sendTeamInviteEmail({
   to,
   teamName,

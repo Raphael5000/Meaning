@@ -72,7 +72,9 @@ export async function POST(req: NextRequest) {
           await syncMicrosoftAdsData(ds.userId, ds.propertyId, ds.adsCustomerId || ds.propertyId, start, end);
           break;
         case "AHREFS":
-          await syncAhrefsData(ds.userId, ds.propertyId);
+          // Explicit user-triggered resync — bypass the cadence gate so the
+          // button actually refetches. The unit budget guard still applies.
+          await syncAhrefsData(ds.userId, ds.propertyId, undefined, undefined, { force: true });
           break;
         default:
           console.log(`[resync] Unsupported type: ${ds.type}`);
