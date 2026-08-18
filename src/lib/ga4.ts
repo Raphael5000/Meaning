@@ -192,6 +192,7 @@ export interface BigQueryLink {
   dataset: string;
   dailyExportEnabled: boolean;
   streamingExportEnabled: boolean;
+  exportStreams: string[];
 }
 
 export async function listBigQueryLinks(
@@ -211,7 +212,48 @@ export async function listBigQueryLinks(
     dataset: link.datasetLocation || "",
     dailyExportEnabled: link.dailyExportEnabled ?? false,
     streamingExportEnabled: link.streamingExportEnabled ?? false,
+    exportStreams: (link.exportStreams || []).filter(Boolean) as string[],
   }));
+}
+
+// ---------- List a property's data streams ----------
+
+export async function listDataStreams(
+  accessToken: string,
+  propertyId: string
+): Promise<string[]> {
+  const auth = getAuthClient(accessToken);
+
+  const res = await analyticsAdmin.properties.dataStreams.list({
+    parent: `properties/${propertyId}`,
+    auth,
+    pageSize: 200,
+  });
+
+  return (res.data.dataStreams || [])
+    .map((stream) => stream.name || "")
+    .filter(Boolean);
+}
+
+// ---------- Repair a link that exports no streams ----------
+
+/**
+ * A BigQuery link with an empty exportStreams list silently exports nothing.
+ * Points an existing link at all of the property's current data streams.
+ */
+export async function setBigQueryLinkStreams(
+  accessToken: string,
+  linkName: string,
+  exportStreams: string[]
+): Promise<void> {
+  const auth = getAuthClient(accessToken);
+
+  await analyticsAdminAlpha.properties.bigQueryLinks.patch({
+    name: linkName,
+    updateMask: "exportStreams",
+    auth,
+    requestBody: { exportStreams },
+  });
 }
 
 // ---------- Create BigQuery export link ----------
@@ -223,6 +265,16 @@ export async function createBigQueryLink(
 ): Promise<BigQueryLink> {
   const auth = getAuthClient(accessToken);
 
+  // GA4 exports nothing when exportStreams is empty, and the failure is silent —
+  // the link reports dailyExportEnabled: true and no table is ever written.
+  // The property's streams have to be resolved and passed explicitly.
+  const exportStreams = await listDataStreams(accessToken, propertyId);
+  if (exportStreams.length === 0) {
+    throw new Error(
+      `GA4 property ${propertyId} has no data streams — a BigQuery export link would never produce data`
+    );
+  }
+
   const res = await analyticsAdminAlpha.properties.bigQueryLinks.create({
     parent: `properties/${propertyId}`,
     auth,
@@ -233,7 +285,7 @@ export async function createBigQueryLink(
       streamingExportEnabled: false,
       freshDailyExportEnabled: false,
       includeAdvertisingId: false,
-      exportStreams: [],
+      exportStreams,
     },
   });
 
@@ -244,5 +296,6 @@ export async function createBigQueryLink(
     dataset: link.datasetLocation || "",
     dailyExportEnabled: link.dailyExportEnabled ?? false,
     streamingExportEnabled: link.streamingExportEnabled ?? false,
+    exportStreams: (link.exportStreams || []).filter(Boolean) as string[],
   };
 }

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { BigQuery } from "@google-cloud/bigquery";
-import { createBigQueryLink, listBigQueryLinks } from "@/lib/ga4";
+import {
+  createBigQueryLink,
+  listBigQueryLinks,
+  listDataStreams,
+  setBigQueryLinkStreams,
+} from "@/lib/ga4";
 import { getValidGoogleTokenForUser } from "@/lib/google-token";
 import { prisma } from "@/lib/prisma";
 import { backfillProperty } from "@/lib/backfill";
@@ -99,6 +104,19 @@ export async function POST(request: NextRequest) {
     if (existing.length > 0) {
       alreadyExists = true;
       linkInfo = existing[0];
+
+      // A link with no exportStreams exports nothing, silently. Older links
+      // were created that way, so repair them instead of leaving the user
+      // with a connection that never delivers data.
+      if (existing[0].exportStreams.length === 0) {
+        const streams = await listDataStreams(accessToken, propertyId);
+        if (streams.length > 0) {
+          await setBigQueryLinkStreams(accessToken, existing[0].name, streams);
+          console.log(
+            `[enable-bigquery-export] Repaired empty exportStreams on ${existing[0].name}`
+          );
+        }
+      }
     } else {
       // Create the BigQuery link
       const link = await createBigQueryLink(accessToken, propertyId, GCP_PROJECT_ID);
