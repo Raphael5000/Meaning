@@ -214,76 +214,63 @@ export async function runPropertyQuery(
 
   // Replace {dataset}.tableName with the correct dataset based on table type
   let usesDbtTable = false;
+  // The backticks around `{dataset}.table` are consumed here so that a dbt mart
+  // can expand into a scoped subquery rather than a bare table reference.
   const scopedSql = sql.replace(
-    /\{dataset\}\.(\w+)/g,
+    /`?\{dataset\}\.(\w+)`?/g,
     (_match, tableName: string) => {
       if (ADS_TABLES.has(tableName) && adsDataset) {
-        return `${adsDataset}.${tableName}`;
+        return `\`${adsDataset}.${tableName}\``;
       }
       if (MSADS_TABLES.has(tableName) && msAdsDataset) {
-        return `${msAdsDataset}.${MSADS_TABLES.get(tableName)}`;
+        return `\`${msAdsDataset}.${MSADS_TABLES.get(tableName)}\``;
       }
       if (LINKEDIN_TABLES.has(tableName) && linkedInDataset) {
-        return `${linkedInDataset}.${tableName}`;
+        return `\`${linkedInDataset}.${tableName}\``;
       }
       if (MAILCHIMP_TABLES.has(tableName) && mailchimpDataset) {
-        return `${mailchimpDataset}.${tableName}`;
+        return `\`${mailchimpDataset}.${tableName}\``;
       }
       if (GSC_TABLES.has(tableName) && gscDataset) {
-        return `${gscDataset}.${tableName}`;
+        return `\`${gscDataset}.${tableName}\``;
       }
       if (AHREFS_TABLES.has(tableName) && ahrefsDataset) {
-        return `${ahrefsDataset}.${AHREFS_TABLES.get(tableName)}`;
+        return `\`${ahrefsDataset}.${AHREFS_TABLES.get(tableName)}\``;
       }
       if (ATTIO_TABLES.has(tableName) && attioDataset) {
-        return `${attioDataset}.${ATTIO_TABLES.get(tableName)}`;
+        return `\`${attioDataset}.${ATTIO_TABLES.get(tableName)}\``;
       }
       if (HUBSPOT_TABLES.has(tableName) && hubspotDataset) {
-        return `${hubspotDataset}.${HUBSPOT_TABLES.get(tableName)}`;
+        return `\`${hubspotDataset}.${HUBSPOT_TABLES.get(tableName)}\``;
       }
       if (REDDIT_TABLES.has(tableName) && redditDataset) {
-        return `${redditDataset}.${REDDIT_TABLES.get(tableName)}`;
+        return `\`${redditDataset}.${REDDIT_TABLES.get(tableName)}\``;
       }
       if (DBT_SHARED_TABLES.has(tableName)) {
         // Shared reference tables — no property_id filter
-        return `${DBT_DATASET}.${tableName}`;
+        return `\`${DBT_DATASET}.${tableName}\``;
       }
       if (DBT_TABLES.has(tableName)) {
         usesDbtTable = true;
-        return `${DBT_DATASET}.${tableName}`;
+        // dbt marts hold every property, so each reference is scoped here.
+        // This used to be done by injecting `property_id = ...` after the first
+        // WHERE in the statement, which silently left every later CTE
+        // unfiltered — a two-CTE month-over-month chart compared one property
+        // against the sum of all of them.
+        return propertyId
+          ? `(SELECT * FROM \`${DBT_DATASET}.${tableName}\` WHERE property_id = @_propertyId)`
+          : `\`${DBT_DATASET}.${tableName}\``;
       }
-      return `${rawDataset}.${tableName}`;
+      return `\`${rawDataset}.${tableName}\``;
     }
   );
 
-  // Inject property_id filter for dbt tables (shared dataset contains all properties)
-  let filteredSql = scopedSql;
-  const filteredParams = params ? { ...params } : {};
+  const queryParams = params ? { ...params } : {};
   if (usesDbtTable && propertyId) {
-    filteredParams._propertyId = propertyId;
-    // If query has WHERE, append AND; otherwise inject WHERE before GROUP BY/ORDER BY/LIMIT
-    if (/\bWHERE\b/i.test(filteredSql)) {
-      // Insert property_id condition after the first WHERE
-      filteredSql = filteredSql.replace(
-        /\bWHERE\b/i,
-        "WHERE property_id = @_propertyId AND"
-      );
-    } else {
-      // No WHERE clause — inject before GROUP BY, ORDER BY, LIMIT, or at end
-      const insertPoint = filteredSql.search(/\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b/i);
-      if (insertPoint > 0) {
-        filteredSql =
-          filteredSql.slice(0, insertPoint) +
-          "WHERE property_id = @_propertyId " +
-          filteredSql.slice(insertPoint);
-      } else {
-        // Append at end (before any trailing semicolon)
-        filteredSql = filteredSql.replace(/;?\s*$/, " WHERE property_id = @_propertyId");
-      }
-    }
+    queryParams._propertyId = propertyId;
   }
 
-  return runQuery(filteredSql, Object.keys(filteredParams).length > 0 ? filteredParams : undefined);
+  return runQuery(scopedSql, Object.keys(queryParams).length > 0 ? queryParams : undefined);
 }
 
 // ---------------------------------------------------------------------------
