@@ -55,6 +55,7 @@ function startCronJobs() {
   setTimeout(() => callLocal("/api/attio/sync"), 210 * 1000);
   setTimeout(() => callLocal("/api/hubspot/sync"), 240 * 1000);
   setTimeout(() => callLocal("/api/reddit/sync"), 270 * 1000);
+  setTimeout(() => callLocal("/api/ga4/freshness"), 300 * 1000);
 
   // Exchange rates: sync on startup + daily (must run before data syncs)
   setTimeout(() => callLocal("/api/exchange-rates/sync"), 10 * 1000);
@@ -72,6 +73,14 @@ function startCronJobs() {
       callLocal("/api/attio/sync");
       callLocal("/api/hubspot/sync");
       callLocal("/api/reddit/sync");
+    }
+  }, 60 * 60 * 1000);
+
+  // GA4 export freshness at 09:00 UTC — GA4 has no sync of its own, so this is
+  // the only thing watching whether Google's daily export is still landing.
+  setInterval(() => {
+    if (new Date().getUTCHours() === 9) {
+      callLocal("/api/ga4/freshness");
     }
   }, 60 * 60 * 1000);
 
@@ -98,7 +107,7 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup)");
+  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup), ga4 freshness (09:00 UTC)");
 }
 
 // ---------------------------------------------------------------------------

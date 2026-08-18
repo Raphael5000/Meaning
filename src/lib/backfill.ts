@@ -104,10 +104,17 @@ export async function backfillProperty(
   // without waiting for the next scheduled dbt run.
   await mergeBackfillIntoMain(client, propertyId);
 
-  // Flip DataSource to ACTIVE (from BACKFILLING or PENDING)
+  // Record the successful backfill. The stamp lives here rather than only in
+  // the connect route so that any caller — a manual re-run, a gap repair —
+  // records freshness. Previously an already-ACTIVE source matched nothing
+  // here and kept a months-old lastSyncedAt despite a successful backfill.
   await prisma.dataSource.updateMany({
-    where: { propertyId, type: "GA4_BIGQUERY", status: { in: ["BACKFILLING", "PENDING"] } },
-    data: { status: "ACTIVE", lastSyncError: null },
+    where: {
+      propertyId,
+      type: "GA4_BIGQUERY",
+      status: { not: "DISCONNECTED" },
+    },
+    data: { status: "ACTIVE", lastSyncedAt: new Date(), lastSyncError: null },
   });
 
   console.log(`[backfill] Done: ${sessRows} sessions, ${tsRows} traffic_sources, ${pvRows} pageviews — status set to ACTIVE`);
