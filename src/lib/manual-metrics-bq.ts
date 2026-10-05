@@ -22,10 +22,9 @@ type Row = {
   metric: string;
   display_format: string;
   period: string;
-  month: string;
   value: number;
   note: string | null;
-  updated_at: string;
+  updated_at_ms: number;
 };
 
 const ROW_TYPES = {
@@ -35,10 +34,9 @@ const ROW_TYPES = {
   metric: "STRING",
   display_format: "STRING",
   period: "STRING",
-  month: "DATE",
   value: "FLOAT64",
   note: "STRING",
-  updated_at: "TIMESTAMP",
+  updated_at_ms: "INT64",
 };
 
 function client(): BigQuery {
@@ -60,10 +58,9 @@ async function readRows(): Promise<Row[]> {
     metric: e.metric.name,
     display_format: e.metric.displayFormat,
     period: e.period,
-    month: `${e.period}-01`,
     value: e.value,
     note: e.note,
-    updated_at: e.updatedAt.toISOString(),
+    updated_at_ms: e.updatedAt.getTime(),
   }));
 }
 
@@ -81,7 +78,15 @@ export async function syncManualMetricsToBigQuery(): Promise<number> {
     query: `CREATE OR REPLACE TABLE \`${project}.${DATASET}.${TABLE}\`
       PARTITION BY DATE_TRUNC(month, MONTH)
       OPTIONS (description = "Mirror of Meaning's manual metric entries. Replaced whole on every sync; edit in Meaning, never here.")
-      AS SELECT r.*, CURRENT_TIMESTAMP() AS synced_at FROM UNNEST(@rows) AS r`,
+      AS SELECT
+        r.org_id, r.org_name, r.metric_id, r.metric, r.display_format, r.period,
+        -- Dates are built here, not passed in: the client sends DATE and
+        -- TIMESTAMP strings inside a STRUCT parameter as NULL.
+        PARSE_DATE('%Y-%m', r.period) AS month,
+        r.value, r.note,
+        TIMESTAMP_MILLIS(r.updated_at_ms) AS updated_at,
+        CURRENT_TIMESTAMP() AS synced_at
+      FROM UNNEST(@rows) AS r`,
     params: { rows },
     types: { rows: [ROW_TYPES] },
     location: LOCATION,
