@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { queueManualMetricsSync } from "@/lib/manual-metrics-bq";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,7 @@ export async function POST(
     });
   }
 
+  queueManualMetricsSync();
   return NextResponse.json(entry, { status: 201 });
 }
 
@@ -143,5 +145,6 @@ export async function DELETE(
     },
   });
 
+  queueManualMetricsSync();
   return NextResponse.json({ success: true });
 }

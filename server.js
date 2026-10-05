@@ -84,6 +84,14 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
+  // Manual metrics → BigQuery at 07:00 UTC. Every save already syncs; this is
+  // the backstop if a save-time sync failed.
+  setInterval(() => {
+    if (new Date().getUTCHours() === 7) {
+      callLocal("/api/manual-metrics/sync");
+    }
+  }, 60 * 60 * 1000);
+
   // Daily dedup at 08:00 UTC — cleans any duplicates from concurrent syncs
   setInterval(() => {
     if (new Date().getUTCHours() === 8) {
@@ -107,7 +115,7 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup), ga4 freshness (09:00 UTC)");
+  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup), ga4 freshness (09:00 UTC), manual metrics (07:00 UTC)");
 }
 
 // ---------------------------------------------------------------------------

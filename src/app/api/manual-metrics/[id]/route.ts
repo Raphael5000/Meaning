@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { queueManualMetricsSync } from "@/lib/manual-metrics-bq";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export async function PUT(
     },
   });
 
+  queueManualMetricsSync();
   return NextResponse.json(metric);
 }
 
@@ -85,5 +87,6 @@ export async function DELETE(
 
   await prisma.manualMetric.delete({ where: { id } });
 
+  queueManualMetricsSync();
   return NextResponse.json({ success: true });
 }
