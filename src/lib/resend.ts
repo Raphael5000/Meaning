@@ -21,11 +21,22 @@ const ALERT_SENDER_EMAIL =
   process.env.RESEND_FROM_EMAIL?.replace(/^[^<]*</, "Alerts @ Meaning <") ||
   "Alerts @ Meaning <onboarding@resend.dev>";
 
+/**
+ * Every alert email is off (Matt, 16 Nov 2026): metric alerts, sync failure
+ * emails and the Ahrefs quota email log and send nothing. Contact, team invite
+ * and bug report emails are not alerts and still go.
+ */
+const ALERTS_OFF = true;
+
 export async function sendAlertEmail(
   to: string[],
   subject: string,
   html: string
 ): Promise<{ id: string }> {
+  if (ALERTS_OFF) {
+    console.log(`[alerts] off: not sent "${subject}" to ${to.length} recipient(s)`);
+    return { id: "alerts-off" };
+  }
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
@@ -61,6 +72,10 @@ export async function sendSyncFailureEmail({
   totalCount: number;
   errors: Array<{ propertyId: string; error: string }>;
 }): Promise<void> {
+  if (ALERTS_OFF) {
+    console.log(`[alerts] off: no sync failure email for ${connectorType} (${failedCount}/${totalCount} failed)`);
+    return;
+  }
   const adminEmail = process.env.ADMIN_ALERT_EMAIL;
   if (!adminEmail) return; // silently skip if not configured
 
@@ -123,6 +138,10 @@ export async function sendAhrefsQuotaEmail({
   resetDate: string | null;
   blocked: boolean;
 }): Promise<void> {
+  if (ALERTS_OFF) {
+    console.log(`[alerts] off: no Ahrefs quota email (${pct}% used)`);
+    return;
+  }
   const adminEmail = process.env.ADMIN_ALERT_EMAIL;
   if (!adminEmail) return; // silently skip if not configured
 

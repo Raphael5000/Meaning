@@ -40,8 +40,7 @@ function callLocal(path, method = "POST") {
 }
 
 function startCronJobs() {
-  // Alerts: check every hour
-  setInterval(() => callLocal("/api/alerts/send"), 60 * 60 * 1000);
+  // Alerts are off (16 Nov 2026): the hourly alert check no longer runs.
 
   // ── Data syncs: run on startup (staggered), then daily at 06:00 UTC ──
   // Each sync now has a 16-day window and 1 retry built in.
@@ -112,7 +111,7 @@ function startCronJobs() {
     }
   }, 60 * 60 * 1000);
 
-  console.log("[cron] Scheduled: alerts (hourly), all syncs (daily 06:00 + retry 12:00 UTC + startup), ga4 freshness (09:00 UTC), manual metrics (07:00 UTC)");
+  console.log("[cron] Scheduled: all syncs (daily 06:00 + retry 12:00 UTC + startup), ga4 freshness (09:00 UTC), manual metrics (07:00 UTC)");
 }
 
 // ---------------------------------------------------------------------------
