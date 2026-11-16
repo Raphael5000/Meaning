@@ -110,7 +110,6 @@ const SOURCES: SourceDef[] = [
   { type: "LINKEDIN", label: "LinkedIn", icon: "/Linkedin.svg" },
   { type: "MAILCHIMP", label: "Mailchimp", icon: "/Mailchimp.svg" },
   { type: "MICROSOFT_ADS", label: "Microsoft Ads", icon: "/Microsoft Ads.svg" },
-  { type: "AHREFS", label: "Ahrefs", icon: "/Ahrefs.svg" },
   { type: "ATTIO", label: "Attio", icon: "/Attio.svg" },
   { type: "HUBSPOT", label: "HubSpot", icon: "/HubSpot.svg" },
   { type: "REDDIT", label: "Reddit", icon: "/Reddit.svg" },
